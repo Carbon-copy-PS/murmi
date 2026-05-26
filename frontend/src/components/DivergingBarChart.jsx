@@ -5,7 +5,7 @@ function truncate(text, max) {
 export default function DivergingBarChart({ statements, justVotedId, onAnimationDone }) {
   return (
     <div className="bar-chart">
-      {statements.map((stmt) => {
+      {[...statements].reverse().map((stmt) => {
         const max = Math.max(stmt.agrees, stmt.disagrees, 1)
         const agreeWidth = (stmt.agrees / max) * 50
         const disagreeWidth = (stmt.disagrees / max) * 50

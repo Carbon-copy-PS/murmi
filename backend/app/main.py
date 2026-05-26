@@ -179,9 +179,9 @@ async def run_analysis(session_id: str):
             return
 
         sessions.add_statements(session_id, new_texts)
+        completed_round = sessions.check_and_advance_round(session_id)
         await sessions.broadcast_statements(session_id)
 
-        completed_round = sessions.check_and_advance_round(session_id)
         if completed_round is not None:
             await sessions.broadcast(session_id, {
                 "type": "threshold_reached",
