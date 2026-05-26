@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
+import ResultsPanel from './ResultsPanel'
 import { requestPermission, notify } from '../notifications'
 
 export default function DebateRoom({ sessionId, userName, onLeave }) {
@@ -196,12 +197,18 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
           className={`tab ${view === 'statements' ? 'active' : ''}`}
           onClick={() => setView('statements')}
         >
-          Statements
+          Vote
           {unvotedCount > 0 && <span className="badge">{unvotedCount}</span>}
+        </button>
+        <button
+          className={`tab ${view === 'results' ? 'active' : ''}`}
+          onClick={() => setView('results')}
+        >
+          Results
         </button>
       </div>
 
-      {view === 'record' ? (
+      {view === 'record' && (
         <>
           <button
             className={`record-btn ${recording ? 'active' : ''}`}
@@ -224,8 +231,12 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
             <span className="progress-label">{currentRoundCount} / {threshold} statements</span>
           </div>
         </>
-      ) : (
+      )}
+      {view === 'statements' && (
         <StatementsPanel statements={statements} onVote={handleVote} />
+      )}
+      {view === 'results' && (
+        <ResultsPanel statements={statements} />
       )}
     </div>
   )

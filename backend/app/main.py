@@ -107,6 +107,52 @@ async def mock_transcript(session_id: str):
     }
 
 
+auto_play_tasks: dict[str, asyncio.Task] = {}
+
+
+async def auto_play(session_id: str):
+    idx = mock_index.get(session_id, 0)
+    while idx < len(MOCK_DEBATE):
+        session = sessions.get(session_id)
+        if not session:
+            break
+        speaker, text = MOCK_DEBATE[idx]
+        entry = {
+            "type": "transcript",
+            "text": text,
+            "speaker": speaker,
+            "timestamp": time.time(),
+        }
+        should_analyze = sessions.add_transcript_entry(session_id, entry)
+        await sessions.broadcast(session_id, entry)
+        idx += 1
+        mock_index[session_id] = idx
+
+        if should_analyze:
+            sessions.mark_analysis_started(session_id)
+            asyncio.create_task(run_analysis(session_id))
+
+        await asyncio.sleep(2)
+
+    auto_play_tasks.pop(session_id, None)
+
+
+@app.post("/api/sessions/{session_id}/mock/auto")
+async def mock_auto_play(session_id: str):
+    session_id = session_id.upper()
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session_id in auto_play_tasks and not auto_play_tasks[session_id].done():
+        return {"status": "already_running"}
+
+    task = asyncio.create_task(auto_play(session_id))
+    auto_play_tasks[session_id] = task
+    remaining = len(MOCK_DEBATE) - mock_index.get(session_id, 0)
+    return {"status": "started", "entries": remaining}
+
+
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str):
     session = sessions.get(session_id.upper())
