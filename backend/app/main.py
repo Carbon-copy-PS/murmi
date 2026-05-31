@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import time
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -16,6 +17,7 @@ from typing import Optional
 from .session import SessionManager
 from .transcription import TranscriptionService
 from .analysis import AnalysisService
+from .realtime_transcription import RealtimeTranscriptionSession
 
 load_dotenv()
 
@@ -33,6 +35,38 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "di
 sessions = SessionManager()
 transcription = TranscriptionService()
 analysis = AnalysisService()
+realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
+realtime_unavailable: set[tuple[str, str]] = set()
+realtime_errors_seen: set[tuple[str, str]] = set()
+turn_analysis_tasks: dict[tuple[str, str], asyncio.Task] = {}
+TRANSCRIPT_MERGE_WINDOW_SECONDS = 12
+SPEAKER_TURN_IDLE_SECONDS = 3
+PARTICIPANT_LANGUAGES = {"en", "de", "fr"}
+FILLER_TRANSCRIPTS = {
+    "uh",
+    "um",
+    "äh",
+    "ähm",
+    "eh",
+    "euh",
+    "hmm",
+    "mm",
+    "okay",
+    "ok",
+    "yeah",
+    "yes",
+    "no",
+}
+GENERIC_ASR_HALLUCINATION_MARKERS = (
+    "ladies and gentlemen",
+    "as we gather here today",
+    "future of our community",
+    "fundamental values that bind us together",
+    "pursuit of happiness",
+    "thank you for watching",
+    "don't forget to subscribe",
+    "like and subscribe",
+)
 
 
 class CreateSessionRequest(BaseModel):
@@ -193,6 +227,222 @@ async def run_analysis(session_id: str):
         sessions.mark_analysis_done(session_id)
 
 
+async def run_turn_analysis(session_id: str, entry_id: str):
+    await asyncio.sleep(SPEAKER_TURN_IDLE_SECONDS)
+
+    session = sessions.get(session_id)
+    if not session:
+        return
+    entry = next((e for e in session.transcript if e.get("id") == entry_id), None)
+    if not entry or entry.get("argumentAnalyzed"):
+        return
+    if time.time() - entry.get("updatedAt", entry.get("timestamp", 0)) < SPEAKER_TURN_IDLE_SECONDS:
+        schedule_turn_analysis(session_id, entry)
+        return
+
+    entry["argumentAnalyzed"] = True
+    new_texts = await analysis.extract_turn_statement(
+        turn_entry=entry,
+        existing_statements=[s.text for s in session.statements],
+        topic=session.topic,
+    )
+    if not new_texts:
+        return
+
+    sessions.add_statements(session_id, new_texts)
+    completed_round = sessions.check_and_advance_round(session_id)
+    await sessions.broadcast_statements(session_id)
+
+    if completed_round is not None:
+        await sessions.broadcast(session_id, {
+            "type": "threshold_reached",
+            "round": completed_round,
+        })
+
+
+def schedule_turn_analysis(session_id: str, entry: dict):
+    entry_id = entry.get("id")
+    if not entry_id:
+        return
+
+    key = (session_id, entry_id)
+    existing = turn_analysis_tasks.pop(key, None)
+    if existing and not existing.done():
+        existing.cancel()
+    turn_analysis_tasks[key] = asyncio.create_task(run_turn_analysis(session_id, entry_id))
+
+
+def normalize_language(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+    language = value.strip().lower()
+    return language if language in PARTICIPANT_LANGUAGES else None
+
+
+def should_merge_transcript(last_entry: dict | None, speaker: str, now: float) -> bool:
+    if not last_entry or last_entry.get("speaker") != speaker:
+        return False
+    last_updated = last_entry.get("updatedAt", last_entry.get("timestamp", 0))
+    return now - last_updated <= TRANSCRIPT_MERGE_WINDOW_SECONDS
+
+
+def merge_transcript_text(existing: str, addition: str) -> str:
+    existing = existing.rstrip()
+    addition = addition.lstrip()
+    if not existing:
+        return addition
+    if existing.endswith("-"):
+        return f"{existing[:-1]}{addition}"
+    return f"{existing} {addition}"
+
+
+def is_low_information_transcript(text: str) -> bool:
+    normalized = " ".join(text.strip().lower().split())
+    if not normalized:
+        return True
+    stripped = normalized.strip(".,!?;:…-—()[]\"'")
+    if stripped in FILLER_TRANSCRIPTS:
+        return True
+    if any(marker in stripped for marker in GENERIC_ASR_HALLUCINATION_MARKERS):
+        return True
+    words = [w for w in stripped.replace("'", " ").split() if w]
+    return len(words) == 1 and len(stripped) <= 2
+
+
+async def add_transcript_text(
+    session_id: str,
+    text: str,
+    speaker: str,
+    item_id: str | None = None,
+) -> bool:
+    text = text.strip()
+    if is_low_information_transcript(text):
+        return False
+    now = time.time()
+    session = sessions.get(session_id)
+    if not session:
+        return False
+
+    last_entry = session.transcript[-1] if session.transcript else None
+    if should_merge_transcript(last_entry, speaker, now):
+        last_entry["text"] = merge_transcript_text(last_entry.get("text", ""), text)
+        last_entry["updatedAt"] = now
+        last_entry["argumentAnalyzed"] = False
+        last_entry.setdefault("itemIds", [])
+        if item_id:
+            last_entry["itemIds"].append(item_id)
+
+        await sessions.broadcast(session_id, {
+            "type": "transcript_update",
+            "entry": last_entry,
+        })
+        schedule_turn_analysis(session_id, last_entry)
+        return True
+
+    entry = {
+        "type": "transcript",
+        "id": uuid.uuid4().hex[:10],
+        "text": text,
+        "speaker": speaker,
+        "timestamp": now,
+        "updatedAt": now,
+        "argumentAnalyzed": False,
+    }
+    if item_id:
+        entry["itemId"] = item_id
+        entry["itemIds"] = [item_id]
+
+    sessions.add_transcript_entry(session_id, entry)
+    await sessions.broadcast(session_id, entry)
+    schedule_turn_analysis(session_id, entry)
+    return True
+
+
+async def broadcast_caption_delta(session_id: str, speaker: str, item_id: str, delta: str):
+    await sessions.broadcast(session_id, {
+        "type": "caption_delta",
+        "speaker": speaker,
+        "itemId": item_id,
+        "delta": delta,
+        "timestamp": time.time(),
+    })
+
+
+async def finalize_caption(
+    session_id: str,
+    speaker: str,
+    item_id: str,
+    transcript_text: str,
+    audio_bytes: Optional[bytes] = None,
+):
+    final_text = transcript_text
+    corrected_text = await transcription.transcribe_pcm16(audio_bytes or b"")
+    if corrected_text and not is_low_information_transcript(corrected_text):
+        final_text = corrected_text
+
+    added = await add_transcript_text(session_id, final_text, speaker, item_id=item_id)
+    if not added:
+        await sessions.broadcast(session_id, {
+            "type": "caption_rejected",
+            "itemId": item_id,
+        })
+
+
+async def broadcast_caption_error(session_id: str, message: str):
+    key = (session_id, message)
+    if key in realtime_errors_seen:
+        return
+    realtime_errors_seen.add(key)
+    await sessions.broadcast(session_id, {
+        "type": "caption_error",
+        "message": message,
+    })
+
+
+async def get_realtime_session(
+    session_id: str,
+    participant_id: str,
+) -> RealtimeTranscriptionSession | None:
+    key = (session_id, participant_id)
+    if key in realtime_unavailable:
+        return None
+
+    existing = realtime_sessions.get(key)
+    if existing and existing.is_open:
+        return existing
+
+    speaker = sessions.get_participant_name(session_id, participant_id)
+    language = sessions.get_participant_language(session_id, participant_id)
+    bridge = RealtimeTranscriptionSession(
+        session_id=session_id,
+        participant_id=participant_id,
+        speaker=speaker,
+        language=language,
+        on_delta=broadcast_caption_delta,
+        on_final=finalize_caption,
+        on_error=broadcast_caption_error,
+    )
+    realtime_sessions[key] = bridge
+
+    if await bridge.start():
+        return bridge
+
+    realtime_sessions.pop(key, None)
+    realtime_unavailable.add(key)
+    return None
+
+
+async def close_realtime_sessions(session_id: str, participant_id: str | None = None):
+    keys = [
+        key for key in realtime_sessions
+        if key[0] == session_id and (participant_id is None or key[1] == participant_id)
+    ]
+    for key in keys:
+        bridge = realtime_sessions.pop(key, None)
+        if bridge:
+            await bridge.close()
+
+
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await websocket.accept()
@@ -204,7 +454,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         return
 
     name = init.get("name", "Anonymous")
-    participant_id = await sessions.join(session_id, websocket, name)
+    language = normalize_language(init.get("language"))
+    wants_host = bool(init.get("wantsHost"))
+    participant_id = await sessions.join(session_id, websocket, name, language, wants_host=wants_host)
 
     try:
         while True:
@@ -212,6 +464,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             msg_type = data.get("type")
 
             if msg_type == "audio_level":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
                 new_active = sessions.update_level(
                     session_id, participant_id, data.get("level", 0)
                 )
@@ -226,27 +480,40 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if not session or not session.recording:
                     continue
-                if not sessions.is_active_mic(session_id, participant_id):
+                if not sessions.is_host(session_id, participant_id):
                     continue
 
                 audio_bytes = base64.b64decode(data["audio"])
                 text = await transcription.transcribe(audio_bytes)
                 if text:
-                    entry = {
-                        "type": "transcript",
-                        "text": text,
-                        "speaker": sessions.get_participant_name(session_id, participant_id),
-                        "timestamp": time.time(),
-                    }
-                    should_analyze = sessions.add_transcript_entry(session_id, entry)
-                    await sessions.broadcast(session_id, entry)
+                    await add_transcript_text(
+                        session_id,
+                        text,
+                        sessions.get_participant_name(session_id, participant_id),
+                    )
 
-                    if should_analyze:
-                        sessions.mark_analysis_started(session_id)
-                        asyncio.create_task(run_analysis(session_id))
+            elif msg_type == "audio_frame":
+                session = sessions.get(session_id)
+                if not session or not session.recording:
+                    continue
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+
+                audio = data.get("audio")
+                if not isinstance(audio, str):
+                    continue
+
+                bridge = await get_realtime_session(session_id, participant_id)
+                if bridge:
+                    await bridge.send_audio(audio)
 
             elif msg_type == "set_recording":
-                await sessions.set_recording(session_id, data.get("recording", False))
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                recording = data.get("recording", False)
+                await sessions.set_recording(session_id, recording)
+                if not recording:
+                    await close_realtime_sessions(session_id)
 
             elif msg_type == "vote":
                 ok = sessions.record_vote(
@@ -259,18 +526,32 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         name = sessions.get_participant_name(session_id, participant_id)
-        sessions.leave(session_id, participant_id)
+        await close_realtime_sessions(session_id, participant_id)
+        leave_result = sessions.leave(session_id, participant_id)
         session = sessions.get(session_id)
         if session:
             await sessions.broadcast(session_id, {
                 "type": "participant_left",
                 "participantId": participant_id,
                 "name": name,
+                "hostParticipantId": session.host_participant_id,
                 "participants": [
-                    {"id": p.id, "name": p.name}
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "language": p.language,
+                        "isHost": p.id == session.host_participant_id,
+                    }
                     for p in session.participants.values()
                 ],
             })
+            if leave_result.get("recording_stopped"):
+                await sessions.broadcast(session_id, {"type": "recording_stopped"})
+            if leave_result.get("host_changed"):
+                await sessions.broadcast(session_id, {
+                    "type": "host_updated",
+                    "hostParticipantId": session.host_participant_id,
+                })
 
 
 if FRONTEND_DIST.is_dir():

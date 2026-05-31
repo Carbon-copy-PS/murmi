@@ -13,6 +13,7 @@ class Participant:
     id: str
     name: str
     websocket: WebSocket
+    language: Optional[str] = None
     audio_level: float = 0.0
     last_level_update: float = 0.0
 
@@ -31,6 +32,7 @@ class Session:
     topic: Optional[str] = None
     participants: Dict[str, Participant] = field(default_factory=dict)
     transcript: list = field(default_factory=list)
+    host_participant_id: Optional[str] = None
     active_mic_id: Optional[str] = None
     recording: bool = False
     statements: list[Statement] = field(default_factory=list)
@@ -60,19 +62,36 @@ class SessionManager:
     def exists(self, session_id: str) -> bool:
         return session_id in self.sessions
 
-    async def join(self, session_id: str, websocket: WebSocket, name: str) -> str:
+    async def join(
+        self,
+        session_id: str,
+        websocket: WebSocket,
+        name: str,
+        language: str | None = None,
+        wants_host: bool = False,
+    ) -> str:
         if session_id not in self.sessions:
             self.sessions[session_id] = Session(id=session_id)
 
         participant_id = uuid.uuid4().hex[:8]
-        participant = Participant(id=participant_id, name=name, websocket=websocket)
+        participant = Participant(
+            id=participant_id,
+            name=name,
+            websocket=websocket,
+            language=language,
+        )
         session = self.sessions[session_id]
         session.participants[participant_id] = participant
+        if session.host_participant_id not in session.participants or session.host_participant_id is None:
+            session.host_participant_id = participant_id
+            session.active_mic_id = participant_id
 
         await websocket.send_json({
             "type": "joined",
             "participantId": participant_id,
             "sessionId": session_id,
+            "isHost": participant_id == session.host_participant_id,
+            "hostParticipantId": session.host_participant_id,
             "recording": session.recording,
             "participants": self._participant_list(session),
             "transcript": session.transcript,
@@ -86,6 +105,7 @@ class SessionManager:
             "type": "participant_joined",
             "participantId": participant_id,
             "name": name,
+            "hostParticipantId": session.host_participant_id,
             "participants": self._participant_list(session),
         }, exclude=participant_id)
 
@@ -97,6 +117,8 @@ class SessionManager:
             return
         participant = session.participants.get(participant_id)
         if not participant:
+            return
+        if not self.is_host(session_id, participant_id):
             return
 
         participant.audio_level = level
@@ -117,14 +139,25 @@ class SessionManager:
         return None
 
     def is_active_mic(self, session_id: str, participant_id: str) -> bool:
+        return self.is_host(session_id, participant_id)
+
+    def is_host(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
-        return session is not None and session.active_mic_id == participant_id
+        return session is not None and session.host_participant_id == participant_id
+
+    def get_host_id(self, session_id: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        return session.host_participant_id
 
     async def set_recording(self, session_id: str, recording: bool):
         session = self.sessions.get(session_id)
         if not session or session.recording == recording:
             return
         session.recording = recording
+        if recording:
+            session.active_mic_id = session.host_participant_id
         msg_type = "recording_started" if recording else "recording_stopped"
         await self.broadcast(session_id, {"type": msg_type})
 
@@ -133,6 +166,12 @@ class SessionManager:
         if not session:
             return False
         session.transcript.append(entry)
+        return self.note_transcript_activity(session_id)
+
+    def note_transcript_activity(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
         session.transcript_since_last_analysis += 1
         return session.transcript_since_last_analysis >= ANALYSIS_BATCH_SIZE and not session.analysis_in_progress
 
@@ -274,14 +313,32 @@ class SessionManager:
         for pid in disconnected:
             del session.participants[pid]
 
-    def leave(self, session_id: str, participant_id: str):
+    def leave(self, session_id: str, participant_id: str) -> dict:
+        result = {
+            "session_removed": False,
+            "host_changed": False,
+            "hostParticipantId": None,
+            "recording_stopped": False,
+        }
         session = self.sessions.get(session_id)
         if not session:
-            return
+            return result
+        was_host = session.host_participant_id == participant_id
         if participant_id in session.participants:
             del session.participants[participant_id]
         if not session.participants:
             del self.sessions[session_id]
+            result["session_removed"] = True
+            return result
+        if was_host:
+            session.host_participant_id = next(iter(session.participants))
+            session.active_mic_id = session.host_participant_id
+            result["host_changed"] = True
+            if session.recording:
+                session.recording = False
+                result["recording_stopped"] = True
+        result["hostParticipantId"] = session.host_participant_id
+        return result
 
     def get_participant_name(self, session_id: str, participant_id: str) -> str:
         session = self.sessions.get(session_id)
@@ -289,8 +346,19 @@ class SessionManager:
             return session.participants[participant_id].name
         return "Unknown"
 
+    def get_participant_language(self, session_id: str, participant_id: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if session and participant_id in session.participants:
+            return session.participants[participant_id].language
+        return None
+
     def _participant_list(self, session: Session) -> list:
         return [
-            {"id": p.id, "name": p.name}
+            {
+                "id": p.id,
+                "name": p.name,
+                "language": p.language,
+                "isHost": p.id == session.host_participant_id,
+            }
             for p in session.participants.values()
         ]

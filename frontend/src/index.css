@@ -27,15 +27,18 @@ body {
   margin-bottom: 1rem;
 }
 
-input {
+input,
+select {
   padding: 0.7rem 1rem;
   border: 1.5px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
   outline: none;
+  background: white;
 }
 
-input:focus { border-color: #111; }
+input:focus,
+select:focus { border-color: #111; }
 
 .btn {
   padding: 0.7rem;
@@ -170,6 +173,38 @@ input:focus { border-color: #111; }
   line-height: 1.5;
 }
 
+.entry.partial {
+  color: #444;
+}
+
+.entry.partial p {
+  font-style: italic;
+}
+
+.live-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0a7a55;
+  text-transform: uppercase;
+}
+
+.live-dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0a7a55;
+}
+
+.caption-error {
+  margin-top: 0.75rem;
+  color: #b00020;
+  font-size: 0.85rem;
+}
+
 /* Topic */
 .topic-label {
   display: block;
@@ -254,6 +289,13 @@ input:focus { border-color: #111; }
   overflow-y: auto;
 }
 
+.statement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
 /* Flash card */
 .flash-card {
   padding: 1.5rem;
@@ -265,6 +307,10 @@ input:focus { border-color: #111; }
 
 .flash-card.enter { animation: slideIn 0.3s ease-out; }
 .flash-card.exit { animation: slideOut 0.3s ease-in forwards; }
+
+.statement-card {
+  margin-bottom: 0;
+}
 
 @keyframes slideIn {
   from { opacity: 0; transform: translateX(40px); }

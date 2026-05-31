@@ -13,17 +13,47 @@ The result is a real-time, structured picture of where the group stands — not 
 ## How It Works
 
 1. **One person creates a session** (optionally with a debate topic), others join via a 6-character code
-2. **Recording starts** — all devices act as microphones, the strongest signal is automatically selected for transcription
-3. **AI extracts claims** from the transcript as the debate progresses
-4. **A progress bar** shows how many claims have been found so far
-5. **At 5 claims**, the app switches to a voting screen where everyone votes agree/disagree
-6. **The cycle repeats** — new claims accumulate toward the next voting round, while earlier claims remain votable
+2. **The session creator acts as the host recorder** — only that browser opens the microphone and streams audio
+3. **Other participants listen, read captions, and vote** without sending microphone audio
+4. **AI extracts claims** from completed speaker turns as the debate progresses
+5. **A progress bar** shows how many claims have been found so far
+6. **At 5 claims**, the app switches to a voting screen where everyone votes agree/disagree
+7. **The cycle repeats** — new claims accumulate toward the next voting round, while earlier claims remain votable
+
+## Transcription Architecture
+
+The current transcription flow is intentionally built around **one microphone per session**.
+
+Earlier versions treated every joined device as a possible microphone and selected the loudest participant for transcription. That looked useful for a group setting, but it created several quality problems:
+
+- Multiple nearby devices captured the same room audio with different delay, echo, gain, and noise profiles.
+- Automatic "loudest mic" switching could fragment a single thought across devices.
+- Short, low-context audio chunks made the speech model more likely to hallucinate plausible-looking text.
+- Multilingual speech was especially unstable when the model had too little continuous context.
+- Captions could lag because the system was trying to smooth partial fragments from several possible sources.
+
+The new design makes the session creator the **host recorder**. The backend stores the host participant id and ignores recording controls or audio frames from non-host participants. This gives the transcription model one continuous audio stream with predictable browser audio constraints:
+
+- mono input
+- echo cancellation
+- noise suppression
+- automatic gain control
+- 24 kHz PCM frames for realtime captions
+
+Realtime transcription is used for live captions, but the app does not treat every partial caption as final truth. Audio for each completed speech item is buffered on the backend and sent through a final transcription pass before it is added to the transcript and used for claim extraction. The final pass is slower than partial captions, but it gives the AI more context and reduces fabricated transcript blocks.
+
+The tradeoff is explicit:
+
+- **Live captions** should feel immediate, but may still be imperfect while someone is speaking.
+- **Final transcript entries and voting statements** should prioritize accuracy and continuity over instant display.
+
+This is closer to how native transcription systems behave: they show tentative text quickly, then revise or finalize it after the utterance boundary is clear.
 
 ## Requirements
 
 - **Python 3.10+**
 - **Node.js 18+**
-- **OpenAI API key** — used for speech-to-text (Whisper) and claim extraction (GPT-4o-mini). Set it in the `.env` file.
+- **OpenAI API key** — used for realtime transcription, final transcription, and claim extraction. Set it in the `.env` file.
 
 ## Getting Started
 
@@ -54,9 +84,10 @@ This is an early prototype built during a single session. It works end-to-end bu
 
 ### What works
 - Multi-device session joining via code
-- Live audio capture with automatic strongest-signal selection
-- Real-time transcription via OpenAI Whisper
-- AI-powered claim extraction from transcript
+- Host-only live audio capture
+- Realtime captions with final transcription correction
+- Per-speaker language preference for English, German/Swiss German, French, or auto-detect
+- AI-powered claim extraction from completed speaker turns
 - Anonymous agree/disagree voting with live tallies
 - Voting rounds with automatic cycling
 - Progress bar showing claim accumulation
@@ -66,8 +97,8 @@ This is an early prototype built during a single session. It works end-to-end bu
 ### To-do
 - [ ] Persist sessions to a database (currently in-memory — lost on restart)
 - [ ] Add a summary/results view after voting rounds
-- [ ] Speaker diarization (who said what, beyond mic selection)
-- [ ] Support for multiple languages in the same session
+- [ ] Speaker diarization when a shared room microphone is used
+- [ ] Better microphone setup guidance for host devices
 - [ ] HTTPS for production deployment (required for mic access on mobile)
 - [ ] User authentication / session access control
 - [ ] Export transcript and voting results

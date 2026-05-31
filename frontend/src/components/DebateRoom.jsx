@@ -1,14 +1,67 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
 import { requestPermission, notify } from '../notifications'
 
-export default function DebateRoom({ sessionId, userName, onLeave }) {
+const REALTIME_SAMPLE_RATE = 24000
+const AUDIO_BUFFER_SIZE = 4096
+const SPEECH_RMS_THRESHOLD = 0.008
+const TRAILING_SILENCE_FRAMES = 7
+
+function resampleBuffer(buffer, inputRate, outputRate) {
+  if (inputRate === outputRate) return buffer
+
+  const outputLength = Math.round(buffer.length * outputRate / inputRate)
+  const output = new Float32Array(outputLength)
+
+  for (let i = 0; i < outputLength; i++) {
+    const sourceIndex = i * inputRate / outputRate
+    const before = Math.floor(sourceIndex)
+    const after = Math.min(before + 1, buffer.length - 1)
+    const weight = sourceIndex - before
+    output[i] = buffer[before] * (1 - weight) + buffer[after] * weight
+  }
+
+  return output
+}
+
+function encodePcm16(samples) {
+  const buffer = new ArrayBuffer(samples.length * 2)
+  const view = new DataView(buffer)
+
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true)
+  }
+
+  return buffer
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    const chunk = bytes.subarray(i, i + 0x8000)
+    binary += String.fromCharCode(...chunk)
+  }
+  return btoa(binary)
+}
+
+function rmsLevel(samples) {
+  if (!samples.length) return 0
+  let sum = 0
+  for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i]
+  return Math.sqrt(sum / samples.length)
+}
+
+export default function DebateRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
   const [connected, setConnected] = useState(false)
   const [transcript, setTranscript] = useState([])
+  const [partialCaption, setPartialCaption] = useState(null)
+  const [captionError, setCaptionError] = useState('')
   const [recording, setRecording] = useState(false)
-  const [participantId, setParticipantId] = useState(null)
+  const [isHost, setIsHost] = useState(false)
   const [view, setView] = useState('record')
   const [statements, setStatements] = useState([])
   const [currentRoundCount, setCurrentRoundCount] = useState(0)
@@ -17,47 +70,14 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
 
   const wsRef = useRef(null)
   const streamRef = useRef(null)
+  const audioContextRef = useRef(null)
   const recordingRef = useRef(false)
-  const activeMicRef = useRef(null)
   const participantIdRef = useRef(null)
+  const isHostRef = useRef(false)
+  const silenceFramesRef = useRef(0)
+  const speechStartedRef = useRef(false)
 
   const unvotedCount = statements.filter((s) => !s.hasVoted).length
-
-  const recordChunk = useCallback(() => {
-    if (!recordingRef.current || !streamRef.current) return
-
-    let mimeType = 'audio/webm;codecs=opus'
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
-    }
-
-    const recorder = new MediaRecorder(streamRef.current, { mimeType })
-    const chunks = []
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data)
-    }
-
-    recorder.onstop = () => {
-      if (activeMicRef.current === participantIdRef.current && chunks.length > 0) {
-        const blob = new Blob(chunks, { type: mimeType })
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1]
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'audio_chunk', audio: base64 }))
-          }
-        }
-        reader.readAsDataURL(blob)
-      }
-      if (recordingRef.current) recordChunk()
-    }
-
-    recorder.start()
-    setTimeout(() => {
-      if (recorder.state === 'recording') recorder.stop()
-    }, 5000)
-  }, [])
 
   useEffect(() => { requestPermission() }, [])
 
@@ -68,7 +88,12 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
 
     ws.onopen = () => {
       setConnected(true)
-      ws.send(JSON.stringify({ type: 'join', name: userName }))
+      ws.send(JSON.stringify({
+        type: 'join',
+        name: userName,
+        language: userLanguage,
+        wantsHost: Boolean(wantsHost),
+      }))
     }
     ws.onclose = () => setConnected(false)
 
@@ -76,8 +101,9 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
       const msg = JSON.parse(event.data)
       switch (msg.type) {
         case 'joined':
-          setParticipantId(msg.participantId)
           participantIdRef.current = msg.participantId
+          setIsHost(Boolean(msg.isHost))
+          isHostRef.current = Boolean(msg.isHost)
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setCurrentRoundCount(msg.currentRoundCount || 0)
@@ -86,25 +112,75 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
           if (msg.recording) {
             setRecording(true)
             recordingRef.current = true
-            recordChunk()
           }
           break
         case 'active_mic':
-          activeMicRef.current = msg.participantId
+          break
+        case 'host_updated': {
+          const nextIsHost = msg.hostParticipantId === participantIdRef.current
+          setIsHost(nextIsHost)
+          isHostRef.current = nextIsHost
+          break
+        }
+        case 'participant_joined':
+        case 'participant_left':
+          if (msg.hostParticipantId) {
+            const nextIsHost = msg.hostParticipantId === participantIdRef.current
+            setIsHost(nextIsHost)
+            isHostRef.current = nextIsHost
+          }
           break
         case 'recording_started':
           setRecording(true)
           recordingRef.current = true
-          recordChunk()
+          speechStartedRef.current = false
+          silenceFramesRef.current = 0
+          setCaptionError('')
           notify('Debate Sense', 'Recording started', { tag: 'recording', duration: 4000 })
           break
         case 'recording_stopped':
           setRecording(false)
           recordingRef.current = false
+          speechStartedRef.current = false
+          silenceFramesRef.current = 0
+          setPartialCaption(null)
           notify('Debate Sense', 'Recording stopped', { tag: 'recording', duration: 4000 })
+          break
+        case 'caption_delta':
+          setPartialCaption((prev) => {
+            if (prev?.itemId === msg.itemId) {
+              return { ...prev, text: prev.text + msg.delta }
+            }
+            return {
+              itemId: msg.itemId,
+              speaker: msg.speaker,
+              text: msg.delta,
+              timestamp: msg.timestamp,
+            }
+          })
+          break
+        case 'caption_error':
+          setCaptionError(msg.message || 'Realtime captions unavailable')
+          break
+        case 'caption_rejected':
+          setPartialCaption((prev) => (
+            prev?.itemId === msg.itemId ? null : prev
+          ))
           break
         case 'transcript':
           setTranscript((prev) => [...prev, msg])
+          setPartialCaption((prev) => (
+            !prev || !msg.itemId || prev.itemId === msg.itemId ? null : prev
+          ))
+          break
+        case 'transcript_update':
+          setTranscript((prev) =>
+            prev.map((entry) => entry.id === msg.entry?.id ? msg.entry : entry)
+          )
+          setPartialCaption((prev) => {
+            if (!prev || !msg.entry?.itemIds?.includes(prev.itemId)) return prev
+            return null
+          })
           break
         case 'statements_updated':
           setStatements(msg.statements)
@@ -131,20 +207,40 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
     }
 
     return () => ws.close()
-  }, [sessionId, userName, recordChunk])
+  }, [sessionId, userName, userLanguage, wantsHost])
 
   useEffect(() => {
     let cleanup = null
+    let disposed = false
     async function initAudio() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        })
+        if (disposed) {
+          stream.getTracks().forEach((t) => t.stop())
+          return
+        }
         streamRef.current = stream
 
-        const audioContext = new AudioContext()
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext
+        const audioContext = new AudioContextClass({ sampleRate: REALTIME_SAMPLE_RATE })
+        audioContextRef.current = audioContext
         const source = audioContext.createMediaStreamSource(stream)
         const analyser = audioContext.createAnalyser()
+        const processor = audioContext.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
+        const silentOutput = audioContext.createGain()
         analyser.fftSize = 256
+        silentOutput.gain.value = 0
         source.connect(analyser)
+        source.connect(processor)
+        processor.connect(silentOutput)
+        silentOutput.connect(audioContext.destination)
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount)
         const interval = setInterval(() => {
@@ -155,20 +251,59 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
           }
         }, 200)
 
+        processor.onaudioprocess = (event) => {
+          if (!isHostRef.current) return
+          if (!recordingRef.current) return
+          if (wsRef.current?.readyState !== WebSocket.OPEN) return
+
+          const input = event.inputBuffer.getChannelData(0)
+          const resampled = resampleBuffer(input, audioContext.sampleRate, REALTIME_SAMPLE_RATE)
+          const rms = rmsLevel(resampled)
+          if (rms < SPEECH_RMS_THRESHOLD) {
+            if (!speechStartedRef.current) return
+            if (silenceFramesRef.current >= TRAILING_SILENCE_FRAMES) {
+              speechStartedRef.current = false
+              return
+            }
+            silenceFramesRef.current += 1
+          } else {
+            speechStartedRef.current = true
+            silenceFramesRef.current = 0
+          }
+          const pcm16 = encodePcm16(resampled)
+          wsRef.current.send(JSON.stringify({
+            type: 'audio_frame',
+            audio: arrayBufferToBase64(pcm16),
+          }))
+        }
+
         cleanup = () => {
           clearInterval(interval)
+          processor.disconnect()
+          silentOutput.disconnect()
           stream.getTracks().forEach((t) => t.stop())
           audioContext.close()
+          streamRef.current = null
+          audioContextRef.current = null
         }
       } catch (err) {
         console.error('Mic access denied:', err)
+        setCaptionError('Microphone access is blocked for the host recorder.')
       }
     }
+    if (!isHost) return undefined
     initAudio()
-    return () => cleanup?.()
-  }, [])
+    return () => {
+      disposed = true
+      cleanup?.()
+    }
+  }, [isHost])
 
-  function toggleRecording() {
+  async function toggleRecording() {
+    if (!isHost) return
+    if (audioContextRef.current?.state === 'suspended') {
+      await audioContextRef.current.resume()
+    }
     wsRef.current?.send(JSON.stringify({ type: 'set_recording', recording: !recording }))
   }
 
@@ -213,13 +348,13 @@ export default function DebateRoom({ sessionId, userName, onLeave }) {
           <button
             className={`record-btn ${recording ? 'active' : ''}`}
             onClick={toggleRecording}
-            disabled={!connected}
+            disabled={!connected || !isHost}
           >
             <span className="record-dot" />
-            {recording ? 'Stop' : 'Record'}
+            {isHost ? (recording ? 'Stop' : 'Record') : 'Listening'}
           </button>
 
-          <TranscriptPanel entries={transcript} />
+          <TranscriptPanel entries={transcript} partial={partialCaption} error={captionError} />
 
           <div className="progress-container">
             <div className="progress-track">

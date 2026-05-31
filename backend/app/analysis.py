@@ -19,6 +19,19 @@ Rules:
 
 Respond with a JSON object: {"statements": ["claim 1", "claim 2", ...]}"""
 
+TURN_SYSTEM_PROMPT = """You are a debate analyst. Convert one speaker's completed contribution into at most one votable statement.
+
+Rules:
+- Capture the speaker's overall argument or opinion, not every fragment
+- The result must be a clear, standalone claim that participants can agree or disagree with
+- Do not write "the speaker argues that"; write the claim itself
+- Skip procedural talk, transcription chatter, greetings, filler, and incomplete thoughts
+- If the speaker did not make a substantive argument, return an empty array
+- Do not duplicate any existing statement
+- Use the dominant language of the speaker's contribution; do not translate unless the contribution itself mixes languages heavily
+
+Respond with a JSON object: {"statements": ["single overall claim"]}"""
+
 MOCK_STATEMENTS = [
     ["Switzerland needs stronger AI regulation to keep pace with the EU.",
      "Over-regulation will harm Switzerland's startup ecosystem in Zurich and Lausanne."],
@@ -59,6 +72,20 @@ class AnalysisService:
             return self._mock_extract(existing_statements)
 
         return await self._live_extract(transcript_entries, existing_statements, topic)
+
+    async def extract_turn_statement(
+        self,
+        turn_entry: dict,
+        existing_statements: list[str],
+        topic: Optional[str] = None,
+    ) -> list[str]:
+        if not turn_entry or not turn_entry.get("text"):
+            return []
+
+        if self._mock:
+            return self._mock_extract(existing_statements)[:1]
+
+        return await self._live_extract_turn(turn_entry, existing_statements, topic)
 
     def _mock_extract(self, existing_statements: list[str]) -> list[str]:
         existing_set = set(existing_statements)
@@ -119,4 +146,54 @@ class AnalysisService:
             return []
         except Exception as e:
             print(f"Analysis error: {e}")
+            return []
+
+    async def _live_extract_turn(
+        self,
+        turn_entry: dict,
+        existing_statements: list[str],
+        topic: Optional[str] = None,
+    ) -> list[str]:
+        speaker = turn_entry.get("speaker", "Unknown")
+        text = turn_entry.get("text", "")
+
+        user_parts = []
+        if topic:
+            user_parts.append(f"Debate topic: {topic}")
+        else:
+            user_parts.append("Debate topic: Not specified — infer from the contribution.")
+
+        if existing_statements:
+            user_parts.append("Existing statements (do NOT duplicate):")
+            for s in existing_statements:
+                user_parts.append(f"- {s}")
+
+        user_parts.append("\nCompleted speaker contribution:")
+        user_parts.append(f"{speaker}: {text}")
+        user_message = "\n".join(user_parts)
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    temperature=0.2,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": TURN_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_message},
+                    ],
+                ),
+            )
+            content = response.choices[0].message.content
+            data = json.loads(content)
+            statements = data.get("statements", [])
+            return [s.strip() for s in statements if isinstance(s, str) and s.strip()][:1]
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(f"Turn analysis parse error: {e}")
+            return []
+        except Exception as e:
+            print(f"Turn analysis error: {e}")
             return []

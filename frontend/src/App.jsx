@@ -13,6 +13,8 @@ export default function App() {
     <DebateRoom
       sessionId={session.sessionId}
       userName={session.userName}
+      userLanguage={session.userLanguage}
+      wantsHost={session.wantsHost}
       onLeave={() => setSession(null)}
     />
   )
