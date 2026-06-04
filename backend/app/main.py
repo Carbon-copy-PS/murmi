@@ -655,6 +655,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         session, statement, participant_id, data.get("vote", "")
                     ))
 
+            elif msg_type == "get_results":
+                await websocket.send_json({
+                    "type": "results",
+                    **sessions.vote_matrix(session_id, participant_id),
+                })
+
             elif msg_type == "approve_statement":
                 if not sessions.is_host(session_id, participant_id):
                     continue
@@ -723,4 +729,11 @@ if FRONTEND_DIST.is_dir():
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        candidate = (FRONTEND_DIST / full_path).resolve()
+        if (
+            full_path
+            and FRONTEND_DIST in candidate.parents
+            and candidate.is_file()
+        ):
+            return FileResponse(candidate)
         return FileResponse(FRONTEND_DIST / "index.html")

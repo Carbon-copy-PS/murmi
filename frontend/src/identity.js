@@ -1,5 +1,6 @@
 const CLIENT_KEY = 'ds_client_id'
 const NAME_KEY = 'ds_user_name'
+const SESSION_KEY = 'ds_session'
 
 export function getClientId() {
   let id = localStorage.getItem(CLIENT_KEY)
@@ -16,4 +17,22 @@ export function getSavedName() {
 
 export function saveName(name) {
   if (name) localStorage.setItem(NAME_KEY, name.trim())
+}
+
+export function getSavedSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY)
+    const data = raw ? JSON.parse(raw) : null
+    return data && data.sessionId ? data : null
+  } catch {
+    return null
+  }
+}
+
+export function saveSession(session) {
+  if (session?.sessionId) localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+}
+
+export function clearSession() {
+  localStorage.removeItem(SESSION_KEY)
 }

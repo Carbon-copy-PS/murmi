@@ -108,7 +108,19 @@ export default function SessionJoin({ onJoin }) {
     <div className="landing">
       <header className="landing-hero">
         <div className="landing-logo" aria-hidden="true">
-          <span className="landing-logo-dot" />
+          <svg viewBox="0 0 512 512" className="landing-logo-mark" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g fill="none" strokeLinecap="round">
+              <g stroke="#12b76a">
+                <path d="M201 351.26 A 110 110 0 0 1 201 160.74" strokeWidth="30" />
+                <path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" strokeWidth="30" strokeOpacity="0.5" />
+              </g>
+              <g stroke="#f04438">
+                <path d="M311 160.74 A 110 110 0 0 1 311 351.26" strokeWidth="30" />
+                <path d="M338.5 113.1 A 165 165 0 0 1 338.5 398.9" strokeWidth="30" strokeOpacity="0.5" />
+              </g>
+            </g>
+            <circle cx="256" cy="256" r="46" fill="#ffffff" />
+          </svg>
         </div>
         <h1 className="landing-title">Debate Sense</h1>
         <p className="landing-tagline">

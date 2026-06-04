@@ -73,6 +73,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [showShare, setShowShare] = useState(false)
   const [autoApprove, setAutoApprove] = useState(true)
   const [heldIds, setHeldIds] = useState(() => new Set())
+  const [results, setResults] = useState(null)
 
   const approveTimersRef = useRef(new Map())
 
@@ -89,6 +90,13 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const pendingCount = statements.filter((s) => !s.approved).length
 
   useEffect(() => { requestPermission() }, [])
+
+  useEffect(() => {
+    if (view !== 'results' || !connected) return
+    requestResults()
+    const interval = setInterval(requestResults, 5000)
+    return () => clearInterval(interval)
+  }, [view, connected])
 
   useEffect(() => {
     const timers = approveTimersRef.current
@@ -257,6 +265,9 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             )
           )
           break
+        case 'results':
+          setResults({ statements: msg.statements, voters: msg.voters })
+          break
       }
     }
 
@@ -363,6 +374,10 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   function handleVote(statementId, vote) {
     wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
+  }
+
+  function requestResults() {
+    wsRef.current?.send(JSON.stringify({ type: 'get_results' }))
   }
 
   function handleApprove(statementId) {
@@ -481,7 +496,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         />
       )}
       {view === 'results' && (
-        <ResultsPanel statements={statements} />
+        <ResultsPanel statements={statements} results={results} isHost={isHost} />
       )}
     </div>
   )

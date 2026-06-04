@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
+import SwipeDeck from './SwipeDeck'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold }) {
   return (
@@ -52,18 +53,25 @@ export default function StatementsPanel({
 }) {
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
+  const [passed, setPassed] = useState(new Set())
+  const [votesOpen, setVotesOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
   const held = heldIds || new Set()
   const pending = isHost ? statements.filter((s) => !s.approved) : []
   const approved = statements.filter((s) => s.approved)
-  const unvoted = approved.filter((s) => !s.hasVoted && !localVoted.has(s.id))
-  const voted = approved.filter((s) => s.hasVoted || localVoted.has(s.id))
+  const unvoted = approved.filter((s) => !s.hasVoted && !localVoted.has(s.id) && !passed.has(s.id))
+  const voted = approved.filter((s) => (s.hasVoted || localVoted.has(s.id)) && !passed.has(s.id))
 
   function handleVote(statementId, vote) {
+    if (vote === 'pass') {
+      setPassed((prev) => new Set(prev).add(statementId))
+      return
+    }
     setLocalVoted((prev) => new Set(prev).add(statementId))
     onVote(statementId, vote)
     setJustVotedId(statementId)
+    setVotesOpen(true)
   }
 
   function handleAdd() {
@@ -165,27 +173,7 @@ export default function StatementsPanel({
               {isHost && pending.length > 0 && (
                 <div className="section-divider"><span>Live</span></div>
               )}
-              <div className="statement-list">
-                {unvoted.map((statement) => (
-                  <div key={statement.id} className="flash-card statement-card">
-                    <p className="flash-card-text">{statement.text}</p>
-                    <div className="flash-card-actions">
-                      <button
-                        className="vote-btn disagree"
-                        onClick={() => handleVote(statement.id, 'disagree')}
-                      >
-                        Disagree
-                      </button>
-                      <button
-                        className="vote-btn agree"
-                        onClick={() => handleVote(statement.id, 'agree')}
-                      >
-                        Agree
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SwipeDeck statements={unvoted} onVote={handleVote} />
             </>
           ) : (
             approved.length > 0 && (
@@ -194,14 +182,31 @@ export default function StatementsPanel({
           )}
 
           {voted.length > 0 && (
-            <>
-              <div className="section-divider"><span>Your votes</span></div>
-              <DivergingBarChart
-                statements={voted}
-                justVotedId={justVotedId}
-                onAnimationDone={() => setJustVotedId(null)}
-              />
-            </>
+            <div className="votes-recap" data-testid="votes-recap">
+              <button
+                type="button"
+                className="votes-recap-toggle"
+                onClick={() => setVotesOpen((o) => !o)}
+                aria-expanded={votesOpen}
+                data-testid="votes-recap-toggle"
+              >
+                <span className="votes-recap-title">
+                  Your votes
+                  <span className="votes-recap-count">{voted.length}</span>
+                </span>
+                <span className={`votes-recap-chevron ${votesOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+              </button>
+
+              {votesOpen && (
+                <div className="votes-recap-body">
+                  <DivergingBarChart
+                    statements={voted}
+                    justVotedId={justVotedId}
+                    onAnimationDone={() => setJustVotedId(null)}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
