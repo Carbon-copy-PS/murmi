@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
+import ShareModal from './ShareModal'
 import { requestPermission, notify } from '../notifications'
+import { getClientId } from '../identity'
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
 const SPEECH_RMS_THRESHOLD = 0.008
 const TRAILING_SILENCE_FRAMES = 7
+const AUTO_APPROVE_MS = 5000
 
 function resampleBuffer(buffer, inputRate, outputRate) {
   if (inputRate === outputRate) return buffer
@@ -67,6 +70,11 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [currentRoundCount, setCurrentRoundCount] = useState(0)
   const [threshold, setThreshold] = useState(5)
   const [topic, setTopic] = useState(null)
+  const [showShare, setShowShare] = useState(false)
+  const [autoApprove, setAutoApprove] = useState(true)
+  const [heldIds, setHeldIds] = useState(() => new Set())
+
+  const approveTimersRef = useRef(new Map())
 
   const wsRef = useRef(null)
   const streamRef = useRef(null)
@@ -77,9 +85,49 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const silenceFramesRef = useRef(0)
   const speechStartedRef = useRef(false)
 
-  const unvotedCount = statements.filter((s) => !s.hasVoted).length
+  const unvotedCount = statements.filter((s) => s.approved && !s.hasVoted).length
+  const pendingCount = statements.filter((s) => !s.approved).length
 
   useEffect(() => { requestPermission() }, [])
+
+  useEffect(() => {
+    const timers = approveTimersRef.current
+    if (!isHost) {
+      timers.forEach((t) => clearTimeout(t))
+      timers.clear()
+      return
+    }
+    const pendingIds = new Set(statements.filter((s) => !s.approved).map((s) => s.id))
+
+    timers.forEach((timer, id) => {
+      if (!pendingIds.has(id)) {
+        clearTimeout(timer)
+        timers.delete(id)
+      }
+    })
+
+    if (autoApprove) {
+      pendingIds.forEach((id) => {
+        if (heldIds.has(id) || timers.has(id)) return
+        const timer = setTimeout(() => {
+          wsRef.current?.send(JSON.stringify({ type: 'approve_statement', statementId: id }))
+          timers.delete(id)
+        }, AUTO_APPROVE_MS)
+        timers.set(id, timer)
+      })
+    } else {
+      timers.forEach((timer) => clearTimeout(timer))
+      timers.clear()
+    }
+  }, [statements, autoApprove, heldIds, isHost])
+
+  useEffect(() => {
+    const timers = approveTimersRef.current
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer))
+      timers.clear()
+    }
+  }, [])
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -93,6 +141,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         name: userName,
         language: userLanguage,
         wantsHost: Boolean(wantsHost),
+        clientId: getClientId(),
       }))
     }
     ws.onclose = () => setConnected(false)
@@ -104,6 +153,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           participantIdRef.current = msg.participantId
           setIsHost(Boolean(msg.isHost))
           isHostRef.current = Boolean(msg.isHost)
+          setView(msg.isHost ? 'record' : 'statements')
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setCurrentRoundCount(msg.currentRoundCount || 0)
@@ -115,6 +165,10 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           }
           break
         case 'active_mic':
+          break
+        case 'session_expired':
+          notify('Debate Sense', 'This session has expired', { tag: 'expired', force: true })
+          onLeave()
           break
         case 'host_updated': {
           const nextIsHost = msg.hostParticipantId === participantIdRef.current
@@ -311,28 +365,74 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
   }
 
+  function handleApprove(statementId) {
+    wsRef.current?.send(JSON.stringify({ type: 'approve_statement', statementId }))
+  }
+
+  function handleAddStatement(text) {
+    wsRef.current?.send(JSON.stringify({ type: 'add_statement', text }))
+  }
+
+  function handleHold(statementId) {
+    const timer = approveTimersRef.current.get(statementId)
+    if (timer) {
+      clearTimeout(timer)
+      approveTimersRef.current.delete(statementId)
+    }
+    setHeldIds((prev) => new Set(prev).add(statementId))
+  }
+
   return (
     <div className="room">
       <div className="room-top">
-        <div>
-          <span className="session-code">{sessionId}</span>
-          {topic && <span className="topic-label">{topic}</span>}
+        <div className="room-meta">
+          <div className="room-status">
+            <span className={`status-dot ${connected ? 'online' : 'offline'}`} aria-hidden="true" />
+            <span className="status-text">{connected ? 'Live' : 'Connecting…'}</span>
+            {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
+          </div>
+          {topic && <h1 className="room-topic" data-testid="room-topic">{topic}</h1>}
+          <button
+            className="code-pill"
+            onClick={() => setShowShare(true)}
+            title="Share session"
+            data-testid="code-pill"
+          >
+            <span className="code-pill-label">Code</span>
+            <span className="code-pill-value">{sessionId}</span>
+          </button>
         </div>
-        <button className="link-btn" onClick={onLeave}>Leave</button>
+        <div className="room-actions">
+          <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
+            Share
+          </button>
+          <button className="link-btn" onClick={onLeave} data-testid="leave-btn">Leave</button>
+        </div>
       </div>
 
+      {showShare && (
+        <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
+      )}
+
       <div className="tabs">
-        <button
-          className={`tab ${view === 'record' ? 'active' : ''}`}
-          onClick={() => setView('record')}
-        >
-          Record
-        </button>
+        {isHost && (
+          <button
+            className={`tab ${view === 'record' ? 'active' : ''}`}
+            onClick={() => setView('record')}
+            data-testid="tab-record"
+          >
+            Record
+          </button>
+        )}
         <button
           className={`tab ${view === 'statements' ? 'active' : ''}`}
           onClick={() => setView('statements')}
+          data-testid="tab-vote"
         >
           Vote
+          {isHost && pendingCount > 0 && (
+            <span className="badge pending" data-testid="pending-badge">{pendingCount}</span>
+          )}
           {unvotedCount > 0 && <span className="badge">{unvotedCount}</span>}
         </button>
         <button
@@ -368,7 +468,17 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         </>
       )}
       {view === 'statements' && (
-        <StatementsPanel statements={statements} onVote={handleVote} />
+        <StatementsPanel
+          statements={statements}
+          onVote={handleVote}
+          isHost={isHost}
+          onApprove={handleApprove}
+          onAddStatement={handleAddStatement}
+          autoApprove={autoApprove}
+          onToggleAutoApprove={setAutoApprove}
+          heldIds={heldIds}
+          onHold={handleHold}
+        />
       )}
       {view === 'results' && (
         <ResultsPanel statements={statements} />

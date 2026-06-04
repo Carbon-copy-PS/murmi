@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -18,10 +20,98 @@ from .session import SessionManager
 from .transcription import TranscriptionService
 from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
+from .db import Database
 
 load_dotenv()
 
-app = FastAPI(title="Debate Sense")
+db = Database()
+sessions = SessionManager(ttl_seconds=db.ttl_seconds if db.enabled else None)
+transcription = TranscriptionService()
+analysis = AnalysisService()
+
+SESSION_PURGE_INTERVAL_SECONDS = float(os.environ.get("SESSION_PURGE_INTERVAL_MINUTES", "15")) * 60
+
+
+async def _safe_db(coro):
+    try:
+        await coro
+    except Exception as exc:
+        print(f"DB write error: {exc}")
+
+
+async def persist_session(session):
+    if not db.enabled or session is None:
+        return
+    await _safe_db(db.save_session(session))
+
+
+async def drop_session(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    try:
+        await sessions.broadcast(session_id, {"type": "session_expired"})
+    except Exception:
+        pass
+    await close_realtime_sessions(session_id)
+    for participant in list(session.participants.values()):
+        try:
+            await participant.websocket.close(code=4001, reason="Session expired")
+        except Exception:
+            pass
+    sessions.sessions.pop(session_id, None)
+    mock_index.pop(session_id, None)
+    auto_play_tasks.pop(session_id, None)
+
+
+async def purge_expired_sessions():
+    now = time.time()
+    expired = set()
+    if db.enabled:
+        try:
+            expired.update(await db.purge_expired())
+        except Exception as exc:
+            print(f"DB purge error: {exc}")
+    for sid, session in list(sessions.sessions.items()):
+        if session.expires_at and session.expires_at <= now:
+            expired.add(sid)
+    for sid in expired:
+        await drop_session(sid)
+
+
+async def purge_loop():
+    while True:
+        await asyncio.sleep(SESSION_PURGE_INTERVAL_SECONDS)
+        await purge_expired_sessions()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    purge_task = None
+    try:
+        connected = await db.connect()
+        if connected:
+            loaded = await db.load_active_sessions()
+            for data in loaded:
+                sessions.hydrate(data)
+            print(f"DB connected — hydrated {len(loaded)} active session(s)")
+    except Exception as exc:
+        print(f"DB init failed ({exc}); continuing in-memory only")
+        db.enabled = False
+        sessions.ttl_seconds = None
+    purge_task = asyncio.create_task(purge_loop())
+    try:
+        yield
+    finally:
+        purge_task.cancel()
+        try:
+            await purge_task
+        except asyncio.CancelledError:
+            pass
+        await db.disconnect()
+
+
+app = FastAPI(title="Debate Sense", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,16 +121,12 @@ app.add_middleware(
 )
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-
-sessions = SessionManager()
-transcription = TranscriptionService()
-analysis = AnalysisService()
 realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
 realtime_unavailable: set[tuple[str, str]] = set()
 realtime_errors_seen: set[tuple[str, str]] = set()
 turn_analysis_tasks: dict[tuple[str, str], asyncio.Task] = {}
 TRANSCRIPT_MERGE_WINDOW_SECONDS = 12
-SPEAKER_TURN_IDLE_SECONDS = 3
+SPEAKER_TURN_IDLE_SECONDS = 2
 PARTICIPANT_LANGUAGES = {"en", "de", "fr"}
 FILLER_TRANSCRIPTS = {
     "uh",
@@ -77,6 +163,7 @@ class CreateSessionRequest(BaseModel):
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
     session_id = sessions.create(topic=topic)
+    await persist_session(sessions.get(session_id))
     return {"sessionId": session_id, "topic": topic}
 
 
@@ -127,6 +214,7 @@ async def mock_transcript(session_id: str):
         }
         should_analyze = sessions.add_transcript_entry(session_id, entry)
         await sessions.broadcast(session_id, entry)
+        await _safe_db(db.save_transcript_entry(session, entry))
         added.append(entry)
 
         if should_analyze:
@@ -159,6 +247,7 @@ async def auto_play(session_id: str):
         }
         should_analyze = sessions.add_transcript_entry(session_id, entry)
         await sessions.broadcast(session_id, entry)
+        await _safe_db(db.save_transcript_entry(session, entry))
         idx += 1
         mock_index[session_id] = idx
 
@@ -189,7 +278,13 @@ async def mock_auto_play(session_id: str):
 
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str):
-    session = sessions.get(session_id.upper())
+    sid = session_id.upper()
+    session = sessions.get(sid)
+    if not session and db.enabled:
+        restored = await db.load_session(sid)
+        if restored:
+            sessions.hydrate(restored)
+            session = sessions.get(sid)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return {
@@ -197,6 +292,13 @@ async def get_session(session_id: str):
         "participantCount": len(session.participants),
         "recording": session.recording,
     }
+
+
+def auto_approve_if_no_host(session_id: str, statements: list) -> list:
+    pending_ids = [s.id for s in statements if not s.approved]
+    if pending_ids and not sessions.has_active_host(session_id):
+        return sessions.approve_statements(session_id, set(pending_ids))
+    return []
 
 
 async def run_analysis(session_id: str):
@@ -212,11 +314,14 @@ async def run_analysis(session_id: str):
         if not new_texts:
             return
 
-        sessions.add_statements(session_id, new_texts)
+        added = sessions.add_statements(session_id, new_texts)
+        auto_approve_if_no_host(session_id, added)
+        await _safe_db(db.save_statements(session, added))
         completed_round = sessions.check_and_advance_round(session_id)
         await sessions.broadcast_statements(session_id)
 
         if completed_round is not None:
+            await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
             await sessions.broadcast(session_id, {
                 "type": "threshold_reached",
                 "round": completed_round,
@@ -249,11 +354,14 @@ async def run_turn_analysis(session_id: str, entry_id: str):
     if not new_texts:
         return
 
-    sessions.add_statements(session_id, new_texts)
+    added = sessions.add_statements(session_id, new_texts)
+    auto_approve_if_no_host(session_id, added)
+    await _safe_db(db.save_statements(session, added))
     completed_round = sessions.check_and_advance_round(session_id)
     await sessions.broadcast_statements(session_id)
 
     if completed_round is not None:
+        await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
         await sessions.broadcast(session_id, {
             "type": "threshold_reached",
             "round": completed_round,
@@ -336,6 +444,7 @@ async def add_transcript_text(
             "type": "transcript_update",
             "entry": last_entry,
         })
+        await _safe_db(db.save_transcript_entry(session, last_entry))
         schedule_turn_analysis(session_id, last_entry)
         return True
 
@@ -354,6 +463,7 @@ async def add_transcript_text(
 
     sessions.add_transcript_entry(session_id, entry)
     await sessions.broadcast(session_id, entry)
+    await _safe_db(db.save_transcript_entry(session, entry))
     schedule_turn_analysis(session_id, entry)
     return True
 
@@ -456,7 +566,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     name = init.get("name", "Anonymous")
     language = normalize_language(init.get("language"))
     wants_host = bool(init.get("wantsHost"))
-    participant_id = await sessions.join(session_id, websocket, name, language, wants_host=wants_host)
+    client_id = init.get("clientId") or None
+
+    if not sessions.exists(session_id) and db.enabled:
+        restored = await db.load_session(session_id)
+        if restored:
+            sessions.hydrate(restored)
+
+    existed = sessions.exists(session_id)
+    participant_id = await sessions.join(
+        session_id, websocket, name, language, wants_host=wants_host, client_id=client_id
+    )
+    if not existed:
+        await persist_session(sessions.get(session_id))
+    await _safe_db(db.save_participant(
+        sessions.get(session_id), participant_id, client_id, name, language
+    ))
 
     try:
         while True:
@@ -516,13 +641,52 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await close_realtime_sessions(session_id)
 
             elif msg_type == "vote":
+                statement_id = data.get("statementId", "")
                 ok = sessions.record_vote(
-                    session_id, participant_id,
-                    data.get("statementId", ""),
-                    data.get("vote", ""),
+                    session_id, participant_id, statement_id, data.get("vote", ""),
                 )
                 if ok:
-                    await sessions.broadcast_vote(session_id, data["statementId"])
+                    await sessions.broadcast_vote(session_id, statement_id)
+                    session = sessions.get(session_id)
+                    statement = next(
+                        (s for s in session.statements if s.id == statement_id), None
+                    ) if session else None
+                    await _safe_db(db.save_vote(
+                        session, statement, participant_id, data.get("vote", "")
+                    ))
+
+            elif msg_type == "approve_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                ids = data.get("statementIds")
+                if isinstance(ids, list):
+                    target = set(ids)
+                elif data.get("statementId"):
+                    target = {data["statementId"]}
+                else:
+                    target = None
+                approved = sessions.approve_statements(session_id, target)
+                if approved:
+                    await sessions.broadcast_statements(session_id)
+                    await _safe_db(db.set_statements_approved([s.id for s in approved]))
+
+            elif msg_type == "add_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                text = (data.get("text") or "").strip()
+                if not text:
+                    continue
+                stmt = sessions.add_custom_statement(session_id, text)
+                if stmt:
+                    await _safe_db(db.save_statements(sessions.get(session_id), [stmt]))
+                    completed_round = sessions.check_and_advance_round(session_id)
+                    await sessions.broadcast_statements(session_id)
+                    if completed_round is not None:
+                        await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
+                        await sessions.broadcast(session_id, {
+                            "type": "threshold_reached",
+                            "round": completed_round,
+                        })
 
     except WebSocketDisconnect:
         name = sessions.get_participant_name(session_id, participant_id)

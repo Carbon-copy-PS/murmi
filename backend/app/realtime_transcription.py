@@ -46,8 +46,9 @@ class RealtimeTranscriptionSession:
         self.turn_detection = os.environ.get("OPENAI_REALTIME_TURN_DETECTION", "server_vad")
         self.vad_threshold = float(os.environ.get("OPENAI_REALTIME_VAD_THRESHOLD", "0.5"))
         self.vad_prefix_padding_ms = int(os.environ.get("OPENAI_REALTIME_VAD_PREFIX_PADDING_MS", "300"))
-        self.vad_silence_duration_ms = int(os.environ.get("OPENAI_REALTIME_VAD_SILENCE_DURATION_MS", "800"))
+        self.vad_silence_duration_ms = int(os.environ.get("OPENAI_REALTIME_VAD_SILENCE_DURATION_MS", "500"))
         self.commit_interval = float(os.environ.get("OPENAI_REALTIME_COMMIT_SECONDS", "1.0"))
+        self.max_turn_seconds = float(os.environ.get("OPENAI_REALTIME_MAX_TURN_SECONDS", "10"))
         self.url = os.environ.get(
             "OPENAI_REALTIME_URL",
             "wss://api.openai.com/v1/realtime?intent=transcription",
@@ -118,9 +119,14 @@ class RealtimeTranscriptionSession:
             })
             self.bytes_since_commit += len(audio_bytes)
 
-            commit_bytes = int(self.sample_rate * self.bytes_per_sample * self.commit_interval)
-            if self._manual_turn_detection() and self.bytes_since_commit >= commit_bytes:
-                await self._commit_locked()
+            if self._manual_turn_detection():
+                commit_bytes = int(self.sample_rate * self.bytes_per_sample * self.commit_interval)
+                if self.bytes_since_commit >= commit_bytes:
+                    await self._commit_locked()
+            else:
+                max_turn_bytes = int(self.sample_rate * self.bytes_per_sample * self.max_turn_seconds)
+                if max_turn_bytes > 0 and self.bytes_since_commit >= max_turn_bytes:
+                    await self._commit_locked()
 
     async def close(self, flush: bool = True):
         if self.closed:
@@ -274,10 +280,14 @@ class RealtimeTranscriptionSession:
                         )
                     self._reset_audio_energy()
                     self._reset_turn_audio()
+                    self.bytes_since_commit = 0
 
                 elif event_type == "error":
                     error = event.get("error") or {}
+                    code = error.get("code") or ""
                     message = error.get("message") or "Realtime transcription error"
+                    if code == "input_audio_buffer_commit_empty" or "buffer too small" in message.lower():
+                        continue
                     await self.on_error(self.session_id, message)
         except asyncio.CancelledError:
             raise

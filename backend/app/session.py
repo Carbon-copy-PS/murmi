@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import re
 import uuid
 import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
+
+
+def normalize_statement(text: str) -> str:
+    lowered = re.sub(r"[^\w\s]", "", text.lower())
+    return " ".join(lowered.split())
 
 from fastapi import WebSocket
 
@@ -23,6 +29,9 @@ class Statement:
     id: str
     text: str
     round: int
+    approved: bool = False
+    custom: bool = False
+    created_at: float = field(default_factory=time.time)
     votes: Dict[str, str] = field(default_factory=dict)
 
 
@@ -40,6 +49,9 @@ class Session:
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
     threshold: int = 5
+    created_at: float = field(default_factory=time.time)
+    expires_at: Optional[float] = None
+    known_participants: Dict[str, str] = field(default_factory=dict)
 
 
 SILENCE_THRESHOLD = 0.01
@@ -48,13 +60,46 @@ ANALYSIS_BATCH_SIZE = 3
 
 
 class SessionManager:
-    def __init__(self):
+    def __init__(self, ttl_seconds: float | None = None):
         self.sessions: Dict[str, Session] = {}
+        self.ttl_seconds = ttl_seconds
+
+    def _new_session(self, session_id: str, topic: str | None = None) -> Session:
+        now = time.time()
+        expires_at = now + self.ttl_seconds if self.ttl_seconds else None
+        return Session(id=session_id, topic=topic, created_at=now, expires_at=expires_at)
 
     def create(self, topic: str | None = None) -> str:
         session_id = uuid.uuid4().hex[:6].upper()
-        self.sessions[session_id] = Session(id=session_id, topic=topic)
+        self.sessions[session_id] = self._new_session(session_id, topic)
         return session_id
+
+    def hydrate(self, data: dict) -> Session:
+        session = Session(
+            id=data["id"],
+            topic=data.get("topic"),
+            current_round=data.get("current_round", 1),
+            threshold=data.get("threshold", 5),
+            created_at=data.get("created_at", time.time()),
+            expires_at=data.get("expires_at"),
+        )
+        session.transcript = list(data.get("transcript", []))
+        for client_id, member in data.get("members", {}).items():
+            pid = member.get("participant_id")
+            if client_id and pid:
+                session.known_participants[client_id] = pid
+        for s in data.get("statements", []):
+            session.statements.append(Statement(
+                id=s["id"],
+                text=s["text"],
+                round=s.get("round", 1),
+                approved=s.get("approved", False),
+                custom=s.get("custom", False),
+                created_at=s.get("created_at", time.time()),
+                votes=dict(s.get("votes", {})),
+            ))
+        self.sessions[session.id] = session
+        return session
 
     def get(self, session_id: str) -> Optional[Session]:
         return self.sessions.get(session_id)
@@ -69,19 +114,25 @@ class SessionManager:
         name: str,
         language: str | None = None,
         wants_host: bool = False,
+        client_id: str | None = None,
     ) -> str:
         if session_id not in self.sessions:
-            self.sessions[session_id] = Session(id=session_id)
+            self.sessions[session_id] = self._new_session(session_id)
 
-        participant_id = uuid.uuid4().hex[:8]
+        session = self.sessions[session_id]
+
+        returning = bool(client_id and client_id in session.known_participants)
+        participant_id = session.known_participants.get(client_id) if returning else uuid.uuid4().hex[:8]
+
         participant = Participant(
             id=participant_id,
             name=name,
             websocket=websocket,
             language=language,
         )
-        session = self.sessions[session_id]
         session.participants[participant_id] = participant
+        if client_id:
+            session.known_participants[client_id] = participant_id
         if session.host_participant_id not in session.participants or session.host_participant_id is None:
             session.host_participant_id = participant_id
             session.active_mic_id = participant_id
@@ -93,10 +144,14 @@ class SessionManager:
             "isHost": participant_id == session.host_participant_id,
             "hostParticipantId": session.host_participant_id,
             "recording": session.recording,
+            "returning": returning,
             "participants": self._participant_list(session),
             "transcript": session.transcript,
             "topic": session.topic,
-            "statements": self.format_all_statements(session_id, participant_id),
+            "statements": self.format_all_statements(
+                session_id, participant_id,
+                include_pending=participant_id == session.host_participant_id,
+            ),
             "currentRoundCount": self.get_current_round_count(session_id),
             "threshold": session.threshold,
         })
@@ -196,8 +251,13 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return []
+        seen = {normalize_statement(s.text) for s in session.statements}
         added = []
         for text in texts:
+            key = normalize_statement(text)
+            if not key or key in seen:
+                continue
+            seen.add(key)
             stmt = Statement(
                 id=uuid.uuid4().hex[:8],
                 text=text,
@@ -206,6 +266,37 @@ class SessionManager:
             session.statements.append(stmt)
             added.append(stmt)
         return added
+
+    def add_custom_statement(self, session_id: str, text: str) -> Optional[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        stmt = Statement(
+            id=uuid.uuid4().hex[:8],
+            text=text,
+            round=session.current_round,
+            approved=True,
+            custom=True,
+        )
+        session.statements.append(stmt)
+        return stmt
+
+    def approve_statements(self, session_id: str, statement_ids: set[str] | None = None) -> list[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return []
+        approved = []
+        for stmt in session.statements:
+            if not stmt.approved and (statement_ids is None or stmt.id in statement_ids):
+                stmt.approved = True
+                approved.append(stmt)
+        return approved
+
+    def has_active_host(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        return session.host_participant_id in session.participants
 
     def get_current_round_count(self, session_id: str) -> int:
         session = self.sessions.get(session_id)
@@ -230,7 +321,7 @@ class SessionManager:
         if not session:
             return False
         stmt = next((s for s in session.statements if s.id == statement_id), None)
-        if not stmt or participant_id in stmt.votes:
+        if not stmt or not stmt.approved or participant_id in stmt.votes:
             return False
         stmt.votes[participant_id] = vote
         return True
@@ -242,17 +333,23 @@ class SessionManager:
             "id": stmt.id,
             "text": stmt.text,
             "round": stmt.round,
+            "approved": stmt.approved,
+            "custom": stmt.custom,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
             "myVote": stmt.votes.get(participant_id),
         }
 
-    def format_all_statements(self, session_id: str, participant_id: str) -> list:
+    def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)
         if not session:
             return []
-        return [self.format_statement(s, participant_id) for s in session.statements]
+        return [
+            self.format_statement(s, participant_id)
+            for s in session.statements
+            if include_pending or s.approved
+        ]
 
     async def broadcast(self, session_id: str, message: dict, exclude: str | None = None):
         session = self.sessions.get(session_id)
@@ -279,7 +376,10 @@ class SessionManager:
             try:
                 await participant.websocket.send_json({
                     "type": "statements_updated",
-                    "statements": self.format_all_statements(session_id, pid),
+                    "statements": self.format_all_statements(
+                        session_id, pid,
+                        include_pending=pid == session.host_participant_id,
+                    ),
                     "currentRoundCount": round_count,
                     "threshold": session.threshold,
                 })
