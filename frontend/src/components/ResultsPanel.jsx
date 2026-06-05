@@ -34,48 +34,132 @@ function StatementRow({ s }) {
   )
 }
 
-function ClusterScatter({ result }) {
+function ClusterMap({ result }) {
   const { points, clusters } = result
   const hulls = clusters.map((cl) => {
     const members = points.filter((p) => p.cluster === cl.id)
     const cx = members.reduce((s, p) => s + p.x, 0) / members.length
     const cy = members.reduce((s, p) => s + p.y, 0) / members.length
-    const r = Math.max(
-      0.18,
-      ...members.map((p) => Math.hypot(p.x - cx, p.y - cy)),
-    )
+    const r = Math.max(0.18, ...members.map((p) => Math.hypot(p.x - cx, p.y - cy)))
     return { id: cl.id, cx, cy, r }
   })
 
   return (
-    <svg viewBox="0 0 100 100" className="cluster-scatter" data-testid="cluster-scatter">
-      {hulls.map((h) => (
-        <circle
-          key={`hull-${h.id}`}
-          cx={project(h.cx)}
-          cy={project(h.cy)}
-          r={h.r * 24 + 6}
-          fill={CLUSTER_COLORS[h.id % CLUSTER_COLORS.length]}
-          opacity="0.08"
-          stroke={CLUSTER_COLORS[h.id % CLUSTER_COLORS.length]}
-          strokeWidth="0.4"
-          strokeDasharray="2 2"
-          strokeOpacity="0.5"
-        />
-      ))}
-      {points.map((p, i) => {
-        const color = CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length]
-        return p.isYou ? (
-          <g key={`pt-${i}`} data-testid="cluster-you">
-            <circle cx={project(p.x)} cy={project(p.y)} r="4.4" fill="none" stroke={color} strokeWidth="1.1" />
-            <circle cx={project(p.x)} cy={project(p.y)} r="2.6" fill={color} />
-            <text x={project(p.x)} y={project(p.y) - 6} className="you-label" textAnchor="middle">You</text>
-          </g>
-        ) : (
-          <circle key={`pt-${i}`} cx={project(p.x)} cy={project(p.y)} r="2.1" fill={color} opacity="0.78" />
+    <div className="cluster-map">
+      <svg viewBox="0 0 100 100" className="cluster-scatter" data-testid="cluster-scatter">
+        {hulls.map((h) => {
+          const color = CLUSTER_COLORS[h.id % CLUSTER_COLORS.length]
+          return (
+            <g key={`hull-${h.id}`}>
+              <circle
+                cx={project(h.cx)}
+                cy={project(h.cy)}
+                r={h.r * 24 + 7}
+                fill={color}
+                opacity="0.09"
+                stroke={color}
+                strokeWidth="0.4"
+                strokeDasharray="2 2"
+                strokeOpacity="0.45"
+              />
+              <text
+                x={project(h.cx)}
+                y={project(h.cy) - (h.r * 24 + 9)}
+                className="cluster-map-label"
+                textAnchor="middle"
+                fill={color}
+              >
+                Group {GROUP_LETTERS[h.id]}
+              </text>
+            </g>
+          )
+        })}
+        {points.map((p, i) => {
+          const color = CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length]
+          return p.isYou ? (
+            <g key={`pt-${i}`} data-testid="cluster-you">
+              <circle cx={project(p.x)} cy={project(p.y)} r="4.4" fill="none" stroke={color} strokeWidth="1.1" />
+              <circle cx={project(p.x)} cy={project(p.y)} r="2.6" fill={color} />
+              <text x={project(p.x)} y={project(p.y) - 6} className="you-label" textAnchor="middle">You</text>
+            </g>
+          ) : (
+            <circle key={`pt-${i}`} cx={project(p.x)} cy={project(p.y)} r="2.1" fill={color} opacity="0.78" />
+          )
+        })}
+      </svg>
+      <p className="cluster-map-caption">
+        Each dot is one participant. People who voted alike sit closer together and share a color.
+      </p>
+    </div>
+  )
+}
+
+function GroupSizeBars({ clusters, voterCount, youCluster }) {
+  return (
+    <div className="group-bars" data-testid="group-bars">
+      {clusters.map((c) => {
+        const pct = Math.round((c.size / voterCount) * 100)
+        const color = CLUSTER_COLORS[c.id % CLUSTER_COLORS.length]
+        return (
+          <div className="group-bar-row" key={c.id}>
+            <span className="group-bar-name">
+              <span className="cluster-dot" style={{ background: color }} />
+              Group {GROUP_LETTERS[c.id]}
+              {youCluster === c.id && <span className="you-chip">You</span>}
+            </span>
+            <div className="group-bar-track">
+              <span className="group-bar-fill" style={{ width: `${pct}%`, background: color }} />
+            </div>
+            <span className="group-bar-value">{c.size} ({pct}%)</span>
+          </div>
         )
       })}
-    </svg>
+    </div>
+  )
+}
+
+function GroupCard({ group, isYou }) {
+  const color = CLUSTER_COLORS[group.id % CLUSTER_COLORS.length]
+  return (
+    <div className={`group-card ${isYou ? 'you' : ''}`} data-testid={`group-card-${group.id}`}>
+      <div className="group-card-head">
+        <span className="group-card-badge" style={{ background: color }}>{GROUP_LETTERS[group.id]}</span>
+        <div>
+          <span className="group-card-title">
+            Group {GROUP_LETTERS[group.id]}
+            {isYou && <span className="you-chip">You</span>}
+          </span>
+          <span className="group-card-size">{group.size} {group.size === 1 ? 'person' : 'people'}</span>
+        </div>
+      </div>
+
+      {group.agree.length === 0 && group.disagree.length === 0 ? (
+        <p className="group-card-empty">No strong shared positions yet.</p>
+      ) : (
+        <>
+          {group.agree.length > 0 && (
+            <div className="group-stance">
+              <span className="group-stance-label agree">Tend to agree</span>
+              <ul>
+                {group.agree.map((s) => (
+                  <li key={s.id} data-testid={`group-${group.id}-agree-${s.id}`}>{s.text}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {group.disagree.length > 0 && (
+            <div className="group-stance">
+              <span className="group-stance-label disagree">Tend to disagree</span>
+              <ul>
+                {group.disagree.map((s) => (
+                  <li key={s.id} data-testid={`group-${group.id}-disagree-${s.id}`}>{s.text}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -122,14 +206,12 @@ export default function ResultsPanel({ statements, results, isHost = false }) {
   if (!cluster.ok) {
     const message =
       cluster.reason === 'need-voters'
-        ? `Opinion clusters appear once at least 3 people have voted (currently ${cluster.voterCount}).`
+        ? `Opinion groups appear once at least 3 people have voted (currently ${cluster.voterCount}).`
         : `At least 2 statements are needed to map opinions (currently ${cluster.statementCount}).`
     return (
       <div className="results-panel">
         <Placeholder title="Opinion Clusters" message={message} />
-        {cluster.consensus.length > 0 && (
-          <ConsensusBlocks cluster={cluster} />
-        )}
+        {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} />}
       </div>
     )
   }
@@ -142,20 +224,8 @@ export default function ResultsPanel({ statements, results, isHost = false }) {
       <div className="results-head">
         <h3 className="results-title">Opinion Clusters</h3>
         <p className="results-sub">
-          {cluster.voterCount} participants grouped into {cluster.k} opinion {cluster.k === 1 ? 'group' : 'groups'} by how they voted.
+          {cluster.voterCount} participants split into {cluster.k} opinion {cluster.k === 1 ? 'group' : 'groups'} based on how they voted.
         </p>
-      </div>
-
-      <ClusterScatter result={cluster} />
-
-      <div className="cluster-legend" data-testid="cluster-legend">
-        {cluster.clusters.map((c) => (
-          <div className="cluster-legend-item" key={c.id}>
-            <span className="cluster-dot" style={{ background: CLUSTER_COLORS[c.id % CLUSTER_COLORS.length] }} />
-            <span className="cluster-legend-label">Group {GROUP_LETTERS[c.id]}</span>
-            <span className="cluster-legend-size">{c.size}</span>
-          </div>
-        ))}
       </div>
 
       {!isHost && youLetter && (
@@ -164,6 +234,22 @@ export default function ResultsPanel({ statements, results, isHost = false }) {
           {youSize > 1 ? ` with ${youSize - 1} ${youSize - 1 === 1 ? 'other' : 'others'} who vote like you.` : ' — a unique stance so far.'}
         </div>
       )}
+
+      <GroupSizeBars clusters={cluster.clusters} voterCount={cluster.voterCount} youCluster={cluster.youCluster} />
+
+      <ClusterMap result={cluster} />
+
+      <section className="result-section">
+        <div className="result-section-head">
+          <span className="result-section-title">What each group thinks</span>
+          <span className="result-section-hint">Positions that define the group</span>
+        </div>
+        <div className="group-card-grid">
+          {cluster.groups.map((g) => (
+            <GroupCard key={g.id} group={g} isYou={g.id === cluster.youCluster} />
+          ))}
+        </div>
+      </section>
 
       <ConsensusBlocks cluster={cluster} />
     </div>

@@ -240,6 +240,31 @@ export function computeOpinionClusters({ statements = [], voters = [] }) {
     return { id: c, size: members.length }
   }).filter((cl) => cl.size > 0)
 
+  const groups = clusters.map((cl) => {
+    const members = voters.filter((_, i) => bestAssign[i] === cl.id)
+    const minVotes = Math.max(1, Math.ceil(members.length * 0.5))
+    const perStmt = statements.map((s) => {
+      let agree = 0
+      let disagree = 0
+      for (const m of members) {
+        const val = m.votes[s.id]
+        if (val === 'agree') agree++
+        else if (val === 'disagree') disagree++
+      }
+      const total = agree + disagree
+      return { id: s.id, text: s.text, custom: s.custom, agree, disagree, total, rate: total ? agree / total : 0 }
+    })
+    const agree = perStmt
+      .filter((p) => p.total >= minVotes && p.rate >= 0.6)
+      .sort((a, b) => b.rate - a.rate || b.total - a.total)
+      .slice(0, 3)
+    const disagree = perStmt
+      .filter((p) => p.total >= minVotes && p.rate <= 0.4)
+      .sort((a, b) => a.rate - b.rate || b.total - a.total)
+      .slice(0, 3)
+    return { id: cl.id, size: cl.size, agree, disagree }
+  })
+
   const youCluster = points.find((p) => p.isYou)?.cluster ?? null
 
   return {
@@ -247,6 +272,7 @@ export function computeOpinionClusters({ statements = [], voters = [] }) {
     k: clusters.length,
     points,
     clusters,
+    groups,
     youCluster,
     voterCount: voters.length,
     statementCount: dim,
