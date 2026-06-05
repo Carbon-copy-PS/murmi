@@ -3,30 +3,20 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 NODE_MAJOR=20
+PYTHON_VERSION=3.12
 
 echo "==> Installing system packages"
 sudo apt-get update
 sudo apt-get install -y build-essential curl git
 
-# Try to get Python 3.12 (has prebuilt wheels). Fall back to deadsnakes, then to whatever 3.10-3.12 exists.
-if ! sudo apt-get install -y python3.12 python3.12-venv python3.12-dev 2>/dev/null; then
-  echo "==> python3.12 not in default repos, trying deadsnakes PPA"
-  sudo apt-get install -y software-properties-common
-  sudo add-apt-repository -y ppa:deadsnakes/ppa
-  sudo apt-get update
-  sudo apt-get install -y python3.12 python3.12-venv python3.12-dev || true
+echo "==> Installing uv (distro-independent Python + wheels)"
+if ! command -v uv >/dev/null 2>&1; then
+  curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
+export PATH="$HOME/.local/bin:$PATH"
 
-# Pick a Python that ships prebuilt wheels (avoid 3.13/3.14 source builds)
-PYTHON_BIN=""
-for cand in python3.12 python3.11 python3.10; do
-  if command -v "$cand" >/dev/null 2>&1; then PYTHON_BIN="$cand"; break; fi
-done
-if [ -z "$PYTHON_BIN" ]; then
-  echo "!! No suitable Python (3.10-3.12) found"; exit 1
-fi
-echo "==> Using $PYTHON_BIN ($($PYTHON_BIN --version))"
-sudo apt-get install -y "${PYTHON_BIN}-venv" "${PYTHON_BIN}-dev" 2>/dev/null || true
+echo "==> Installing standalone CPython ${PYTHON_VERSION} via uv"
+uv python install "$PYTHON_VERSION"
 
 echo "==> Ensuring swap (prevents OOM during any source build)"
 if ! sudo swapon --show | grep -q '/swapfile'; then
@@ -56,12 +46,11 @@ if [ ! -f "$DIR/.env" ]; then
   echo "!! Created .env from .env.example — add your OPENAI_API_KEY before traffic hits the app"
 fi
 
-echo "==> Setting up backend (Python venv)"
+echo "==> Setting up backend (uv venv)"
 cd "$DIR/backend"
 rm -rf .venv
-"$PYTHON_BIN" -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
+uv venv --python "$PYTHON_VERSION" .venv
+uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/uvicorn --version
 
 echo "==> Setting up frontend (build)"
