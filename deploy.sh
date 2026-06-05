@@ -53,7 +53,7 @@ uv venv --python "$PYTHON_VERSION" .venv
 uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/uvicorn --version
 
-echo "==> Setting up frontend (build)"
+echo "==> Building frontend (served by backend from frontend/dist)"
 cd "$DIR/frontend"
 rm -rf node_modules package-lock.json
 npm install
@@ -71,10 +71,10 @@ pm2 save
 
 echo ""
 echo "============================================"
-echo "  Done. Apps running under pm2:"
+echo "  Done. Backend (serves frontend too) under pm2:"
 pm2 ls
 echo "============================================"
-echo "  Frontend: http://<EC2_PUBLIC_IP>:5173"
-echo "  Backend:  http://<EC2_PUBLIC_IP>:8000"
-echo "  Logs:     pm2 logs"
+echo "  Local: http://127.0.0.1:8000  (bound to localhost)"
+echo "  Next:  point DNS to this server, then run ./setup-https.sh <domain>"
+echo "  Logs:  pm2 logs debate-backend"
 echo "============================================"
