@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
+import ParticipantsPanel from './ParticipantsPanel'
 import ShareModal from './ShareModal'
+import ConfirmDialog from './ConfirmDialog'
 import { requestPermission, notify } from '../notifications'
-import { getClientId } from '../identity'
+import { getClientId, saveName, saveSession } from '../identity'
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
@@ -58,6 +60,21 @@ function rmsLevel(samples) {
   return Math.sqrt(sum / samples.length)
 }
 
+function EditIcon() {
+  return (
+    <svg className="field-edit-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"
+      />
+    </svg>
+  )
+}
+
 export default function DebateRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
   const [connected, setConnected] = useState(false)
   const [transcript, setTranscript] = useState([])
@@ -65,15 +82,23 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [captionError, setCaptionError] = useState('')
   const [recording, setRecording] = useState(false)
   const [isHost, setIsHost] = useState(false)
+  const [isRecorder, setIsRecorder] = useState(false)
   const [view, setView] = useState('record')
   const [statements, setStatements] = useState([])
   const [currentRoundCount, setCurrentRoundCount] = useState(0)
   const [threshold, setThreshold] = useState(5)
   const [topic, setTopic] = useState(null)
   const [showShare, setShowShare] = useState(false)
+  const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
   const [heldIds, setHeldIds] = useState(() => new Set())
   const [results, setResults] = useState(null)
+  const [participants, setParticipants] = useState([])
+  const [displayName, setDisplayName] = useState(userName)
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(userName)
+  const [editingTopic, setEditingTopic] = useState(false)
+  const [topicDraft, setTopicDraft] = useState('')
 
   const approveTimersRef = useRef(new Map())
 
@@ -83,6 +108,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const recordingRef = useRef(false)
   const participantIdRef = useRef(null)
   const isHostRef = useRef(false)
+  const isRecorderRef = useRef(false)
   const silenceFramesRef = useRef(0)
   const speechStartedRef = useRef(false)
 
@@ -157,20 +183,49 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data)
       switch (msg.type) {
-        case 'joined':
+        case 'joined': {
           participantIdRef.current = msg.participantId
-          setIsHost(Boolean(msg.isHost))
-          isHostRef.current = Boolean(msg.isHost)
-          setView(msg.isHost ? 'record' : 'statements')
+          const host = Boolean(msg.isHost)
+          const recorder = msg.recorderId === msg.participantId
+          setIsHost(host)
+          isHostRef.current = host
+          setIsRecorder(recorder)
+          isRecorderRef.current = recorder
+          setView(recorder ? 'record' : 'statements')
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setCurrentRoundCount(msg.currentRoundCount || 0)
           setThreshold(msg.threshold || 5)
           setTopic(msg.topic || null)
+          setParticipants(msg.participantsStatus || [])
           if (msg.recording) {
             setRecording(true)
             recordingRef.current = true
           }
+          break
+        }
+        case 'participants_status':
+          setParticipants(msg.participants || [])
+          break
+        case 'hosts_updated': {
+          const myId = participantIdRef.current
+          const host = (msg.hostIds || []).includes(myId)
+          const recorder = msg.recorderId === myId
+          setIsHost(host)
+          isHostRef.current = host
+          setIsRecorder(recorder)
+          isRecorderRef.current = recorder
+          if (!host) {
+            setView((prev) => (prev === 'record' || prev === 'participants' ? 'statements' : prev))
+          } else if (!recorder) {
+            setView((prev) => (prev === 'record' ? 'statements' : prev))
+          }
+          break
+        }
+        case 'topic_updated':
+          setTopic(msg.topic || null)
+          break
+        case 'participant_renamed':
           break
         case 'active_mic':
           break
@@ -178,19 +233,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           notify('Debate Sense', 'This session has expired', { tag: 'expired', force: true })
           onLeave()
           break
-        case 'host_updated': {
-          const nextIsHost = msg.hostParticipantId === participantIdRef.current
-          setIsHost(nextIsHost)
-          isHostRef.current = nextIsHost
-          break
-        }
         case 'participant_joined':
         case 'participant_left':
-          if (msg.hostParticipantId) {
-            const nextIsHost = msg.hostParticipantId === participantIdRef.current
-            setIsHost(nextIsHost)
-            isHostRef.current = nextIsHost
-          }
           break
         case 'recording_started':
           setRecording(true)
@@ -317,7 +361,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         }, 200)
 
         processor.onaudioprocess = (event) => {
-          if (!isHostRef.current) return
+          if (!isRecorderRef.current) return
           if (!recordingRef.current) return
           if (wsRef.current?.readyState !== WebSocket.OPEN) return
 
@@ -356,16 +400,16 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         setCaptionError('Microphone access is blocked for the host recorder.')
       }
     }
-    if (!isHost) return undefined
+    if (!isRecorder) return undefined
     initAudio()
     return () => {
       disposed = true
       cleanup?.()
     }
-  }, [isHost])
+  }, [isRecorder])
 
   async function toggleRecording() {
-    if (!isHost) return
+    if (!isRecorder) return
     if (audioContextRef.current?.state === 'suspended') {
       await audioContextRef.current.resume()
     }
@@ -374,6 +418,98 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   function handleVote(statementId, vote) {
     wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
+  }
+
+  function handleToggleHost(targetId, makeHost) {
+    wsRef.current?.send(JSON.stringify({ type: 'set_host', participantId: targetId, host: makeHost }))
+  }
+
+  function requestToggleHost(p) {
+    setConfirm({
+      title: p.isHost ? 'Revoke host access?' : `Make ${p.name} a host?`,
+      message: p.isHost
+        ? `${p.name} will lose host controls for this debate.`
+        : `${p.name} will be able to manage statements, recording and other participants.`,
+      confirmLabel: p.isHost ? 'Revoke host' : 'Make host',
+      danger: p.isHost,
+      onConfirm: () => handleToggleHost(p.id, !p.isHost),
+    })
+  }
+
+  function handleSetRecorder(targetId) {
+    wsRef.current?.send(JSON.stringify({ type: 'set_recorder', participantId: targetId }))
+  }
+
+  function requestSetRecorder(p) {
+    const isYou = p.id === participantIdRef.current
+    setConfirm({
+      title: isYou ? 'Take the mic?' : `Give the mic to ${p.name}?`,
+      message: isYou
+        ? 'You become the recorder — recording will capture your microphone.'
+        : `${p.name} becomes the recorder. Their microphone will capture the debate audio.`,
+      confirmLabel: isYou ? 'Take mic' : 'Give mic',
+      danger: false,
+      onConfirm: () => handleSetRecorder(p.id),
+    })
+  }
+
+  function requestLeave() {
+    setConfirm({
+      title: 'Leave this debate?',
+      message: 'You can rejoin anytime with the session code.',
+      confirmLabel: 'Leave',
+      danger: true,
+      onConfirm: onLeave,
+    })
+  }
+
+  function startEditName() {
+    setNameDraft(displayName)
+    setEditingName(true)
+  }
+
+  function saveDisplayName() {
+    const trimmed = nameDraft.trim()
+    if (!trimmed || trimmed.length < 2) return
+    if (trimmed !== displayName) {
+      wsRef.current?.send(JSON.stringify({ type: 'rename', name: trimmed }))
+      setDisplayName(trimmed)
+      saveName(trimmed)
+      saveSession({ sessionId, userName: trimmed, userLanguage, wantsHost })
+    }
+    setEditingName(false)
+  }
+
+  function handleNameKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      saveDisplayName()
+    } else if (e.key === 'Escape') {
+      setEditingName(false)
+    }
+  }
+
+  function startEditTopic() {
+    setTopicDraft(topic || '')
+    setEditingTopic(true)
+  }
+
+  function saveTopic() {
+    const trimmed = topicDraft.trim()
+    if (trimmed !== (topic || '')) {
+      wsRef.current?.send(JSON.stringify({ type: 'set_topic', topic: trimmed }))
+      setTopic(trimmed || null)
+    }
+    setEditingTopic(false)
+  }
+
+  function handleTopicKeyDown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      saveTopic()
+    } else if (e.key === 'Escape') {
+      setEditingTopic(false)
+    }
   }
 
   function requestResults() {
@@ -400,13 +536,12 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   return (
     <div className="room">
       <div className="room-top">
-        <div className="room-meta">
+        <div className="room-bar">
           <div className="room-status">
             <span className={`status-dot ${connected ? 'online' : 'offline'}`} aria-hidden="true" />
             <span className="status-text">{connected ? 'Live' : 'Connecting…'}</span>
             {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
           </div>
-          {topic && <h1 className="room-topic" data-testid="room-topic">{topic}</h1>}
           <button
             className="code-pill"
             onClick={() => setShowShare(true)}
@@ -416,12 +551,83 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             <span className="code-pill-label">Code</span>
             <span className="code-pill-value">{sessionId}</span>
           </button>
+          <div className="room-actions">
+            <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
+              Share
+            </button>
+            <button className="link-btn" onClick={requestLeave} data-testid="leave-btn">Leave</button>
+          </div>
         </div>
-        <div className="room-actions">
-          <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
-            Share
-          </button>
-          <button className="link-btn" onClick={onLeave} data-testid="leave-btn">Leave</button>
+
+        <div className="room-fields">
+          <div className="field-block" data-testid="topic-field">
+            <span className="field-tag">Topic</span>
+            {editingTopic ? (
+              <div className="field-edit">
+                <input
+                  type="text"
+                  className="field-edit-input"
+                  value={topicDraft}
+                  onChange={(e) => setTopicDraft(e.target.value)}
+                  onKeyDown={handleTopicKeyDown}
+                  autoFocus
+                  maxLength={200}
+                  placeholder="What are you debating?"
+                  aria-label="Edit topic"
+                  data-testid="topic-edit-input"
+                />
+                <button className="icon-btn sm" onClick={saveTopic} data-testid="topic-save-btn">Save</button>
+              </div>
+            ) : isHost ? (
+              <button
+                className="field-value editable"
+                onClick={startEditTopic}
+                title="Edit topic"
+                data-testid="topic-edit-btn"
+              >
+                <span className={`field-value-text ${topic ? '' : 'placeholder'}`}>
+                  {topic || 'Add a topic'}
+                </span>
+                <EditIcon />
+              </button>
+            ) : (
+              <span className="field-value" data-testid="room-topic">
+                <span className={`field-value-text ${topic ? '' : 'placeholder'}`}>
+                  {topic || 'No topic set'}
+                </span>
+              </span>
+            )}
+          </div>
+
+          <div className="field-block" data-testid="room-user">
+            <span className="field-tag">Your name</span>
+            {editingName ? (
+              <div className="field-edit">
+                <input
+                  type="text"
+                  className="field-edit-input"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={handleNameKeyDown}
+                  autoFocus
+                  maxLength={120}
+                  aria-label="Edit your name"
+                  data-testid="name-edit-input"
+                />
+                <button className="icon-btn sm" onClick={saveDisplayName} data-testid="name-save-btn">Save</button>
+              </div>
+            ) : (
+              <button
+                className="field-value editable"
+                onClick={startEditName}
+                title="Edit your name"
+                data-testid="name-edit-btn"
+              >
+                <span className="field-value-text">{displayName}</span>
+                <EditIcon />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -430,7 +636,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
       )}
 
       <div className="tabs">
-        {isHost && (
+        {isRecorder && (
           <button
             className={`tab ${view === 'record' ? 'active' : ''}`}
             onClick={() => setView('record')}
@@ -456,6 +662,16 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         >
           Results
         </button>
+        {isHost && (
+          <button
+            className={`tab ${view === 'participants' ? 'active' : ''}`}
+            onClick={() => setView('participants')}
+            data-testid="tab-participants"
+          >
+            Participants
+            {participants.length > 0 && <span className="badge">{participants.length}</span>}
+          </button>
+        )}
       </div>
 
       {view === 'record' && (
@@ -463,10 +679,10 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           <button
             className={`record-btn ${recording ? 'active' : ''}`}
             onClick={toggleRecording}
-            disabled={!connected || !isHost}
+            disabled={!connected || !isRecorder}
           >
             <span className="record-dot" />
-            {isHost ? (recording ? 'Stop' : 'Record') : 'Listening'}
+            {isRecorder ? (recording ? 'Stop' : 'Record') : 'Listening'}
           </button>
 
           <TranscriptPanel entries={transcript} partial={partialCaption} error={captionError} />
@@ -497,6 +713,29 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
       )}
       {view === 'results' && (
         <ResultsPanel statements={statements} results={results} isHost={isHost} />
+      )}
+      {view === 'participants' && isHost && (
+        <ParticipantsPanel
+          participants={participants}
+          currentId={participantIdRef.current}
+          canManageHosts={isHost}
+          onToggleHost={requestToggleHost}
+          onSetRecorder={requestSetRecorder}
+        />
+      )}
+
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmLabel={confirm.confirmLabel}
+          danger={confirm.danger}
+          onConfirm={() => {
+            confirm.onConfirm?.()
+            setConfirm(null)
+          }}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   )

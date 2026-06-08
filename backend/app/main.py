@@ -582,6 +582,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await _safe_db(db.save_participant(
         sessions.get(session_id), participant_id, client_id, name, language
     ))
+    await sessions.broadcast_participants(session_id)
+    await sessions.broadcast_hosts(session_id)
 
     try:
         while True:
@@ -647,6 +649,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 )
                 if ok:
                     await sessions.broadcast_vote(session_id, statement_id)
+                    await sessions.broadcast_participants(session_id)
                     session = sessions.get(session_id)
                     statement = next(
                         (s for s in session.statements if s.id == statement_id), None
@@ -674,6 +677,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 approved = sessions.approve_statements(session_id, target)
                 if approved:
                     await sessions.broadcast_statements(session_id)
+                    await sessions.broadcast_participants(session_id)
                     await _safe_db(db.set_statements_approved([s.id for s in approved]))
 
             elif msg_type == "add_statement":
@@ -694,6 +698,48 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                             "round": completed_round,
                         })
 
+            elif msg_type == "set_host":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                target = data.get("participantId")
+                make_host = bool(data.get("host", True))
+                if target and sessions.set_host(session_id, target, make_host):
+                    await sessions.broadcast_hosts(session_id)
+                    await sessions.broadcast_participants(session_id)
+                    await sessions.broadcast_statements(session_id)
+
+            elif msg_type == "set_recorder":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                target = data.get("participantId")
+                if target and sessions.set_recorder(session_id, target):
+                    await sessions.broadcast_hosts(session_id)
+                    await sessions.broadcast_participants(session_id)
+
+            elif msg_type == "set_topic":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                topic = sessions.set_topic(session_id, data.get("topic"))
+                await _safe_db(db.update_topic(session_id, topic))
+                await sessions.broadcast(session_id, {
+                    "type": "topic_updated",
+                    "topic": topic,
+                })
+
+            elif msg_type == "rename":
+                new_name = (data.get("name") or "").strip()
+                if new_name and sessions.rename_participant(session_id, participant_id, new_name):
+                    await _safe_db(db.save_participant(
+                        sessions.get(session_id), participant_id, client_id, new_name,
+                        sessions.get_participant_language(session_id, participant_id),
+                    ))
+                    await sessions.broadcast_participants(session_id)
+                    await sessions.broadcast(session_id, {
+                        "type": "participant_renamed",
+                        "participantId": participant_id,
+                        "name": new_name,
+                    })
+
     except WebSocketDisconnect:
         name = sessions.get_participant_name(session_id, participant_id)
         await close_realtime_sessions(session_id, participant_id)
@@ -704,24 +750,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 "type": "participant_left",
                 "participantId": participant_id,
                 "name": name,
-                "hostParticipantId": session.host_participant_id,
-                "participants": [
-                    {
-                        "id": p.id,
-                        "name": p.name,
-                        "language": p.language,
-                        "isHost": p.id == session.host_participant_id,
-                    }
-                    for p in session.participants.values()
-                ],
+                "participants": sessions._participant_list(session),
             })
+            await sessions.broadcast_participants(session_id)
+            await sessions.broadcast_hosts(session_id)
             if leave_result.get("recording_stopped"):
                 await sessions.broadcast(session_id, {"type": "recording_stopped"})
-            if leave_result.get("host_changed"):
-                await sessions.broadcast(session_id, {
-                    "type": "host_updated",
-                    "hostParticipantId": session.host_participant_id,
-                })
 
 
 if FRONTEND_DIST.is_dir():

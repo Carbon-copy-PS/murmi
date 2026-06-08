@@ -191,6 +191,15 @@ class Database:
             )
             await db.commit()
 
+    async def update_topic(self, session_id: str, topic: str | None):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(topic=topic)
+            )
+            await db.commit()
+
     async def save_transcript_entry(self, session, entry: dict):
         if not self.enabled:
             return

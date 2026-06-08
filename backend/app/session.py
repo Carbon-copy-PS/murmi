@@ -20,6 +20,7 @@ class Participant:
     name: str
     websocket: WebSocket
     language: Optional[str] = None
+    client_id: Optional[str] = None
     audio_level: float = 0.0
     last_level_update: float = 0.0
 
@@ -42,6 +43,7 @@ class Session:
     participants: Dict[str, Participant] = field(default_factory=dict)
     transcript: list = field(default_factory=list)
     host_participant_id: Optional[str] = None
+    host_client_ids: set[str] = field(default_factory=set)
     active_mic_id: Optional[str] = None
     recording: bool = False
     statements: list[Statement] = field(default_factory=list)
@@ -129,11 +131,22 @@ class SessionManager:
             name=name,
             websocket=websocket,
             language=language,
+            client_id=client_id,
         )
         session.participants[participant_id] = participant
         if client_id:
             session.known_participants[client_id] = participant_id
-        if session.host_participant_id not in session.participants or session.host_participant_id is None:
+
+        no_hosts_yet = not session.host_client_ids
+        if no_hosts_yet and (wants_host or session.host_participant_id is None):
+            if client_id:
+                session.host_client_ids.add(client_id)
+            session.host_participant_id = participant_id
+            session.active_mic_id = participant_id
+        elif self._is_host(session, participant_id) and (
+            session.host_participant_id is None
+            or session.host_participant_id not in session.participants
+        ):
             session.host_participant_id = participant_id
             session.active_mic_id = participant_id
 
@@ -141,8 +154,9 @@ class SessionManager:
             "type": "joined",
             "participantId": participant_id,
             "sessionId": session_id,
-            "isHost": participant_id == session.host_participant_id,
-            "hostParticipantId": session.host_participant_id,
+            "isHost": self._is_host(session, participant_id),
+            "hostIds": self._host_pids(session),
+            "recorderId": session.host_participant_id,
             "recording": session.recording,
             "returning": returning,
             "participants": self._participant_list(session),
@@ -150,17 +164,19 @@ class SessionManager:
             "topic": session.topic,
             "statements": self.format_all_statements(
                 session_id, participant_id,
-                include_pending=participant_id == session.host_participant_id,
+                include_pending=self._is_host(session, participant_id),
             ),
             "currentRoundCount": self.get_current_round_count(session_id),
             "threshold": session.threshold,
+            "participantsStatus": self.participants_status(session_id),
         })
 
         await self.broadcast(session_id, {
             "type": "participant_joined",
             "participantId": participant_id,
             "name": name,
-            "hostParticipantId": session.host_participant_id,
+            "hostIds": self._host_pids(session),
+            "recorderId": session.host_participant_id,
             "participants": self._participant_list(session),
         }, exclude=participant_id)
 
@@ -196,9 +212,52 @@ class SessionManager:
     def is_active_mic(self, session_id: str, participant_id: str) -> bool:
         return self.is_host(session_id, participant_id)
 
+    def _is_host(self, session: Session, participant_id: str) -> bool:
+        p = session.participants.get(participant_id)
+        if not p:
+            return False
+        if p.client_id:
+            return p.client_id in session.host_client_ids
+        return participant_id == session.host_participant_id
+
+    def _host_pids(self, session: Session) -> list:
+        return [pid for pid in session.participants if self._is_host(session, pid)]
+
     def is_host(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
-        return session is not None and session.host_participant_id == participant_id
+        return session is not None and self._is_host(session, participant_id)
+
+    def set_recorder(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session or participant_id not in session.participants:
+            return False
+        if not self._is_host(session, participant_id):
+            return False
+        session.host_participant_id = participant_id
+        session.active_mic_id = participant_id
+        return True
+
+    def set_host(self, session_id: str, participant_id: str, make_host: bool = True) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        target = session.participants.get(participant_id)
+        if not target or not target.client_id:
+            return False
+        if make_host:
+            session.host_client_ids.add(target.client_id)
+            if session.host_participant_id not in session.participants:
+                session.host_participant_id = participant_id
+                session.active_mic_id = participant_id
+        else:
+            if len(session.host_client_ids) <= 1:
+                return False
+            session.host_client_ids.discard(target.client_id)
+            if session.host_participant_id == participant_id:
+                next_host = next(iter(self._host_pids(session)), None)
+                session.host_participant_id = next_host
+                session.active_mic_id = next_host
+        return True
 
     def get_host_id(self, session_id: str) -> str | None:
         session = self.sessions.get(session_id)
@@ -403,7 +462,7 @@ class SessionManager:
                     "type": "statements_updated",
                     "statements": self.format_all_statements(
                         session_id, pid,
-                        include_pending=pid == session.host_participant_id,
+                        include_pending=self._is_host(session, pid),
                     ),
                     "currentRoundCount": round_count,
                     "threshold": session.threshold,
@@ -438,6 +497,55 @@ class SessionManager:
         for pid in disconnected:
             del session.participants[pid]
 
+    def participants_status(self, session_id: str) -> list:
+        session = self.sessions.get(session_id)
+        if not session:
+            return []
+        approved = [s for s in session.statements if s.approved]
+        required = len(approved)
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "language": p.language,
+                "isHost": self._is_host(session, p.id),
+                "isRecorder": p.id == session.host_participant_id,
+                "votesCast": sum(1 for s in approved if p.id in s.votes),
+                "votesRequired": required,
+            }
+            for p in session.participants.values()
+        ]
+
+    async def broadcast_participants(self, session_id: str):
+        await self.broadcast(session_id, {
+            "type": "participants_status",
+            "participants": self.participants_status(session_id),
+        })
+
+    async def broadcast_hosts(self, session_id: str):
+        session = self.sessions.get(session_id)
+        if not session:
+            return
+        await self.broadcast(session_id, {
+            "type": "hosts_updated",
+            "hostIds": self._host_pids(session),
+            "recorderId": session.host_participant_id,
+        })
+
+    def set_topic(self, session_id: str, topic: str | None) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        session.topic = (topic or "").strip()[:200] or None
+        return session.topic
+
+    def rename_participant(self, session_id: str, participant_id: str, name: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session or participant_id not in session.participants:
+            return False
+        session.participants[participant_id].name = name.strip()[:120]
+        return True
+
     def leave(self, session_id: str, participant_id: str) -> dict:
         result = {
             "session_removed": False,
@@ -448,20 +556,18 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return result
-        was_host = session.host_participant_id == participant_id
         if participant_id in session.participants:
             del session.participants[participant_id]
         if not session.participants:
             del self.sessions[session_id]
             result["session_removed"] = True
             return result
-        if was_host:
-            session.host_participant_id = next(iter(session.participants))
-            session.active_mic_id = session.host_participant_id
-            result["host_changed"] = True
-            if session.recording:
-                session.recording = False
-                result["recording_stopped"] = True
+        if session.host_participant_id not in session.participants:
+            next_host = next(iter(self._host_pids(session)), None)
+            if next_host:
+                session.host_participant_id = next_host
+                session.active_mic_id = next_host
+                result["host_changed"] = True
         result["hostParticipantId"] = session.host_participant_id
         return result
 
@@ -483,7 +589,7 @@ class SessionManager:
                 "id": p.id,
                 "name": p.name,
                 "language": p.language,
-                "isHost": p.id == session.host_participant_id,
+                "isHost": self._is_host(session, p.id),
             }
             for p in session.participants.values()
         ]
