@@ -332,6 +332,38 @@ async def run_analysis(session_id: str):
         sessions.mark_analysis_done(session_id)
 
 
+COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
+
+
+async def run_common_ground(session_id: str, payload: dict, topic: str | None):
+    result = None
+    try:
+        result = await asyncio.wait_for(
+            analysis.generate_common_ground(payload, topic),
+            timeout=COMMON_GROUND_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print("Common ground generation timed out")
+    except Exception as e:
+        print(f"Common ground task error: {e}")
+
+    if not sessions.exists(session_id):
+        return
+
+    if result:
+        result["generatedAt"] = time.time()
+        sessions.set_common_ground(session_id, result)
+        await sessions.broadcast(session_id, {
+            "type": "common_ground",
+            "commonGround": result,
+        })
+    else:
+        await sessions.broadcast(session_id, {
+            "type": "common_ground_error",
+            "message": "Could not generate common ground. Please try again.",
+        })
+
+
 async def run_turn_analysis(session_id: str, entry_id: str):
     await asyncio.sleep(SPEAKER_TURN_IDLE_SECONDS)
 
@@ -584,6 +616,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     ))
     await sessions.broadcast_participants(session_id)
     await sessions.broadcast_hosts(session_id)
+    await sessions.broadcast_presence(session_id)
 
     try:
         while True:
@@ -644,19 +677,24 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
             elif msg_type == "vote":
                 statement_id = data.get("statementId", "")
+                vote_value = data.get("vote", "")
                 ok = sessions.record_vote(
-                    session_id, participant_id, statement_id, data.get("vote", ""),
+                    session_id, participant_id, statement_id, vote_value,
                 )
                 if ok:
                     await sessions.broadcast_vote(session_id, statement_id)
                     await sessions.broadcast_participants(session_id)
+                    await sessions.broadcast_presence(session_id)
                     session = sessions.get(session_id)
                     statement = next(
                         (s for s in session.statements if s.id == statement_id), None
                     ) if session else None
-                    await _safe_db(db.save_vote(
-                        session, statement, participant_id, data.get("vote", "")
-                    ))
+                    if vote_value == "undo":
+                        await _safe_db(db.delete_vote(statement_id, participant_id))
+                    else:
+                        await _safe_db(db.save_vote(
+                            session, statement, participant_id, vote_value
+                        ))
 
             elif msg_type == "get_results":
                 await websocket.send_json({
@@ -673,19 +711,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 topic = session.topic if session else None
                 await sessions.broadcast(session_id, {"type": "common_ground_pending"})
-                result = await analysis.generate_common_ground(payload, topic)
-                if result:
-                    result["generatedAt"] = time.time()
-                    sessions.set_common_ground(session_id, result)
-                    await sessions.broadcast(session_id, {
-                        "type": "common_ground",
-                        "commonGround": result,
-                    })
-                else:
-                    await sessions.broadcast(session_id, {
-                        "type": "common_ground_error",
-                        "message": "Could not generate common ground.",
-                    })
+                asyncio.create_task(run_common_ground(session_id, payload, topic))
+
+            elif msg_type == "set_auto_approve":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                value = bool(data.get("autoApprove"))
+                client_id = sessions.set_auto_approve(session_id, participant_id, value)
+                if client_id:
+                    await _safe_db(db.save_auto_approve(session_id, client_id, value))
 
             elif msg_type == "dismiss_common_ground":
                 if not sessions.is_host(session_id, participant_id):
@@ -786,6 +820,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             })
             await sessions.broadcast_participants(session_id)
             await sessions.broadcast_hosts(session_id)
+            await sessions.broadcast_presence(session_id)
             if leave_result.get("recording_stopped"):
                 await sessions.broadcast(session_id, {"type": "recording_stopped"})
 

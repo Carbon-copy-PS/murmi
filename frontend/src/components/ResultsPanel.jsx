@@ -1,5 +1,12 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
+import {
+  buildCSV,
+  buildJSON,
+  buildSummary,
+  downloadFile,
+  exportFilename,
+} from '../utils/export-results'
 
 const CLUSTER_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
 const GROUP_LETTERS = ['A', 'B', 'C', 'D']
@@ -163,6 +170,52 @@ function GroupCard({ group, isYou }) {
   )
 }
 
+function ExportBar({ ctx }) {
+  const [copied, setCopied] = useState(false)
+  const hasData = ctx.statements.some((s) => s.approved)
+  if (!hasData) return null
+
+  const sid = ctx.sessionId
+
+  async function copySummary() {
+    try {
+      await navigator.clipboard.writeText(buildSummary(ctx))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <section className="result-section export-bar" data-testid="export-bar">
+      <div className="result-section-head">
+        <span className="result-section-title">Export results</span>
+        <span className="result-section-hint">Download or share this session</span>
+      </div>
+      <div className="export-actions">
+        <button
+          className="export-btn"
+          onClick={() => downloadFile(exportFilename(sid, 'csv'), buildCSV(ctx), 'text/csv')}
+          data-testid="export-csv"
+        >
+          CSV
+        </button>
+        <button
+          className="export-btn"
+          onClick={() => downloadFile(exportFilename(sid, 'json'), buildJSON(ctx), 'application/json')}
+          data-testid="export-json"
+        >
+          JSON
+        </button>
+        <button className="export-btn primary" onClick={copySummary} data-testid="export-summary">
+          {copied ? 'Copied ✓' : 'Copy summary'}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 function Placeholder({ title, message, stats }) {
   return (
     <div className="results-placeholder">
@@ -267,6 +320,8 @@ export default function ResultsPanel({
   statements,
   results,
   isHost = false,
+  topic = null,
+  sessionId = null,
   commonGround = null,
   cgPending = false,
   cgError = null,
@@ -277,6 +332,8 @@ export default function ResultsPanel({
     () => (results ? computeOpinionClusters(results) : null),
     [results],
   )
+
+  const exportCtx = { topic, sessionId, statements, results, cluster, commonGround }
 
   const cgPayload = useMemo(() => {
     if (!cluster) return null
@@ -330,6 +387,7 @@ export default function ResultsPanel({
         <Placeholder title="Opinion Clusters" message={message} />
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} />}
+        <ExportBar ctx={exportCtx} />
       </div>
     )
   }
@@ -372,6 +430,8 @@ export default function ResultsPanel({
       </section>
 
       <ConsensusBlocks cluster={cluster} />
+
+      <ExportBar ctx={exportCtx} />
     </div>
   )
 }

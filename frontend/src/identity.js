@@ -36,3 +36,13 @@ export function saveSession(session) {
 export function clearSession() {
   sessionStorage.removeItem(SESSION_KEY)
 }
+
+const ONBOARDED_KEY = 'ds_onboarded'
+
+export function hasOnboarded() {
+  return localStorage.getItem(ONBOARDED_KEY) === '1'
+}
+
+export function setOnboarded() {
+  localStorage.setItem(ONBOARDED_KEY, '1')
+}

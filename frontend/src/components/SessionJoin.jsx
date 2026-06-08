@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getSavedName, saveName } from '../identity'
+import ThemeToggle from './ThemeToggle'
 
 const LANGUAGES = (
   <>
@@ -106,6 +107,9 @@ export default function SessionJoin({ onJoin }) {
 
   return (
     <div className="landing">
+      <div className="landing-topbar">
+        <ThemeToggle />
+      </div>
       <header className="landing-hero">
         <div className="landing-logo" aria-hidden="true">
           <svg viewBox="0 0 512 512" className="landing-logo-mark" fill="none" xmlns="http://www.w3.org/2000/svg">

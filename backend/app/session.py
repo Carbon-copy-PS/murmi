@@ -23,6 +23,7 @@ class Participant:
     client_id: Optional[str] = None
     audio_level: float = 0.0
     last_level_update: float = 0.0
+    last_vote_at: float = 0.0
 
 
 @dataclass
@@ -55,6 +56,7 @@ class Session:
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
     common_ground: Optional[dict] = None
+    auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
 
 
 SILENCE_THRESHOLD = 0.01
@@ -91,6 +93,8 @@ class SessionManager:
             pid = member.get("participant_id")
             if client_id and pid:
                 session.known_participants[client_id] = pid
+            if client_id and "auto_approve" in member:
+                session.auto_approve_prefs[client_id] = bool(member["auto_approve"])
         for s in data.get("statements", []):
             session.statements.append(Statement(
                 id=s["id"],
@@ -170,6 +174,8 @@ class SessionManager:
             "currentRoundCount": self.get_current_round_count(session_id),
             "threshold": session.threshold,
             "participantsStatus": self.participants_status(session_id),
+            "presence": self.presence(session_id),
+            "autoApprove": self.get_auto_approve(session_id, participant_id),
         })
 
         await self.broadcast(session_id, {
@@ -375,15 +381,22 @@ class SessionManager:
         return None
 
     def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
-        if vote not in ("agree", "disagree", "neutral"):
-            return False
         session = self.sessions.get(session_id)
         if not session:
             return False
         stmt = next((s for s in session.statements if s.id == statement_id), None)
-        if not stmt or not stmt.approved or participant_id in stmt.votes:
+        if not stmt or not stmt.approved:
+            return False
+        if vote == "undo":
+            return stmt.votes.pop(participant_id, None) is not None
+        if vote not in ("agree", "disagree", "neutral"):
+            return False
+        if stmt.votes.get(participant_id) == vote:
             return False
         stmt.votes[participant_id] = vote
+        p = session.participants.get(participant_id)
+        if p:
+            p.last_vote_at = time.time()
         return True
 
     def format_statement(self, stmt: Statement, participant_id: str) -> dict:
@@ -426,6 +439,27 @@ class SessionManager:
             "voters": voters,
             "commonGround": session.common_ground,
         }
+
+    def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return True
+        participant = session.participants.get(participant_id)
+        client_id = participant.client_id if participant else None
+        if not client_id:
+            return True
+        return session.auto_approve_prefs.get(client_id, True)
+
+    def set_auto_approve(self, session_id: str, participant_id: str, value: bool) -> Optional[str]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        participant = session.participants.get(participant_id)
+        client_id = participant.client_id if participant else None
+        if not client_id:
+            return None
+        session.auto_approve_prefs[client_id] = value
+        return client_id
 
     def set_common_ground(self, session_id: str, payload: Optional[dict]) -> Optional[dict]:
         session = self.sessions.get(session_id)
@@ -529,6 +563,23 @@ class SessionManager:
         await self.broadcast(session_id, {
             "type": "participants_status",
             "participants": self.participants_status(session_id),
+        })
+
+    def presence(self, session_id: str, window: float = 8.0) -> dict:
+        session = self.sessions.get(session_id)
+        if not session:
+            return {"here": 0, "votingNow": 0}
+        now = time.time()
+        voting = sum(
+            1 for p in session.participants.values()
+            if p.last_vote_at and now - p.last_vote_at <= window
+        )
+        return {"here": len(session.participants), "votingNow": voting}
+
+    async def broadcast_presence(self, session_id: str):
+        await self.broadcast(session_id, {
+            "type": "presence",
+            **self.presence(session_id),
         })
 
     async def broadcast_hosts(self, session_id: str):

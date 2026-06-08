@@ -17,6 +17,7 @@ from sqlalchemy import (
     select,
     delete,
     update,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, insert as pg_insert
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -101,6 +102,7 @@ class ParticipantRow(Base):
     client_id: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(120))
     language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    auto_approve: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
 
 class Database:
@@ -131,6 +133,10 @@ class Database:
         self._sessionmaker = async_sessionmaker(self.engine, expire_on_commit=False)
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(text(
+                "ALTER TABLE participants "
+                "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT true"
+            ))
         return True
 
     async def disconnect(self):
@@ -256,6 +262,18 @@ class Database:
             )
             await db.commit()
 
+    async def delete_vote(self, statement_id: str, participant_id: str):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                delete(VoteRow).where(
+                    VoteRow.statement_id == statement_id,
+                    VoteRow.participant_id == participant_id,
+                )
+            )
+            await db.commit()
+
     async def save_participant(self, session, participant_id: str, client_id: str, name: str, language):
         if not self.enabled or not client_id:
             return
@@ -274,6 +292,20 @@ class Database:
                     index_elements=["session_id", "client_id"],
                     set_={"name": name, "language": language},
                 )
+            )
+            await db.commit()
+
+    async def save_auto_approve(self, session_id: str, client_id: str, value: bool):
+        if not self.enabled or not client_id:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(ParticipantRow)
+                .where(
+                    ParticipantRow.session_id == session_id,
+                    ParticipantRow.client_id == client_id,
+                )
+                .values(auto_approve=value)
             )
             await db.commit()
 
@@ -320,7 +352,12 @@ class Database:
                 for s in statements
             ],
             "members": {
-                p.client_id: {"participant_id": p.id, "name": p.name, "language": p.language}
+                p.client_id: {
+                    "participant_id": p.id,
+                    "name": p.name,
+                    "language": p.language,
+                    "auto_approve": p.auto_approve,
+                }
                 for p in participants
             },
         }

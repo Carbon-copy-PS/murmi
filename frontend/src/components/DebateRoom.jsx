@@ -5,8 +5,10 @@ import ResultsPanel from './ResultsPanel'
 import ParticipantsPanel from './ParticipantsPanel'
 import ShareModal from './ShareModal'
 import ConfirmDialog from './ConfirmDialog'
+import ThemeToggle from './ThemeToggle'
+import OnboardingSheet from './OnboardingSheet'
 import { requestPermission, notify } from '../notifications'
-import { getClientId, saveName, saveSession } from '../identity'
+import { getClientId, saveName, saveSession, hasOnboarded, setOnboarded } from '../identity'
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
@@ -97,13 +99,21 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [cgPending, setCgPending] = useState(false)
   const [cgError, setCgError] = useState(null)
   const [participants, setParticipants] = useState([])
+  const [presence, setPresence] = useState({ here: 0, votingNow: 0 })
   const [displayName, setDisplayName] = useState(userName)
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(userName)
   const [editingTopic, setEditingTopic] = useState(false)
   const [topicDraft, setTopicDraft] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded())
+
+  function dismissOnboarding() {
+    setOnboarded()
+    setShowOnboarding(false)
+  }
 
   const approveTimersRef = useRef(new Map())
+  const cgTimeoutRef = useRef(null)
 
   const wsRef = useRef(null)
   const streamRef = useRef(null)
@@ -121,6 +131,12 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   useEffect(() => { requestPermission() }, [])
 
   useEffect(() => {
+    if (presence.votingNow <= 0) return undefined
+    const t = setTimeout(() => setPresence((p) => ({ ...p, votingNow: 0 })), 8000)
+    return () => clearTimeout(t)
+  }, [presence])
+
+  useEffect(() => {
     if (view !== 'results' || !connected) return
     requestResults()
     const interval = setInterval(requestResults, 5000)
@@ -129,7 +145,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   useEffect(() => {
     const timers = approveTimersRef.current
-    if (!isHost) {
+    if (!isRecorder) {
       timers.forEach((t) => clearTimeout(t))
       timers.clear()
       return
@@ -156,13 +172,14 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
       timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
     }
-  }, [statements, autoApprove, heldIds, isHost])
+  }, [statements, autoApprove, heldIds, isRecorder])
 
   useEffect(() => {
     const timers = approveTimersRef.current
     return () => {
       timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
+      if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
     }
   }, [])
 
@@ -201,6 +218,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           setThreshold(msg.threshold || 5)
           setTopic(msg.topic || null)
           setParticipants(msg.participantsStatus || [])
+          if (msg.presence) setPresence(msg.presence)
+          if (typeof msg.autoApprove === 'boolean') setAutoApprove(msg.autoApprove)
           if (msg.recording) {
             setRecording(true)
             recordingRef.current = true
@@ -209,6 +228,9 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         }
         case 'participants_status':
           setParticipants(msg.participants || [])
+          break
+        case 'presence':
+          setPresence({ here: msg.here || 0, votingNow: msg.votingNow || 0 })
           break
         case 'hosts_updated': {
           const myId = participantIdRef.current
@@ -321,10 +343,12 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           setCgError(null)
           break
         case 'common_ground':
+          if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCommonGround(msg.commonGround)
           setCgPending(false)
           break
         case 'common_ground_error':
+          if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
           setCgError(msg.message || 'Could not generate common ground.')
           break
@@ -436,6 +460,11 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
   }
 
+  function handleToggleAutoApprove(value) {
+    setAutoApprove(value)
+    wsRef.current?.send(JSON.stringify({ type: 'set_auto_approve', autoApprove: value }))
+  }
+
   function handleToggleHost(targetId, makeHost) {
     wsRef.current?.send(JSON.stringify({ type: 'set_host', participantId: targetId, host: makeHost }))
   }
@@ -534,9 +563,14 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   function requestCommonGround(analysis) {
     if (!analysis) return
+    if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
     setCgPending(true)
     setCgError(null)
     wsRef.current?.send(JSON.stringify({ type: 'get_common_ground', analysis }))
+    cgTimeoutRef.current = setTimeout(() => {
+      setCgPending(false)
+      setCgError('Timed out generating common ground. Please try again.')
+    }, 60000)
   }
 
   function dismissCommonGround() {
@@ -571,6 +605,16 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             <span className="status-text">{connected ? 'Live' : 'Connecting…'}</span>
             {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
           </div>
+          <div className="room-actions">
+            <ThemeToggle />
+            <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
+              Share
+            </button>
+            <button className="link-btn" onClick={requestLeave} data-testid="leave-btn">Leave</button>
+          </div>
+        </div>
+
+        <div className="room-subbar">
           <button
             className="code-pill"
             onClick={() => setShowShare(true)}
@@ -580,12 +624,20 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             <span className="code-pill-label">Code</span>
             <span className="code-pill-value">{sessionId}</span>
           </button>
-          <div className="room-actions">
-            <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
-              Share
-            </button>
-            <button className="link-btn" onClick={requestLeave} data-testid="leave-btn">Leave</button>
-          </div>
+          {presence.here > 0 && (
+            <span className="presence-pill" data-testid="presence-pill">
+              <span className="presence-here">
+                <span className="presence-here-dot" aria-hidden="true" />
+                {presence.here} here
+              </span>
+              {presence.votingNow > 0 && (
+                <span className="presence-voting" data-testid="presence-voting">
+                  <span className="presence-voting-dot" aria-hidden="true" />
+                  {presence.votingNow} voting
+                </span>
+              )}
+            </span>
+          )}
         </div>
 
         <div className="room-fields">
@@ -664,6 +716,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
       )}
 
+      {showOnboarding && <OnboardingSheet onDismiss={dismissOnboarding} />}
+
       <div className="tabs">
         {isRecorder && (
           <button
@@ -732,10 +786,11 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           statements={statements}
           onVote={handleVote}
           isHost={isHost}
+          isRecorder={isRecorder}
           onApprove={handleApprove}
           onAddStatement={handleAddStatement}
           autoApprove={autoApprove}
-          onToggleAutoApprove={setAutoApprove}
+          onToggleAutoApprove={handleToggleAutoApprove}
           heldIds={heldIds}
           onHold={handleHold}
         />
@@ -745,6 +800,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           statements={statements}
           results={results}
           isHost={isHost}
+          topic={topic}
+          sessionId={sessionId}
           commonGround={commonGround}
           cgPending={cgPending}
           cgError={cgError}

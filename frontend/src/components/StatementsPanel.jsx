@@ -44,6 +44,7 @@ export default function StatementsPanel({
   statements,
   onVote,
   isHost = false,
+  isRecorder = false,
   onApprove,
   onAddStatement,
   autoApprove = false,
@@ -70,6 +71,20 @@ export default function StatementsPanel({
     setVotesOpen(true)
   }
 
+  function handleRevote(statementId, vote) {
+    if (vote === 'undo') {
+      setLocalVoted((prev) => {
+        const next = new Set(prev)
+        next.delete(statementId)
+        return next
+      })
+      onVote(statementId, 'undo')
+      return
+    }
+    onVote(statementId, vote === 'pass' ? 'neutral' : vote)
+    setJustVotedId(statementId)
+  }
+
   function handleAdd() {
     const text = draft.trim()
     if (!text) return
@@ -84,7 +99,9 @@ export default function StatementsPanel({
           <div className="auto-approve-text">
             <span className="auto-approve-title">Auto-approve</span>
             <p className="auto-approve-desc">
-              New statements go live after 5s unless you hold them for review.
+              {isRecorder
+                ? 'Statements from your mic go live after 5s unless you hold them for review.'
+                : 'Your preference — applies to statements captured while you hold the mic.'}
             </p>
           </div>
           <label className="switch" data-testid="auto-approve-switch">
@@ -151,7 +168,7 @@ export default function StatementsPanel({
               <PendingStatementCard
                 key={statement.id}
                 statement={statement}
-                counting={autoApprove && !held.has(statement.id)}
+                counting={isRecorder && autoApprove && !held.has(statement.id)}
                 onApprove={onApprove}
                 onHold={onHold}
               />
@@ -199,6 +216,7 @@ export default function StatementsPanel({
                     statements={voted}
                     justVotedId={justVotedId}
                     onAnimationDone={() => setJustVotedId(null)}
+                    onChangeVote={handleRevote}
                   />
                 </div>
               )}
