@@ -5,25 +5,48 @@ const SWIPE_DISTANCE = 110
 const SWIPE_VELOCITY = 500
 const VISIBLE = 3
 
-export default function SwipeDeck({ statements, onVote }) {
+function vibrate(ms) {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(ms)
+  }
+}
+
+function isTypingTarget() {
+  const el = typeof document !== 'undefined' ? document.activeElement : null
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
+}
+
+export default function SwipeDeck({ statements, onVote, votedCount = 0 }) {
   const x = useMotionValue(0)
   const y = useMotionValue(0)
-  const rotate = useTransform(x, [-220, 0, 220], [-13, 0, 13])
+  const rotate = useTransform(x, [-240, 0, 240], [-14, 0, 14])
 
   const clamp = (v) => Math.min(Math.max(v, 0), 1)
-  const ramp = (v) => clamp((Math.abs(v) - 20) / 55)
+  const ramp = (v) => clamp((Math.abs(v) - 16) / 60)
   const horizActive = ([xv, yv]) => Math.abs(xv) >= Math.abs(yv)
 
   const agreeOpacity = useTransform([x, y], ([xv, yv]) => (horizActive([xv, yv]) && xv > 0 ? ramp(xv) : 0))
   const disagreeOpacity = useTransform([x, y], ([xv, yv]) => (horizActive([xv, yv]) && xv < 0 ? ramp(xv) : 0))
   const passOpacity = useTransform([x, y], ([xv, yv]) => (!horizActive([xv, yv]) && yv > 0 ? ramp(yv) : 0))
-  const tintAgree = agreeOpacity
-  const tintDisagree = disagreeOpacity
+
+  const agreeStampScale = useTransform(agreeOpacity, [0, 1], [0.6, 1.1])
+  const disagreeStampScale = useTransform(disagreeOpacity, [0, 1], [0.6, 1.1])
+  const passStampScale = useTransform(passOpacity, [0, 1], [0.6, 1.1])
+
+  const agreeBtnScale = useTransform(agreeOpacity, [0, 1], [1, 1.22])
+  const disagreeBtnScale = useTransform(disagreeOpacity, [0, 1], [1, 1.22])
+  const passBtnScale = useTransform(passOpacity, [0, 1], [1, 1.22])
+
   const flinging = useRef(false)
   const hinted = useRef(false)
   const hintAnim = useRef(null)
 
   const top = statements[0]
+  const total = votedCount + statements.length
+  const current = Math.min(votedCount + 1, total)
+  const progressPct = total ? (votedCount / total) * 100 : 0
 
   useEffect(() => {
     flinging.current = false
@@ -34,8 +57,8 @@ export default function SwipeDeck({ statements, onVote }) {
   useEffect(() => {
     if (!top || hinted.current) return
     hinted.current = true
-    hintAnim.current = animate(x, [0, -52, 52, -30, 0], {
-      duration: 1.2,
+    hintAnim.current = animate(x, [0, -46, 46, -26, 0], {
+      duration: 1.15,
       ease: 'easeInOut',
       delay: 0.45,
     })
@@ -44,46 +67,57 @@ export default function SwipeDeck({ statements, onVote }) {
 
   const stopHint = () => hintAnim.current?.stop()
 
-  const vote = (choice) => {
-    if (!top || flinging.current) return
-    flinging.current = true
-    const dir = choice === 'agree' ? 1 : -1
-    const distance = (typeof window !== 'undefined' ? window.innerWidth : 600) * 1.3
-    animate(x, dir * distance, {
-      type: 'spring',
-      stiffness: 240,
-      damping: 30,
-      onComplete: () => onVote(top.id, choice),
-    })
-  }
-
-  const pass = () => {
+  const flyOut = (choice) => {
     if (!top || flinging.current) return
     flinging.current = true
     stopHint()
-    const distance = (typeof window !== 'undefined' ? window.innerHeight : 800) * 1.1
-    animate(y, distance, {
-      type: 'spring',
-      stiffness: 240,
-      damping: 30,
-      onComplete: () => onVote(top.id, 'pass'),
-    })
+    vibrate(choice === 'pass' ? 8 : 16)
+    if (choice === 'pass') {
+      const distance = (typeof window !== 'undefined' ? window.innerHeight : 800) * 1.1
+      animate(y, distance, {
+        type: 'spring',
+        stiffness: 260,
+        damping: 30,
+        onComplete: () => onVote(top.id, 'pass'),
+      })
+    } else {
+      const dir = choice === 'agree' ? 1 : -1
+      const distance = (typeof window !== 'undefined' ? window.innerWidth : 600) * 1.35
+      animate(x, dir * distance, {
+        type: 'spring',
+        stiffness: 260,
+        damping: 30,
+        onComplete: () => onVote(top.id, choice),
+      })
+    }
   }
 
   const handleDragEnd = (_, info) => {
     const { offset, velocity } = info
     const downSwipe = offset.y > SWIPE_DISTANCE || velocity.y > SWIPE_VELOCITY
     if (downSwipe && offset.y > Math.abs(offset.x)) {
-      pass()
+      flyOut('pass')
       return
     }
-    if (offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY) vote('agree')
-    else if (offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY) vote('disagree')
+    if (offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY) flyOut('agree')
+    else if (offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY) flyOut('disagree')
     else {
-      animate(x, 0, { type: 'spring', stiffness: 320, damping: 32 })
-      animate(y, 0, { type: 'spring', stiffness: 320, damping: 32 })
+      animate(x, 0, { type: 'spring', stiffness: 340, damping: 32 })
+      animate(y, 0, { type: 'spring', stiffness: 340, damping: 32 })
     }
   }
+
+  useEffect(() => {
+    if (!top) return
+    const onKey = (e) => {
+      if (isTypingTarget()) return
+      if (e.key === 'ArrowRight') { e.preventDefault(); flyOut('agree') }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); flyOut('disagree') }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); flyOut('pass') }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [top?.id])
 
   if (!top) return null
 
@@ -91,30 +125,28 @@ export default function SwipeDeck({ statements, onVote }) {
 
   return (
     <div className="swipe-area" data-testid="swipe-deck">
-      <div className="swipe-guide">
-        <span className="swipe-guide-side disagree">
-          <span className="swipe-arrow" aria-hidden="true">←</span> Disagree
-        </span>
-        <span className="swipe-guide-mid">Swipe to vote</span>
-        <span className="swipe-guide-side agree">
-          Agree <span className="swipe-arrow" aria-hidden="true">→</span>
-        </span>
+      <div className="swipe-progress-head">
+        <span className="swipe-counter"><strong>{current}</strong> of {total}</span>
+        <span className="swipe-progress-text" data-testid="swipe-remaining">{statements.length} left</span>
+      </div>
+      <div className="swipe-progress-bar" aria-hidden="true">
+        <span style={{ width: `${progressPct}%` }} />
       </div>
 
       <div className="swipe-stack">
         {behind.map((s, i) => {
           const pos = i + 1
           return (
-            <div
+            <motion.div
               key={s.id}
               className="swipe-card behind"
-              style={{
-                transform: `scale(${1 - pos * 0.05}) translateY(${pos * 16}px)`,
-                zIndex: VISIBLE - pos,
-              }}
+              initial={false}
+              animate={{ scale: 1 - pos * 0.06, y: pos * 18, opacity: 1 - pos * 0.18 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+              style={{ zIndex: VISIBLE - pos }}
             >
               <p className="swipe-text">{s.text}</p>
-            </div>
+            </motion.div>
           )
         })}
 
@@ -124,71 +156,73 @@ export default function SwipeDeck({ statements, onVote }) {
           style={{ x, y, rotate, zIndex: VISIBLE }}
           drag
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-          dragElastic={0.7}
+          dragElastic={0.65}
           onDragStart={stopHint}
           onDragEnd={handleDragEnd}
-          initial={{ scale: 0.96, opacity: 0, y: 12 }}
+          initial={{ scale: 0.94, opacity: 0, y: 14 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           whileTap={{ cursor: 'grabbing' }}
           data-testid="swipe-card-top"
         >
-          <motion.span className="swipe-tint agree" style={{ opacity: tintAgree }} aria-hidden="true" />
-          <motion.span className="swipe-tint disagree" style={{ opacity: tintDisagree }} aria-hidden="true" />
+          <motion.span className="swipe-tint agree" style={{ opacity: agreeOpacity }} aria-hidden="true" />
+          <motion.span className="swipe-tint disagree" style={{ opacity: disagreeOpacity }} aria-hidden="true" />
           <motion.span className="swipe-tint pass" style={{ opacity: passOpacity }} aria-hidden="true" />
-          <motion.span className="swipe-stamp agree" style={{ opacity: agreeOpacity }}>AGREE</motion.span>
-          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeOpacity }}>DISAGREE</motion.span>
-          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity }}>PASS</motion.span>
+          <motion.span className="swipe-stamp agree" style={{ opacity: agreeOpacity, scale: agreeStampScale }}>AGREE</motion.span>
+          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeOpacity, scale: disagreeStampScale }}>DISAGREE</motion.span>
+          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>PASS</motion.span>
           {top.custom && <span className="card-tag">Custom</span>}
           <p className="swipe-text">{top.text}</p>
-          <span className="swipe-grip" aria-hidden="true">
-            <span /><span /><span />
+          <span className="swipe-hint-row" aria-hidden="true">
+            <span className="swipe-grip"><span /><span /><span /></span>
+            <span className="swipe-hint-text">Drag, tap, or use arrow keys</span>
           </span>
         </motion.div>
       </div>
 
       <div className="swipe-controls">
         <div className="swipe-action">
-          <button
+          <motion.button
             type="button"
             className="swipe-circle disagree"
-            onClick={() => vote('disagree')}
+            style={{ scale: disagreeBtnScale }}
+            onClick={() => flyOut('disagree')}
             aria-label="Disagree"
             data-testid="swipe-disagree"
           >
             ✕
-          </button>
+          </motion.button>
           <span className="swipe-action-label disagree">Disagree</span>
         </div>
 
         <div className="swipe-action">
-          <button
+          <motion.button
             type="button"
             className="swipe-circle pass"
-            onClick={pass}
+            style={{ scale: passBtnScale }}
+            onClick={() => flyOut('pass')}
             aria-label="Pass"
             data-testid="swipe-pass"
           >
             ↓
-          </button>
+          </motion.button>
           <span className="swipe-action-label pass">Pass</span>
         </div>
 
         <div className="swipe-action">
-          <button
+          <motion.button
             type="button"
             className="swipe-circle agree"
-            onClick={() => vote('agree')}
+            style={{ scale: agreeBtnScale }}
+            onClick={() => flyOut('agree')}
             aria-label="Agree"
             data-testid="swipe-agree"
           >
             ✓
-          </button>
+          </motion.button>
           <span className="swipe-action-label agree">Agree</span>
         </div>
       </div>
-
-      <span className="swipe-progress" data-testid="swipe-remaining">{statements.length} left</span>
     </div>
   )
 }

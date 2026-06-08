@@ -169,7 +169,7 @@ export default function StatementsPanel({
               {isHost && pending.length > 0 && (
                 <div className="section-divider"><span>Live</span></div>
               )}
-              <SwipeDeck statements={unvoted} onVote={handleVote} />
+              <SwipeDeck statements={unvoted} onVote={handleVote} votedCount={voted.length} />
             </>
           ) : (
             approved.length > 0 && (
