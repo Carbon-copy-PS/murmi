@@ -32,6 +32,38 @@ Rules:
 
 Respond with a JSON object: {"statements": ["single overall claim"]}"""
 
+COMMON_GROUND_PROMPT = """You are an impartial deliberation mediator, inspired by the "group-aware consensus" used in Pol.is and the AI-mediator approach studied by DeepMind.
+
+You receive, for a live debate: the topic, how opinion groups voted, statements that found broad agreement, and statements that divided people.
+
+Write a short "group statement" that the whole room could endorse. It must:
+- Capture genuine common ground first, in plain language
+- Fairly acknowledge the main tension, respecting minority views without erasing the majority
+- Propose one concrete bridging statement that people across groups might accept
+- Never invent positions that are not supported by the data
+- Be neutral, concise, and non-partisan
+
+Respond ONLY with JSON:
+{
+  "groupStatement": "2-3 sentence statement the group could collectively endorse",
+  "commonGround": ["short bullet of shared agreement", "..."],
+  "divides": ["short bullet describing a key disagreement", "..."],
+  "bridgingProposal": "one sentence proposal likely to gain cross-group support"
+}"""
+
+MOCK_COMMON_GROUND = {
+    "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden.",
+    "commonGround": [
+        "AI oversight and public trust are widely seen as essential.",
+        "Heavy-handed rules that crush startups should be avoided.",
+    ],
+    "divides": [
+        "Horizontal AI law vs. sector-specific regulation.",
+        "Whether data localization is practical for smaller firms.",
+    ],
+    "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
+}
+
 MOCK_STATEMENTS = [
     ["Switzerland needs stronger AI regulation to keep pace with the EU.",
      "Over-regulation will harm Switzerland's startup ecosystem in Zurich and Lausanne."],
@@ -86,6 +118,81 @@ class AnalysisService:
             return self._mock_extract(existing_statements)[:1]
 
         return await self._live_extract_turn(turn_entry, existing_statements, topic)
+
+    async def generate_common_ground(
+        self,
+        analysis: dict,
+        topic: Optional[str] = None,
+    ) -> Optional[dict]:
+        if self._mock:
+            return MOCK_COMMON_GROUND
+
+        return await self._live_common_ground(analysis, topic)
+
+    async def _live_common_ground(
+        self,
+        analysis: dict,
+        topic: Optional[str] = None,
+    ) -> Optional[dict]:
+        parts = []
+        parts.append(f"Debate topic: {topic}" if topic else "Debate topic: Not specified — infer from the data.")
+        parts.append(f"\nParticipants who voted: {analysis.get('voterCount', 0)}")
+
+        consensus = analysis.get("consensus") or []
+        if consensus:
+            parts.append("\nStatements with broad agreement:")
+            for s in consensus:
+                parts.append(f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree)")
+
+        divisive = analysis.get("divisive") or []
+        if divisive:
+            parts.append("\nStatements that divided the room:")
+            for s in divisive:
+                parts.append(f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree)")
+
+        groups = analysis.get("groups") or []
+        if groups:
+            parts.append("\nOpinion groups:")
+            for g in groups:
+                parts.append(f"Group {g.get('letter', '?')} ({g.get('size', 0)} people):")
+                for t in (g.get("agree") or []):
+                    parts.append(f"  tends to agree: \"{t}\"")
+                for t in (g.get("disagree") or []):
+                    parts.append(f"  tends to disagree: \"{t}\"")
+
+        user_message = "\n".join(parts)
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    temperature=0.4,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": COMMON_GROUND_PROMPT},
+                        {"role": "user", "content": user_message},
+                    ],
+                ),
+            )
+            data = json.loads(response.choices[0].message.content)
+            statement = (data.get("groupStatement") or "").strip()
+            if not statement:
+                return None
+            return {
+                "groupStatement": statement,
+                "commonGround": [s for s in (data.get("commonGround") or []) if isinstance(s, str) and s.strip()],
+                "divides": [s for s in (data.get("divides") or []) if isinstance(s, str) and s.strip()],
+                "bridgingProposal": (data.get("bridgingProposal") or "").strip(),
+            }
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(f"Common ground parse error: {e}")
+            return None
+        except Exception as e:
+            print(f"Common ground error: {e}")
+            return None
 
     def _mock_extract(self, existing_statements: list[str]) -> list[str]:
         existing_set = set(existing_statements)

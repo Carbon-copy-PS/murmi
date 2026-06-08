@@ -54,6 +54,7 @@ class Session:
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
+    common_ground: Optional[dict] = None
 
 
 SILENCE_THRESHOLD = 0.01
@@ -374,7 +375,7 @@ class SessionManager:
         return None
 
     def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
-        if vote not in ("agree", "disagree"):
+        if vote not in ("agree", "disagree", "neutral"):
             return False
         session = self.sessions.get(session_id)
         if not session:
@@ -423,7 +424,15 @@ class SessionManager:
         return {
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
+            "commonGround": session.common_ground,
         }
+
+    def set_common_ground(self, session_id: str, payload: Optional[dict]) -> Optional[dict]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        session.common_ground = payload
+        return payload
 
     def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)

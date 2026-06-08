@@ -93,6 +93,9 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [autoApprove, setAutoApprove] = useState(true)
   const [heldIds, setHeldIds] = useState(() => new Set())
   const [results, setResults] = useState(null)
+  const [commonGround, setCommonGround] = useState(null)
+  const [cgPending, setCgPending] = useState(false)
+  const [cgError, setCgError] = useState(null)
   const [participants, setParticipants] = useState([])
   const [displayName, setDisplayName] = useState(userName)
   const [editingName, setEditingName] = useState(false)
@@ -311,6 +314,19 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           break
         case 'results':
           setResults({ statements: msg.statements, voters: msg.voters })
+          if (msg.commonGround !== undefined) setCommonGround(msg.commonGround)
+          break
+        case 'common_ground_pending':
+          setCgPending(true)
+          setCgError(null)
+          break
+        case 'common_ground':
+          setCommonGround(msg.commonGround)
+          setCgPending(false)
+          break
+        case 'common_ground_error':
+          setCgPending(false)
+          setCgError(msg.message || 'Could not generate common ground.')
           break
       }
     }
@@ -516,6 +532,19 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     wsRef.current?.send(JSON.stringify({ type: 'get_results' }))
   }
 
+  function requestCommonGround(analysis) {
+    if (!analysis) return
+    setCgPending(true)
+    setCgError(null)
+    wsRef.current?.send(JSON.stringify({ type: 'get_common_ground', analysis }))
+  }
+
+  function dismissCommonGround() {
+    setCommonGround(null)
+    setCgError(null)
+    wsRef.current?.send(JSON.stringify({ type: 'dismiss_common_ground' }))
+  }
+
   function handleApprove(statementId) {
     wsRef.current?.send(JSON.stringify({ type: 'approve_statement', statementId }))
   }
@@ -712,7 +741,16 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         />
       )}
       {view === 'results' && (
-        <ResultsPanel statements={statements} results={results} isHost={isHost} />
+        <ResultsPanel
+          statements={statements}
+          results={results}
+          isHost={isHost}
+          commonGround={commonGround}
+          cgPending={cgPending}
+          cgError={cgError}
+          onGenerateCommonGround={requestCommonGround}
+          onDismissCommonGround={dismissCommonGround}
+        />
       )}
       {view === 'participants' && isHost && (
         <ParticipantsPanel

@@ -664,6 +664,38 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     **sessions.vote_matrix(session_id, participant_id),
                 })
 
+            elif msg_type == "get_common_ground":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                payload = data.get("analysis")
+                if not isinstance(payload, dict):
+                    continue
+                session = sessions.get(session_id)
+                topic = session.topic if session else None
+                await sessions.broadcast(session_id, {"type": "common_ground_pending"})
+                result = await analysis.generate_common_ground(payload, topic)
+                if result:
+                    result["generatedAt"] = time.time()
+                    sessions.set_common_ground(session_id, result)
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground",
+                        "commonGround": result,
+                    })
+                else:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_error",
+                        "message": "Could not generate common ground.",
+                    })
+
+            elif msg_type == "dismiss_common_ground":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                sessions.set_common_ground(session_id, None)
+                await sessions.broadcast(session_id, {
+                    "type": "common_ground",
+                    "commonGround": None,
+                })
+
             elif msg_type == "approve_statement":
                 if not sessions.is_host(session_id, participant_id):
                     continue

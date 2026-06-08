@@ -89,6 +89,7 @@ This is an early prototype built during a single session. It works end-to-end bu
 - Per-speaker language preference for English, German/Swiss German, French, or auto-detect
 - AI-powered claim extraction from completed speaker turns
 - Anonymous agree/disagree voting with live tallies
+- AI "common ground" mediator — host generates a shared group statement that bridges opinion clusters (inspired by Pol.is group-aware consensus + DeepMind's Habermas Machine)
 - Voting rounds with automatic cycling
 - Progress bar showing claim accumulation
 - Browser notifications on key events

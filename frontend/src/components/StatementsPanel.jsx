@@ -53,23 +53,19 @@ export default function StatementsPanel({
 }) {
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
-  const [passed, setPassed] = useState(new Set())
   const [votesOpen, setVotesOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
   const held = heldIds || new Set()
   const pending = isHost ? statements.filter((s) => !s.approved) : []
   const approved = statements.filter((s) => s.approved)
-  const unvoted = approved.filter((s) => !s.hasVoted && !localVoted.has(s.id) && !passed.has(s.id))
-  const voted = approved.filter((s) => (s.hasVoted || localVoted.has(s.id)) && !passed.has(s.id))
+  const unvoted = approved.filter((s) => !s.hasVoted && !localVoted.has(s.id))
+  const voted = approved.filter((s) => s.hasVoted || localVoted.has(s.id))
 
   function handleVote(statementId, vote) {
-    if (vote === 'pass') {
-      setPassed((prev) => new Set(prev).add(statementId))
-      return
-    }
+    const resolved = vote === 'pass' ? 'neutral' : vote
     setLocalVoted((prev) => new Set(prev).add(statementId))
-    onVote(statementId, vote)
+    onVote(statementId, resolved)
     setJustVotedId(statementId)
     setVotesOpen(true)
   }

@@ -183,10 +183,127 @@ function Placeholder({ title, message, stats }) {
   )
 }
 
-export default function ResultsPanel({ statements, results, isHost = false }) {
+function CommonGroundSection({ data, pending, error, isHost, payload, onGenerate, onDismiss }) {
+  const canGenerate =
+    isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
+
+  if (!isHost && !data && !pending) return null
+
+  return (
+    <section className="result-section common-ground" data-testid="common-ground">
+      <div className="result-section-head">
+        <span className="result-section-title">AI common ground</span>
+        {isHost && data && !pending ? (
+          <button
+            type="button"
+            className="cg-close-btn"
+            data-testid="cg-close"
+            onClick={onDismiss}
+            aria-label="Close common ground for everyone"
+          >
+            Close
+          </button>
+        ) : (
+          <span className="result-section-hint">A statement the room could share</span>
+        )}
+      </div>
+
+      {pending && (
+        <div className="cg-loading" data-testid="cg-loading">
+          <span className="cg-spinner" /> Mediator is finding common ground…
+        </div>
+      )}
+
+      {!pending && error && <p className="cg-error" data-testid="cg-error">{error}</p>}
+
+      {!pending && data && (
+        <div className="cg-card" data-testid="cg-card">
+          <p className="cg-statement">{data.groupStatement}</p>
+
+          {data.bridgingProposal && (
+            <div className="cg-bridge">
+              <span className="cg-bridge-label">Bridging proposal</span>
+              <p>{data.bridgingProposal}</p>
+            </div>
+          )}
+
+          <div className="cg-cols">
+            {data.commonGround?.length > 0 && (
+              <div className="cg-col">
+                <span className="cg-col-label agree">Shared ground</span>
+                <ul>{data.commonGround.map((t, i) => <li key={`cg-a-${i}`}>{t}</li>)}</ul>
+              </div>
+            )}
+            {data.divides?.length > 0 && (
+              <div className="cg-col">
+                <span className="cg-col-label disagree">Open tensions</span>
+                <ul>{data.divides.map((t, i) => <li key={`cg-d-${i}`}>{t}</li>)}</ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isHost && (
+        <button
+          type="button"
+          className="cg-generate-btn"
+          data-testid="cg-generate"
+          disabled={!canGenerate || pending}
+          onClick={() => onGenerate(payload)}
+        >
+          {pending ? 'Generating…' : data ? 'Regenerate' : 'Find common ground'}
+        </button>
+      )}
+
+      {isHost && !canGenerate && !data && (
+        <p className="cg-hint">Needs a few votes on at least one statement first.</p>
+      )}
+    </section>
+  )
+}
+
+export default function ResultsPanel({
+  statements,
+  results,
+  isHost = false,
+  commonGround = null,
+  cgPending = false,
+  cgError = null,
+  onGenerateCommonGround = () => {},
+  onDismissCommonGround = () => {},
+}) {
   const cluster = useMemo(
     () => (results ? computeOpinionClusters(results) : null),
     [results],
+  )
+
+  const cgPayload = useMemo(() => {
+    if (!cluster) return null
+    return {
+      voterCount: cluster.voterCount,
+      statementCount: cluster.statementCount,
+      consensus: cluster.consensus.map((s) => ({ text: s.text, agree: s.agree, disagree: s.disagree })),
+      divisive: cluster.divisive.map((s) => ({ text: s.text, agree: s.agree, disagree: s.disagree })),
+      groups: (cluster.groups || []).map((g) => ({
+        letter: GROUP_LETTERS[g.id],
+        size: g.size,
+        agree: g.agree.map((s) => s.text),
+        disagree: g.disagree.map((s) => s.text),
+      })),
+    }
+  }, [cluster])
+
+  const commonGroundSection = (
+    <CommonGroundSection
+      data={commonGround}
+      pending={cgPending}
+      error={cgError}
+      isHost={isHost}
+      payload={cgPayload}
+      onGenerate={onGenerateCommonGround}
+      onDismiss={onDismissCommonGround}
+    />
   )
 
   const approvedCount = statements.filter((s) => s.approved).length
@@ -211,6 +328,7 @@ export default function ResultsPanel({ statements, results, isHost = false }) {
     return (
       <div className="results-panel">
         <Placeholder title="Opinion Clusters" message={message} />
+        {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} />}
       </div>
     )
@@ -234,6 +352,8 @@ export default function ResultsPanel({ statements, results, isHost = false }) {
           {youSize > 1 ? ` with ${youSize - 1} ${youSize - 1 === 1 ? 'other' : 'others'} who vote like you.` : ' — a unique stance so far.'}
         </div>
       )}
+
+      {commonGroundSection}
 
       <GroupSizeBars clusters={cluster.clusters} voterCount={cluster.voterCount} youCluster={cluster.youCluster} />
 
