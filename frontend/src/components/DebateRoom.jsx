@@ -96,6 +96,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [heldIds, setHeldIds] = useState(() => new Set())
   const [results, setResults] = useState(null)
   const [commonGround, setCommonGround] = useState(null)
+  const [cgMyVote, setCgMyVote] = useState(null)
   const [cgPending, setCgPending] = useState(false)
   const [cgError, setCgError] = useState(null)
   const [participants, setParticipants] = useState([])
@@ -336,7 +337,10 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           break
         case 'results':
           setResults({ statements: msg.statements, voters: msg.voters })
-          if (msg.commonGround !== undefined) setCommonGround(msg.commonGround)
+          if (msg.commonGround !== undefined) {
+            setCommonGround(msg.commonGround)
+            setCgMyVote(msg.commonGround?.myVote ?? null)
+          }
           break
         case 'common_ground_pending':
           setCgPending(true)
@@ -344,8 +348,12 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           break
         case 'common_ground':
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
-          setCommonGround(msg.commonGround)
+          setCommonGround(msg.commonGround ? { ...msg.commonGround, votes: msg.votes } : null)
+          setCgMyVote(null)
           setCgPending(false)
+          break
+        case 'common_ground_votes':
+          setCommonGround((prev) => (prev ? { ...prev, votes: msg.votes } : prev))
           break
         case 'common_ground_error':
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
@@ -440,13 +448,13 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         setCaptionError('Microphone access is blocked for the host recorder.')
       }
     }
-    if (!isRecorder) return undefined
+    if (!isRecorder || !recording) return undefined
     initAudio()
     return () => {
       disposed = true
       cleanup?.()
     }
-  }, [isRecorder])
+  }, [isRecorder, recording])
 
   async function toggleRecording() {
     if (!isRecorder) return
@@ -575,12 +583,28 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   function dismissCommonGround() {
     setCommonGround(null)
+    setCgMyVote(null)
     setCgError(null)
     wsRef.current?.send(JSON.stringify({ type: 'dismiss_common_ground' }))
   }
 
+  function voteCommonGround(vote) {
+    const next = cgMyVote === vote ? 'undo' : vote
+    setCgMyVote(next === 'undo' ? null : next)
+    wsRef.current?.send(JSON.stringify({ type: 'vote_common_ground', vote: next }))
+  }
+
   function handleApprove(statementId) {
     wsRef.current?.send(JSON.stringify({ type: 'approve_statement', statementId }))
+  }
+
+  function handleReject(statementId) {
+    const timer = approveTimersRef.current.get(statementId)
+    if (timer) {
+      clearTimeout(timer)
+      approveTimersRef.current.delete(statementId)
+    }
+    wsRef.current?.send(JSON.stringify({ type: 'reject_statement', statementId }))
   }
 
   function handleAddStatement(text) {
@@ -788,6 +812,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           isHost={isHost}
           isRecorder={isRecorder}
           onApprove={handleApprove}
+          onReject={handleReject}
           onAddStatement={handleAddStatement}
           autoApprove={autoApprove}
           onToggleAutoApprove={handleToggleAutoApprove}
@@ -803,10 +828,12 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           topic={topic}
           sessionId={sessionId}
           commonGround={commonGround}
+          cgMyVote={cgMyVote}
           cgPending={cgPending}
           cgError={cgError}
           onGenerateCommonGround={requestCommonGround}
           onDismissCommonGround={dismissCommonGround}
+          onVoteCommonGround={voteCommonGround}
         />
       )}
       {view === 'participants' && isHost && (

@@ -56,6 +56,7 @@ class Session:
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
     common_ground: Optional[dict] = None
+    common_ground_votes: Dict[str, str] = field(default_factory=dict)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
 
 
@@ -358,6 +359,21 @@ class SessionManager:
                 approved.append(stmt)
         return approved
 
+    def reject_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
+        session = self.sessions.get(session_id)
+        if not session or not statement_ids:
+            return []
+        removed = [
+            s.id for s in session.statements
+            if not s.approved and s.id in statement_ids
+        ]
+        if removed:
+            session.statements = [
+                s for s in session.statements
+                if not (not s.approved and s.id in statement_ids)
+            ]
+        return removed
+
     def has_active_host(self, session_id: str) -> bool:
         session = self.sessions.get(session_id)
         if not session:
@@ -434,10 +450,17 @@ class SessionManager:
                 "isYou": pid == participant_id,
                 "votes": votes,
             })
+        common_ground = session.common_ground
+        if common_ground is not None:
+            common_ground = {
+                **common_ground,
+                "votes": self.common_ground_tally(session_id),
+                "myVote": session.common_ground_votes.get(participant_id),
+            }
         return {
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
-            "commonGround": session.common_ground,
+            "commonGround": common_ground,
         }
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
@@ -466,7 +489,27 @@ class SessionManager:
         if not session:
             return None
         session.common_ground = payload
+        session.common_ground_votes = {}
         return payload
+
+    def record_common_ground_vote(self, session_id: str, participant_id: str, vote: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session or not session.common_ground:
+            return False
+        if vote == "undo":
+            session.common_ground_votes.pop(participant_id, None)
+            return True
+        if vote not in ("agree", "disagree"):
+            return False
+        session.common_ground_votes[participant_id] = vote
+        return True
+
+    def common_ground_tally(self, session_id: str) -> dict:
+        session = self.sessions.get(session_id)
+        votes = session.common_ground_votes if session else {}
+        agree = sum(1 for v in votes.values() if v == "agree")
+        disagree = sum(1 for v in votes.values() if v == "disagree")
+        return {"agree": agree, "disagree": disagree, "total": agree + disagree}
 
     def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)

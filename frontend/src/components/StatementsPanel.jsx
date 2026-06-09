@@ -2,10 +2,19 @@ import { useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
 
-function PendingStatementCard({ statement, counting, onApprove, onHold }) {
+function PendingStatementCard({ statement, counting, onApprove, onHold, onReject }) {
   return (
     <div className="flash-card statement-card pending-card" data-testid={`pending-${statement.id}`}>
       {statement.custom && <span className="card-tag">Custom</span>}
+      <button
+        className="pending-reject"
+        onClick={() => onReject(statement.id)}
+        title="Reject statement"
+        aria-label="Reject statement"
+        data-testid={`reject-${statement.id}`}
+      >
+        ×
+      </button>
       <p className="flash-card-text">{statement.text}</p>
 
       {counting && (
@@ -46,6 +55,7 @@ export default function StatementsPanel({
   isHost = false,
   isRecorder = false,
   onApprove,
+  onReject,
   onAddStatement,
   autoApprove = false,
   onToggleAutoApprove,
@@ -171,6 +181,7 @@ export default function StatementsPanel({
                 counting={isRecorder && autoApprove && !held.has(statement.id)}
                 onApprove={onApprove}
                 onHold={onHold}
+                onReject={onReject}
               />
             ))}
           </div>

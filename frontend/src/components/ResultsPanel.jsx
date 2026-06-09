@@ -236,7 +236,55 @@ function Placeholder({ title, message, stats }) {
   )
 }
 
-function CommonGroundSection({ data, pending, error, isHost, payload, onGenerate, onDismiss }) {
+function CommonGroundVote({ votes, myVote, onVote }) {
+  const agree = votes?.agree || 0
+  const disagree = votes?.disagree || 0
+  const total = agree + disagree
+  const agreePct = total ? Math.round((agree / total) * 100) : 0
+  const disagreePct = total ? 100 - agreePct : 0
+
+  return (
+    <div className="cg-vote" data-testid="cg-vote">
+      <span className="cg-vote-label">Do you agree with this common ground?</span>
+      <div className="cg-vote-actions">
+        <button
+          type="button"
+          className={`cg-vote-btn agree ${myVote === 'agree' ? 'on' : ''}`}
+          onClick={() => onVote('agree')}
+          aria-pressed={myVote === 'agree'}
+          data-testid="cg-vote-agree"
+        >
+          👍 Agree <span className="cg-vote-count">{agree}</span>
+        </button>
+        <button
+          type="button"
+          className={`cg-vote-btn disagree ${myVote === 'disagree' ? 'on' : ''}`}
+          onClick={() => onVote('disagree')}
+          aria-pressed={myVote === 'disagree'}
+          data-testid="cg-vote-disagree"
+        >
+          👎 Disagree <span className="cg-vote-count">{disagree}</span>
+        </button>
+      </div>
+      {total > 0 ? (
+        <>
+          <div className="vote-bar" aria-hidden="true">
+            <span className="vote-bar-agree" style={{ width: `${agreePct}%` }} />
+            <span className="vote-bar-disagree" style={{ width: `${disagreePct}%` }} />
+          </div>
+          <div className="result-statement-meta">
+            <span className="meta-agree">{agreePct}% agree</span>
+            <span className="meta-disagree">{disagreePct}% disagree</span>
+          </div>
+        </>
+      ) : (
+        <p className="cg-vote-empty" data-testid="cg-vote-empty">No votes yet — be the first.</p>
+      )}
+    </div>
+  )
+}
+
+function CommonGroundSection({ data, myVote, pending, error, isHost, payload, onGenerate, onDismiss, onVote }) {
   const canGenerate =
     isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
 
@@ -294,6 +342,8 @@ function CommonGroundSection({ data, pending, error, isHost, payload, onGenerate
               </div>
             )}
           </div>
+
+          <CommonGroundVote votes={data.votes} myVote={myVote} onVote={onVote} />
         </div>
       )}
 
@@ -323,10 +373,12 @@ export default function ResultsPanel({
   topic = null,
   sessionId = null,
   commonGround = null,
+  cgMyVote = null,
   cgPending = false,
   cgError = null,
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
+  onVoteCommonGround = () => {},
 }) {
   const cluster = useMemo(
     () => (results ? computeOpinionClusters(results) : null),
@@ -354,12 +406,14 @@ export default function ResultsPanel({
   const commonGroundSection = (
     <CommonGroundSection
       data={commonGround}
+      myVote={cgMyVote}
       pending={cgPending}
       error={cgError}
       isHost={isHost}
       payload={cgPayload}
       onGenerate={onGenerateCommonGround}
       onDismiss={onDismissCommonGround}
+      onVote={onVoteCommonGround}
     />
   )
 

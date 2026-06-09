@@ -240,6 +240,15 @@ class Database:
             )
             await db.commit()
 
+    async def delete_statements(self, statement_ids: list[str]):
+        if not self.enabled or not statement_ids:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                delete(StatementRow).where(StatementRow.id.in_(statement_ids))
+            )
+            await db.commit()
+
     async def save_vote(self, session, statement, participant_id: str, vote: str):
         if not self.enabled or statement is None:
             return

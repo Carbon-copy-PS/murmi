@@ -13,6 +13,176 @@ const LANGUAGES = (
 
 const Req = () => <span className="req" aria-hidden="true">*</span>
 
+function LogoMark({ className = 'ls-logo-mark' }) {
+  return (
+    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <g fill="none" strokeLinecap="round">
+        <g stroke="#12b76a">
+          <path d="M201 351.26 A 110 110 0 0 1 201 160.74" strokeWidth="30" />
+          <path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" strokeWidth="30" strokeOpacity="0.5" />
+        </g>
+        <g stroke="#f04438">
+          <path d="M311 160.74 A 110 110 0 0 1 311 351.26" strokeWidth="30" />
+          <path d="M338.5 113.1 A 165 165 0 0 1 338.5 398.9" strokeWidth="30" strokeOpacity="0.5" />
+        </g>
+      </g>
+      <circle cx="256" cy="256" r="46" fill="#ffffff" />
+    </svg>
+  )
+}
+
+const STEPS = [
+  {
+    num: '01',
+    icon: '🎙️',
+    title: 'Host opens one mic',
+    text: 'One person starts a session and shares a 6-character code. Only the host streams audio, so captions stay clean and continuous.',
+  },
+  {
+    num: '02',
+    icon: '✨',
+    title: 'AI extracts the claims',
+    text: 'As people speak, the room is transcribed and distilled into short, neutral statements you can actually react to.',
+  },
+  {
+    num: '03',
+    icon: '👆',
+    title: 'Everyone votes',
+    text: 'Swipe to agree, disagree, or pass. Votes are anonymous and update live as the debate rolls on.',
+  },
+  {
+    num: '04',
+    icon: '🧭',
+    title: 'See where the room stands',
+    text: 'Opinion clusters, diverging bars, and an AI common-ground statement turn noise into a shared picture.',
+  },
+]
+
+const FEATURES = [
+  {
+    icon: '🎧',
+    title: 'Live captions',
+    text: 'Realtime transcription with a final accuracy pass so the record reads cleanly, not just quickly.',
+  },
+  {
+    icon: '🤖',
+    title: 'AI claim extraction',
+    text: 'Completed speaker turns become crisp, votable statements — no manual note-taking.',
+  },
+  {
+    icon: '🔒',
+    title: 'Anonymous voting',
+    text: 'Individual votes are never tied to a name. Results only ever show as group patterns.',
+  },
+  {
+    icon: '🌍',
+    title: 'Multilingual',
+    text: 'English, German / Swiss German, French, or auto-detect — per participant.',
+  },
+  {
+    icon: '🤝',
+    title: 'AI common ground',
+    text: 'A mediator that drafts a shared statement bridging opposing clusters, inspired by Pol.is and the Habermas Machine.',
+  },
+  {
+    icon: '📊',
+    title: 'Opinion clusters',
+    text: 'A live map groups people by how they vote, so you can see the real shape of the disagreement.',
+  },
+]
+
+function PhoneDeck() {
+  return (
+    <div className="phone" data-testid="mock-phone">
+      <div className="phone-notch" />
+      <div className="phone-screen">
+        <div className="mock-room-top">
+          <span className="mock-topic">Should public transit be free?</span>
+          <span className="mock-code">ABC123</span>
+        </div>
+        <div className="mock-progress"><span style={{ width: '60%' }} /></div>
+        <span className="mock-counter">3 of 5 voted</span>
+        <div className="mock-deck">
+          <div className="mock-card behind-2" />
+          <div className="mock-card behind-1" />
+          <div className="mock-card top">
+            <span className="mock-tag">Claim</span>
+            <p className="mock-card-text">“Free transit would cut city traffic and emissions.”</p>
+            <span className="mock-stamp agree">Agree</span>
+          </div>
+        </div>
+        <div className="mock-controls">
+          <span className="mock-circle disagree">✕</span>
+          <span className="mock-circle pass">↓</span>
+          <span className="mock-circle agree">✓</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultsShot() {
+  const bars = [
+    { label: 'Free transit cuts emissions', agree: 72, disagree: 28 },
+    { label: 'Funding should come from fuel tax', agree: 41, disagree: 59 },
+    { label: 'Rural areas would be underserved', agree: 55, disagree: 45 },
+  ]
+  return (
+    <div className="shot" data-testid="mock-results">
+      <span className="shot-title">Where the room stands</span>
+      <div className="shot-bars">
+        {bars.map((b) => (
+          <div className="shot-bar-row" key={b.label}>
+            <span className="shot-bar-label">{b.label}</span>
+            <div className="shot-bar-track">
+              <span className="shot-bar-d" style={{ width: `${b.disagree / 2}%` }} />
+              <span className="shot-bar-a" style={{ width: `${b.agree / 2}%` }} />
+              <span className="shot-bar-mid" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ClusterShot() {
+  const dots = [
+    { x: 30, y: 38, c: '#12b76a' }, { x: 38, y: 30, c: '#12b76a' }, { x: 26, y: 50, c: '#12b76a' },
+    { x: 44, y: 44, c: '#12b76a' }, { x: 72, y: 60, c: '#f04438' }, { x: 80, y: 52, c: '#f04438' },
+    { x: 68, y: 72, c: '#f04438' }, { x: 56, y: 24, c: '#e0a400' }, { x: 62, y: 34, c: '#e0a400' },
+  ]
+  return (
+    <div className="shot" data-testid="mock-clusters">
+      <span className="shot-title">Opinion clusters</span>
+      <svg viewBox="0 0 100 90" className="shot-scatter" aria-hidden="true">
+        <ellipse cx="34" cy="41" rx="18" ry="16" fill="rgba(18,183,106,0.12)" />
+        <ellipse cx="73" cy="62" rx="16" ry="14" fill="rgba(240,68,56,0.12)" />
+        <ellipse cx="59" cy="29" rx="11" ry="9" fill="rgba(224,164,0,0.12)" />
+        {dots.map((d, i) => (
+          <circle key={i} cx={d.x} cy={d.y} r="3.2" fill={d.c} />
+        ))}
+        <circle cx="44" cy="44" r="4.2" fill="none" stroke="var(--ds-text)" strokeWidth="1.4" />
+        <text x="44" y="55" textAnchor="middle" className="shot-you">You</text>
+      </svg>
+    </div>
+  )
+}
+
+function CaptionsShot() {
+  return (
+    <div className="shot" data-testid="mock-captions">
+      <span className="shot-title"><span className="shot-live">● Live</span> captions</span>
+      <div className="shot-lines">
+        <p><strong>Alex</strong> I think the bigger issue is funding, not demand.</p>
+        <p><strong>Mara</strong> But demand spikes when it's free — that's the point.</p>
+        <p className="shot-partial"><strong>Jon</strong> well, if we look at Zurich's model…</p>
+      </div>
+      <span className="shot-chip">✨ Extracting claims…</span>
+    </div>
+  )
+}
+
 export default function SessionJoin({ onJoin }) {
   const [mode, setMode] = useState(null)
   const [name, setName] = useState(getSavedName)
@@ -62,7 +232,7 @@ export default function SessionJoin({ onJoin }) {
     setErrors({})
   }
 
-  const goBack = () => switchMode(null)
+  const closeModal = () => switchMode(null)
 
   async function handleCreate() {
     const nameError = validateName()
@@ -106,175 +276,245 @@ export default function SessionJoin({ onJoin }) {
   }
 
   return (
-    <div className="landing">
-      <div className="landing-topbar">
-        <ThemeToggle />
-      </div>
-      <header className="landing-hero">
-        <div className="landing-logo" aria-hidden="true">
-          <svg viewBox="0 0 512 512" className="landing-logo-mark" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <g fill="none" strokeLinecap="round">
-              <g stroke="#12b76a">
-                <path d="M201 351.26 A 110 110 0 0 1 201 160.74" strokeWidth="30" />
-                <path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" strokeWidth="30" strokeOpacity="0.5" />
-              </g>
-              <g stroke="#f04438">
-                <path d="M311 160.74 A 110 110 0 0 1 311 351.26" strokeWidth="30" />
-                <path d="M338.5 113.1 A 165 165 0 0 1 338.5 398.9" strokeWidth="30" strokeOpacity="0.5" />
-              </g>
-            </g>
-            <circle cx="256" cy="256" r="46" fill="#ffffff" />
-          </svg>
+    <div className="ls" data-testid="landing">
+      <nav className="ls-nav">
+        <a className="ls-brand" href="#top">
+          <span className="ls-brand-logo"><LogoMark /></span>
+          <span className="ls-brand-name">Debate Sense</span>
+        </a>
+        <div className="ls-nav-actions">
+          <a className="ls-nav-link" href="#how">How it works</a>
+          <a className="ls-nav-link" href="#features">Features</a>
+          <ThemeToggle />
+          <button type="button" className="ls-btn ghost" onClick={() => switchMode('join')} data-testid="nav-join">
+            Join
+          </button>
+          <button type="button" className="ls-btn solid" onClick={() => switchMode('create')} data-testid="nav-host">
+            Host a debate
+          </button>
         </div>
-        <h1 className="landing-title">Debate Sense</h1>
-        <p className="landing-tagline">
-          Live captions and real-time sentiment for better conversations.
-        </p>
+      </nav>
+
+      <header className="ls-hero" id="top">
+        <div className="ls-hero-copy">
+          <span className="ls-eyebrow">Collaborative sense-making for live debates</span>
+          <h1 className="ls-h1">
+            Hear the room. <span className="ls-grad">See what it thinks.</span>
+          </h1>
+          <p className="ls-lead">
+            Debate Sense listens to your discussion, turns it into clear claims with AI,
+            and lets everyone vote anonymously — so a messy conversation becomes a shared,
+            real-time picture of where people actually stand.
+          </p>
+          <div className="ls-cta-row">
+            <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="hero-host">
+              Host a debate
+            </button>
+            <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="hero-join">
+              I have a code →
+            </button>
+          </div>
+          <ul className="ls-trust">
+            <li>🔒 Anonymous votes</li>
+            <li>⚡ Realtime captions</li>
+            <li>🌍 4 languages</li>
+          </ul>
+        </div>
+        <div className="ls-hero-visual">
+          <div className="ls-glow" aria-hidden="true" />
+          <PhoneDeck />
+        </div>
       </header>
 
-      {mode === null && (
-        <div className="choice-grid" data-testid="mode-choice">
-          <button
-            type="button"
-            className="choice-card choice-host"
-            onClick={() => switchMode('create')}
-            data-testid="choose-host"
-          >
-            <span className="choice-icon" aria-hidden="true">＋</span>
-            <span className="choice-title">Host a debate</span>
-            <span className="choice-desc">Start a new session and invite others with a code.</span>
-          </button>
-
-          <button
-            type="button"
-            className="choice-card choice-join"
-            onClick={() => switchMode('join')}
-            data-testid="choose-join"
-          >
-            <span className="choice-icon" aria-hidden="true">→</span>
-            <span className="choice-title">Join a debate</span>
-            <span className="choice-desc">Got a code from a host? Hop into their session.</span>
-          </button>
+      <section className="ls-section" id="how">
+        <div className="ls-section-head">
+          <span className="ls-kicker">How it works</span>
+          <h2 className="ls-h2">From spoken words to group consensus in four steps</h2>
         </div>
-      )}
+        <div className="ls-steps">
+          {STEPS.map((s) => (
+            <article className="ls-step" key={s.num}>
+              <div className="ls-step-top">
+                <span className="ls-step-icon" aria-hidden="true">{s.icon}</span>
+                <span className="ls-step-num">{s.num}</span>
+              </div>
+              <h3 className="ls-step-title">{s.title}</h3>
+              <p className="ls-step-text">{s.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-      {mode === 'create' && (
-        <form
-          className="auth-form"
-          data-testid="create-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleCreate()
-          }}
-        >
-          <button type="button" className="back-btn" onClick={goBack} data-testid="back-btn">
-            ← Back
-          </button>
-          <h2 className="form-heading">Host a debate</h2>
+      <section className="ls-section ls-showcase">
+        <div className="ls-section-head">
+          <span className="ls-kicker">See it in action</span>
+          <h2 className="ls-h2">Captions, votes, and consensus — all in one screen</h2>
+        </div>
+        <div className="ls-shots">
+          <CaptionsShot />
+          <ResultsShot />
+          <ClusterShot />
+        </div>
+      </section>
 
-          <label className="field">
-            <span className="field-label">Your name <Req /></span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => { setName(e.target.value); clearError('name') }}
-              placeholder="e.g. Alex"
-              autoFocus
-              aria-invalid={!!errors.name}
-              className={errors.name ? 'invalid' : ''}
-              data-testid="host-name"
-            />
-            {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
-          </label>
+      <section className="ls-section" id="features">
+        <div className="ls-section-head">
+          <span className="ls-kicker">Features</span>
+          <h2 className="ls-h2">Everything you need to make a debate make sense</h2>
+        </div>
+        <div className="ls-features">
+          {FEATURES.map((f) => (
+            <article className="ls-feature" key={f.title}>
+              <span className="ls-feature-icon" aria-hidden="true">{f.icon}</span>
+              <h3 className="ls-feature-title">{f.title}</h3>
+              <p className="ls-feature-text">{f.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
-          <label className="field">
-            <span className="field-label">Topic <span className="field-optional">(optional)</span></span>
-            <input
-              type="text"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="What are you debating?"
-              data-testid="host-topic"
-            />
-          </label>
+      <section className="ls-final">
+        <div className="ls-final-inner">
+          <h2 className="ls-h2">Ready to find out what the room really thinks?</h2>
+          <p className="ls-lead">Spin up a session in seconds. No sign-up, no setup.</p>
+          <div className="ls-cta-row center">
+            <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="final-host">
+              Host a debate
+            </button>
+            <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="final-join">
+              Join with a code
+            </button>
+          </div>
+        </div>
+      </section>
 
-          <label className="field">
-            <span className="field-label">Spoken language</span>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="host-language">
-              {LANGUAGES}
-            </select>
-          </label>
+      <footer className="ls-footer">
+        <div className="ls-brand">
+          <span className="ls-brand-logo"><LogoMark /></span>
+          <span className="ls-brand-name">Debate Sense</span>
+        </div>
+        <span className="ls-foot-note">Collaborative sense-making in live debates.</span>
+      </footer>
 
-          <button type="submit" className="btn primary" disabled={loading} data-testid="create-submit">
-            {loading ? 'Creating…' : 'Create session'}
-          </button>
+      {mode && (
+        <div className="modal-backdrop" onClick={closeModal} data-testid="auth-modal">
+          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <button type="button" className="modal-close" onClick={closeModal} aria-label="Close" data-testid="modal-close">×</button>
 
-          {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
-        </form>
-      )}
+            {mode === 'create' && (
+              <form
+                className="auth-form"
+                data-testid="create-form"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleCreate()
+                }}
+              >
+                <h2 className="form-heading">Host a debate</h2>
 
-      {mode === 'join' && (
-        <form
-          className="auth-form"
-          data-testid="join-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleJoin()
-          }}
-        >
-          <button type="button" className="back-btn" onClick={goBack} data-testid="back-btn">
-            ← Back
-          </button>
-          <h2 className="form-heading">Join a debate</h2>
+                <label className="field">
+                  <span className="field-label">Your name <Req /></span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); clearError('name') }}
+                    placeholder="e.g. Alex"
+                    autoFocus
+                    aria-invalid={!!errors.name}
+                    className={errors.name ? 'invalid' : ''}
+                    data-testid="host-name"
+                  />
+                  {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
+                </label>
 
-          <label className="field">
-            <span className="field-label">Session code <Req /></span>
-            <input
-              type="text"
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
-                clearError('code')
-              }}
-              placeholder="ABC123"
-              maxLength={6}
-              autoFocus
-              aria-invalid={!!errors.code}
-              className={`code-input ${errors.code ? 'invalid' : ''}`}
-              data-testid="join-code"
-            />
-            {errors.code && <span className="field-error" data-testid="error-code">{errors.code}</span>}
-          </label>
+                <label className="field">
+                  <span className="field-label">Topic <span className="field-optional">(optional)</span></span>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="What are you debating?"
+                    data-testid="host-topic"
+                  />
+                </label>
 
-          <label className="field">
-            <span className="field-label">Your name <Req /></span>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => { setName(e.target.value); clearError('name') }}
-              placeholder="e.g. Alex"
-              aria-invalid={!!errors.name}
-              className={errors.name ? 'invalid' : ''}
-              data-testid="join-name"
-            />
-            {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
-          </label>
+                <label className="field">
+                  <span className="field-label">Spoken language</span>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="host-language">
+                    {LANGUAGES}
+                  </select>
+                </label>
 
-          <label className="field">
-            <span className="field-label">Spoken language</span>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="join-language">
-              {LANGUAGES}
-            </select>
-          </label>
+                <button type="submit" className="btn primary" disabled={loading} data-testid="create-submit">
+                  {loading ? 'Creating…' : 'Create session'}
+                </button>
 
-          <button type="submit" className="btn primary" disabled={loading} data-testid="join-submit">
-            {loading ? 'Joining…' : 'Join session'}
-          </button>
+                {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
+              </form>
+            )}
 
-          {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
-        </form>
+            {mode === 'join' && (
+              <form
+                className="auth-form"
+                data-testid="join-form"
+                noValidate
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleJoin()
+                }}
+              >
+                <h2 className="form-heading">Join a debate</h2>
+
+                <label className="field">
+                  <span className="field-label">Session code <Req /></span>
+                  <input
+                    type="text"
+                    value={code}
+                    onChange={(e) => {
+                      setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
+                      clearError('code')
+                    }}
+                    placeholder="ABC123"
+                    maxLength={6}
+                    autoFocus
+                    aria-invalid={!!errors.code}
+                    className={`code-input ${errors.code ? 'invalid' : ''}`}
+                    data-testid="join-code"
+                  />
+                  {errors.code && <span className="field-error" data-testid="error-code">{errors.code}</span>}
+                </label>
+
+                <label className="field">
+                  <span className="field-label">Your name <Req /></span>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => { setName(e.target.value); clearError('name') }}
+                    placeholder="e.g. Alex"
+                    aria-invalid={!!errors.name}
+                    className={errors.name ? 'invalid' : ''}
+                    data-testid="join-name"
+                  />
+                  {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
+                </label>
+
+                <label className="field">
+                  <span className="field-label">Spoken language</span>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="join-language">
+                    {LANGUAGES}
+                  </select>
+                </label>
+
+                <button type="submit" className="btn primary" disabled={loading} data-testid="join-submit">
+                  {loading ? 'Joining…' : 'Join session'}
+                </button>
+
+                {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

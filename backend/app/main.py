@@ -356,6 +356,7 @@ async def run_common_ground(session_id: str, payload: dict, topic: str | None):
         await sessions.broadcast(session_id, {
             "type": "common_ground",
             "commonGround": result,
+            "votes": sessions.common_ground_tally(session_id),
         })
     else:
         await sessions.broadcast(session_id, {
@@ -721,6 +722,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 if client_id:
                     await _safe_db(db.save_auto_approve(session_id, client_id, value))
 
+            elif msg_type == "vote_common_ground":
+                vote_value = data.get("vote", "")
+                ok = sessions.record_common_ground_vote(
+                    session_id, participant_id, vote_value,
+                )
+                if ok:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_votes",
+                        "votes": sessions.common_ground_tally(session_id),
+                    })
+
             elif msg_type == "dismiss_common_ground":
                 if not sessions.is_host(session_id, participant_id):
                     continue
@@ -728,6 +740,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await sessions.broadcast(session_id, {
                     "type": "common_ground",
                     "commonGround": None,
+                    "votes": sessions.common_ground_tally(session_id),
                 })
 
             elif msg_type == "approve_statement":
@@ -745,6 +758,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await sessions.broadcast_statements(session_id)
                     await sessions.broadcast_participants(session_id)
                     await _safe_db(db.set_statements_approved([s.id for s in approved]))
+
+            elif msg_type == "reject_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                ids = data.get("statementIds")
+                if isinstance(ids, list):
+                    target = set(ids)
+                elif data.get("statementId"):
+                    target = {data["statementId"]}
+                else:
+                    target = set()
+                removed = sessions.reject_statements(session_id, target)
+                if removed:
+                    await sessions.broadcast_statements(session_id)
+                    await sessions.broadcast_participants(session_id)
+                    await _safe_db(db.delete_statements(removed))
 
             elif msg_type == "add_statement":
                 if not sessions.is_host(session_id, participant_id):

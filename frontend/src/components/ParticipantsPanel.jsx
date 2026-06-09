@@ -127,7 +127,10 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
     const completed = participants.filter(
       (p) => (p.votesRequired || 0) > 0 && (p.votesCast || 0) >= (p.votesRequired || 0),
     ).length
-    return { total, completed, pending: total - completed }
+    const pending = participants.filter(
+      (p) => (p.votesRequired || 0) > 0 && (p.votesCast || 0) < (p.votesRequired || 0),
+    ).length
+    return { total, completed, pending }
   }, [participants])
 
   const visible = useMemo(() => {
