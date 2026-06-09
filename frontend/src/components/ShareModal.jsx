@@ -1,9 +1,60 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { QRCodeCanvas } from 'qrcode.react'
+import { resolveTheme } from '../theme'
 
 export default function ShareModal({ sessionId, topic, onClose }) {
   const [copied, setCopied] = useState('')
+  const qrRef = useRef(null)
   const shareLink = `${window.location.origin}/?code=${sessionId}`
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
+  const isDark = resolveTheme() === 'dark'
+
+  function getQrCanvas() {
+    return qrRef.current?.querySelector('canvas') || null
+  }
+
+  function qrToBlob() {
+    return new Promise((resolve) => {
+      const canvas = getQrCanvas()
+      if (!canvas) return resolve(null)
+      canvas.toBlob((blob) => resolve(blob), 'image/png')
+    })
+  }
+
+  async function downloadQr() {
+    const blob = await qrToBlob()
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `debate-sense-${sessionId}-qr.png`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  async function shareQr() {
+    const blob = await qrToBlob()
+    if (!blob) return
+    const file = new File([blob], `debate-sense-${sessionId}-qr.png`, { type: 'image/png' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Debate Sense',
+          text: topic ? `Scan to join my debate: "${topic}"` : 'Scan to join my debate on Debate Sense',
+        })
+      } catch {
+        /* user cancelled */
+      }
+    } else {
+      downloadQr()
+    }
+  }
+
+  const canShareFiles =
+    typeof navigator !== 'undefined' && typeof navigator.canShare === 'function'
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
@@ -48,7 +99,31 @@ export default function ShareModal({ sessionId, topic, onClose }) {
         </button>
 
         <h2 className="modal-title">Invite others</h2>
-        <p className="modal-sub">Share this code or link so people can join your debate.</p>
+        <p className="modal-sub">Scan the QR code, or share the code or link so people can join your debate.</p>
+
+        <div className="share-qr" data-testid="share-qr">
+          <div className="share-qr-frame" ref={qrRef}>
+            <QRCodeCanvas
+              value={shareLink}
+              size={168}
+              level="M"
+              includeMargin={false}
+              bgColor={isDark ? '#1a1a1d' : '#ffffff'}
+              fgColor={isDark ? '#f2f2f3' : '#111111'}
+            />
+          </div>
+          <span className="share-qr-hint">Point a phone camera here to join</span>
+          <div className="share-qr-actions">
+            <button className="btn" onClick={downloadQr} data-testid="download-qr">
+              Save QR
+            </button>
+            {canShareFiles && (
+              <button className="btn" onClick={shareQr} data-testid="share-qr-btn">
+                Share QR
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="share-code-box">
           <span className="share-code">{sessionId}</span>

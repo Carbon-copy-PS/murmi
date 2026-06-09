@@ -18,7 +18,7 @@ function isTypingTarget() {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
 }
 
-export default function SwipeDeck({ statements, onVote, votedCount = 0 }) {
+export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocus = false }) {
   const [focus, setFocus] = useState(false)
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -142,24 +142,26 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0 }) {
         <span className="swipe-counter"><strong>{current}</strong> of {total}</span>
         <div className="swipe-head-right">
           <span className="swipe-progress-text" data-testid="swipe-remaining">{statements.length} left</span>
-          <button
-            type="button"
-            className="swipe-focus-btn"
-            onClick={() => setFocus((f) => !f)}
-            aria-label={focus ? 'Exit focus mode' : 'Focus mode'}
-            data-testid="swipe-focus-toggle"
-          >
-            {focus ? (
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M9 9H4M9 9V4M15 9h5M15 9V4M9 15H4M9 15v5M15 15h5M15 15v5" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-              </svg>
-            )}
-            <span>{focus ? 'Exit' : 'Focus'}</span>
-          </button>
+          {!hideFocus && (
+            <button
+              type="button"
+              className="swipe-focus-btn"
+              onClick={() => setFocus((f) => !f)}
+              aria-label={focus ? 'Exit focus mode' : 'Focus mode'}
+              data-testid="swipe-focus-toggle"
+            >
+              {focus ? (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 9H4M9 9V4M15 9h5M15 9V4M9 15H4M9 15v5M15 15h5M15 15v5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              )}
+              <span>{focus ? 'Exit' : 'Focus'}</span>
+            </button>
+          )}
         </div>
       </div>
       <div className="swipe-progress-bar" aria-hidden="true">

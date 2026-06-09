@@ -6,9 +6,18 @@ import ParticipantsPanel from './ParticipantsPanel'
 import ShareModal from './ShareModal'
 import ConfirmDialog from './ConfirmDialog'
 import ThemeToggle from './ThemeToggle'
-import OnboardingSheet from './OnboardingSheet'
 import { requestPermission, notify } from '../notifications'
 import { getClientId, saveName, saveSession, hasOnboarded, setOnboarded } from '../identity'
+import {
+  startRoomTour,
+  TOUR_TRANSCRIPT,
+  TOUR_STATEMENTS,
+  TOUR_RESULTS,
+  TOUR_COMMON_GROUND,
+  TOUR_PARTICIPANTS,
+} from '../utils/room-tour'
+
+const noop = () => {}
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
@@ -106,12 +115,9 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [nameDraft, setNameDraft] = useState(userName)
   const [editingTopic, setEditingTopic] = useState(false)
   const [topicDraft, setTopicDraft] = useState('')
-  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded())
-
-  function dismissOnboarding() {
-    setOnboarded()
-    setShowOnboarding(false)
-  }
+  const [tourActive, setTourActive] = useState(false)
+  const tourRef = useRef(null)
+  const tourStartedRef = useRef(false)
 
   const approveTimersRef = useRef(new Map())
   const cgTimeoutRef = useRef(null)
@@ -130,6 +136,28 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const pendingCount = statements.filter((s) => !s.approved).length
 
   useEffect(() => { requestPermission() }, [])
+
+  useEffect(() => {
+    if (!connected || tourStartedRef.current || hasOnboarded()) return undefined
+    tourStartedRef.current = true
+    const timer = setTimeout(() => {
+      setTourActive(true)
+      tourRef.current = startRoomTour({
+        isHost: isHostRef.current,
+        isRecorder: isRecorderRef.current,
+        setView,
+        onDone: () => {
+          setOnboarded()
+          setTourActive(false)
+          tourRef.current = null
+          setView(isRecorderRef.current ? 'record' : 'statements')
+        },
+      })
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [connected])
+
+  useEffect(() => () => { tourRef.current?.destroy() }, [])
 
   useEffect(() => {
     if (presence.votingNow <= 0) return undefined
@@ -740,8 +768,6 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
       )}
 
-      {showOnboarding && <OnboardingSheet onDismiss={dismissOnboarding} />}
-
       <div className="tabs">
         {isRecorder && (
           <button
@@ -792,7 +818,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             {isRecorder ? (recording ? 'Stop' : 'Record') : 'Listening'}
           </button>
 
-          <TranscriptPanel entries={transcript} partial={partialCaption} error={captionError} />
+          <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} />
 
           <div className="progress-container">
             <div className="progress-track">
@@ -807,39 +833,39 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
       )}
       {view === 'statements' && (
         <StatementsPanel
-          statements={statements}
-          onVote={handleVote}
+          statements={tourActive ? TOUR_STATEMENTS : statements}
+          onVote={tourActive ? noop : handleVote}
           isHost={isHost}
           isRecorder={isRecorder}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          onAddStatement={handleAddStatement}
+          onApprove={tourActive ? noop : handleApprove}
+          onReject={tourActive ? noop : handleReject}
+          onAddStatement={tourActive ? noop : handleAddStatement}
           autoApprove={autoApprove}
-          onToggleAutoApprove={handleToggleAutoApprove}
+          onToggleAutoApprove={tourActive ? noop : handleToggleAutoApprove}
           heldIds={heldIds}
-          onHold={handleHold}
+          onHold={tourActive ? noop : handleHold}
         />
       )}
       {view === 'results' && (
         <ResultsPanel
-          statements={statements}
-          results={results}
+          statements={tourActive ? TOUR_STATEMENTS : statements}
+          results={tourActive ? TOUR_RESULTS : results}
           isHost={isHost}
-          topic={topic}
+          topic={tourActive ? 'Essentials for a fair society' : topic}
           sessionId={sessionId}
-          commonGround={commonGround}
+          commonGround={tourActive ? TOUR_COMMON_GROUND : commonGround}
           cgMyVote={cgMyVote}
-          cgPending={cgPending}
-          cgError={cgError}
-          onGenerateCommonGround={requestCommonGround}
-          onDismissCommonGround={dismissCommonGround}
-          onVoteCommonGround={voteCommonGround}
+          cgPending={tourActive ? false : cgPending}
+          cgError={tourActive ? null : cgError}
+          onGenerateCommonGround={tourActive ? noop : requestCommonGround}
+          onDismissCommonGround={tourActive ? noop : dismissCommonGround}
+          onVoteCommonGround={tourActive ? noop : voteCommonGround}
         />
       )}
       {view === 'participants' && isHost && (
         <ParticipantsPanel
-          participants={participants}
-          currentId={participantIdRef.current}
+          participants={tourActive ? TOUR_PARTICIPANTS : participants}
+          currentId={tourActive ? 'you' : participantIdRef.current}
           canManageHosts={isHost}
           onToggleHost={requestToggleHost}
           onSetRecorder={requestSetRecorder}
