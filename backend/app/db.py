@@ -103,6 +103,7 @@ class ParticipantRow(Base):
     name: Mapped[str] = mapped_column(String(120))
     language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     auto_approve: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    is_host: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class Database:
@@ -136,6 +137,10 @@ class Database:
             await conn.execute(text(
                 "ALTER TABLE participants "
                 "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT true"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE participants "
+                "ADD COLUMN IF NOT EXISTS is_host boolean NOT NULL DEFAULT false"
             ))
         return True
 
@@ -283,7 +288,7 @@ class Database:
             )
             await db.commit()
 
-    async def save_participant(self, session, participant_id: str, client_id: str, name: str, language):
+    async def save_participant(self, session, participant_id: str, client_id: str, name: str, language, is_host: bool = False):
         if not self.enabled or not client_id:
             return
         async with self._sessionmaker() as db:
@@ -296,11 +301,26 @@ class Database:
                     client_id=client_id,
                     name=name,
                     language=language,
+                    is_host=is_host,
                 )
                 .on_conflict_do_update(
                     index_elements=["session_id", "client_id"],
-                    set_={"name": name, "language": language},
+                    set_={"name": name, "language": language, "is_host": is_host},
                 )
+            )
+            await db.commit()
+
+    async def set_host_flag(self, session_id: str, client_id: str, is_host: bool):
+        if not self.enabled or not client_id:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(ParticipantRow)
+                .where(
+                    ParticipantRow.session_id == session_id,
+                    ParticipantRow.client_id == client_id,
+                )
+                .values(is_host=is_host)
             )
             await db.commit()
 
@@ -366,6 +386,7 @@ class Database:
                     "name": p.name,
                     "language": p.language,
                     "auto_approve": p.auto_approve,
+                    "is_host": p.is_host,
                 }
                 for p in participants
             },

@@ -94,6 +94,8 @@ class SessionManager:
             pid = member.get("participant_id")
             if client_id and pid:
                 session.known_participants[client_id] = pid
+            if client_id and member.get("is_host"):
+                session.host_client_ids.add(client_id)
             if client_id and "auto_approve" in member:
                 session.auto_approve_prefs[client_id] = bool(member["auto_approve"])
         for s in data.get("statements", []):
@@ -143,13 +145,14 @@ class SessionManager:
         if client_id:
             session.known_participants[client_id] = participant_id
 
-        no_hosts_yet = not session.host_client_ids
-        if no_hosts_yet and (wants_host or session.host_participant_id is None):
+        already_host = self._is_host(session, participant_id)
+        if not already_host and wants_host and not session.host_client_ids:
             if client_id:
                 session.host_client_ids.add(client_id)
-            session.host_participant_id = participant_id
-            session.active_mic_id = participant_id
-        elif self._is_host(session, participant_id) and (
+            else:
+                session.host_participant_id = participant_id
+            already_host = self._is_host(session, participant_id)
+        if already_host and (
             session.host_participant_id is None
             or session.host_participant_id not in session.participants
         ):
@@ -666,11 +669,11 @@ class SessionManager:
             result["session_removed"] = True
             return result
         if session.host_participant_id not in session.participants:
-            next_host = next(iter(self._host_pids(session)), None)
-            if next_host:
-                session.host_participant_id = next_host
-                session.active_mic_id = next_host
-                result["host_changed"] = True
+            session.host_participant_id = None
+            session.active_mic_id = None
+            if session.recording:
+                session.recording = False
+                result["recording_stopped"] = True
         result["hostParticipantId"] = session.host_participant_id
         return result
 

@@ -613,7 +613,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     if not existed:
         await persist_session(sessions.get(session_id))
     await _safe_db(db.save_participant(
-        sessions.get(session_id), participant_id, client_id, name, language
+        sessions.get(session_id), participant_id, client_id, name, language,
+        is_host=sessions.is_host(session_id, participant_id),
     ))
     await sessions.broadcast_participants(session_id)
     await sessions.broadcast_hosts(session_id)
@@ -799,6 +800,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 target = data.get("participantId")
                 make_host = bool(data.get("host", True))
                 if target and sessions.set_host(session_id, target, make_host):
+                    session = sessions.get(session_id)
+                    target_p = session.participants.get(target) if session else None
+                    if target_p and target_p.client_id:
+                        await _safe_db(db.set_host_flag(session_id, target_p.client_id, make_host))
                     await sessions.broadcast_hosts(session_id)
                     await sessions.broadcast_participants(session_id)
                     await sessions.broadcast_statements(session_id)
@@ -827,6 +832,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await _safe_db(db.save_participant(
                         sessions.get(session_id), participant_id, client_id, new_name,
                         sessions.get_participant_language(session_id, participant_id),
+                        is_host=sessions.is_host(session_id, participant_id),
                     ))
                     await sessions.broadcast_participants(session_id)
                     await sessions.broadcast(session_id, {
