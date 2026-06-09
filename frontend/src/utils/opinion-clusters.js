@@ -173,7 +173,7 @@ function statementStats(statements, voters) {
   })
 }
 
-export function computeOpinionClusters({ statements = [], voters = [] }) {
+export function computeOpinionClusters({ statements = [], voters = [], voteType = 'binary' }) {
   const stats = statementStats(statements, voters)
   const consensus = [...stats]
     .filter((s) => s.total >= 2)
@@ -247,6 +247,49 @@ export function computeOpinionClusters({ statements = [], voters = [] }) {
   const groups = clusters.map((cl) => {
     const members = voters.filter((_, i) => bestAssign[i] === cl.id)
     const minVotes = Math.max(1, Math.ceil(members.length * 0.5))
+    const memberCount = members.length || 1
+
+    if (voteType === 'likert') {
+      const perStmt = statements.map((s) => {
+        const dist = { strongly_agree: 0, agree: 0, neutral: 0, disagree: 0, strongly_disagree: 0 }
+        for (const m of members) {
+          const val = m.votes[s.id]
+          if (val in dist) dist[val]++
+        }
+        const agree = dist.strongly_agree + dist.agree
+        const disagree = dist.strongly_disagree + dist.disagree
+        return {
+          id: s.id,
+          text: s.text,
+          custom: s.custom,
+          dist,
+          agree,
+          disagree,
+          strongAgreeRate: dist.strongly_agree / memberCount,
+          strongDisagreeRate: dist.strongly_disagree / memberCount,
+          agreeRate: agree / memberCount,
+          disagreeRate: disagree / memberCount,
+        }
+      })
+      const stronglyAgree = perStmt
+        .filter((p) => p.dist.strongly_agree >= minVotes && p.strongAgreeRate >= 0.4)
+        .sort((a, b) => b.strongAgreeRate - a.strongAgreeRate || b.dist.strongly_agree - a.dist.strongly_agree)
+        .slice(0, 3)
+      const agree = perStmt
+        .filter((p) => p.agree >= minVotes && p.agreeRate >= 0.5 && p.strongAgreeRate < 0.4)
+        .sort((a, b) => b.agreeRate - a.agreeRate || b.agree - a.agree)
+        .slice(0, 3)
+      const stronglyDisagree = perStmt
+        .filter((p) => p.dist.strongly_disagree >= minVotes && p.strongDisagreeRate >= 0.4)
+        .sort((a, b) => b.strongDisagreeRate - a.strongDisagreeRate || b.dist.strongly_disagree - a.dist.strongly_disagree)
+        .slice(0, 3)
+      const disagree = perStmt
+        .filter((p) => p.disagree >= minVotes && p.disagreeRate >= 0.5 && p.strongDisagreeRate < 0.4)
+        .sort((a, b) => b.disagreeRate - a.disagreeRate || b.disagree - a.disagree)
+        .slice(0, 3)
+      return { id: cl.id, size: cl.size, agree, disagree, stronglyAgree, stronglyDisagree }
+    }
+
     const perStmt = statements.map((s) => {
       let agree = 0
       let disagree = 0
@@ -266,7 +309,7 @@ export function computeOpinionClusters({ statements = [], voters = [] }) {
       .filter((p) => p.total >= minVotes && p.rate <= 0.4)
       .sort((a, b) => a.rate - b.rate || b.total - a.total)
       .slice(0, 3)
-    return { id: cl.id, size: cl.size, agree, disagree }
+    return { id: cl.id, size: cl.size, agree, disagree, stronglyAgree: [], stronglyDisagree: [] }
   })
 
   const youCluster = points.find((p) => p.isYou)?.cluster ?? null

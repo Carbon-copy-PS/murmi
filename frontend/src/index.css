@@ -3480,6 +3480,8 @@ select:focus { border-color: var(--ds-text); }
 
 .group-stance-label.agree { color: #2a9d4e; }
 .group-stance-label.disagree { color: #f04438; }
+.group-stance-label.strongly-agree { color: #045a3c; }
+.group-stance-label.strongly-disagree { color: #820018; }
 
 .group-stance ul {
   list-style: none;

@@ -1,26 +1,66 @@
 const GROUP_LETTERS = ['A', 'B', 'C', 'D']
 
+const LIKERT_KEYS = ['strongly_disagree', 'disagree', 'neutral', 'agree', 'strongly_agree']
+
+const LIKERT_LABELS = {
+  strongly_disagree: 'Strongly disagree',
+  disagree: 'Disagree',
+  neutral: 'Neutral',
+  agree: 'Agree',
+  strongly_agree: 'Strongly agree',
+}
+
+const LIKERT_CLS = {
+  strongly_disagree: 'sd',
+  disagree: 'd',
+  neutral: 'n',
+  agree: 'a',
+  strongly_agree: 'sa',
+}
+
 function pct(part, whole) {
   return whole ? Math.round((part / whole) * 100) : 0
 }
 
-function groupRows(cluster) {
+function groupRows(cluster, voteType = 'binary') {
   if (!cluster?.groups?.length) return []
+  const likert = voteType === 'likert'
   return cluster.groups.map((g) => ({
     group: GROUP_LETTERS[g.id],
     size: g.size,
     sharePct: pct(g.size, cluster.voterCount),
     agree: (g.agree || []).map((s) => s.text),
     disagree: (g.disagree || []).map((s) => s.text),
+    stronglyAgree: likert ? (g.stronglyAgree || []).map((s) => s.text) : [],
+    stronglyDisagree: likert ? (g.stronglyDisagree || []).map((s) => s.text) : [],
   }))
 }
 
-function statementResults(list) {
-  return (list || []).map((s) => ({
-    text: s.text,
-    agree: s.agree || 0,
-    disagree: s.disagree || 0,
-  }))
+function statementResults(list, voteType = 'binary') {
+  const likert = voteType === 'likert'
+  return (list || []).map((s) => {
+    const base = {
+      text: s.text,
+      agree: s.agree || 0,
+      disagree: s.disagree || 0,
+    }
+    if (likert && s.dist) {
+      return {
+        ...base,
+        responded: s.responded || 0,
+        distribution: { ...s.dist },
+      }
+    }
+    return base
+  })
+}
+
+function formatLikertLine(s) {
+  const total = s.responded || LIKERT_KEYS.reduce((n, k) => n + (s.distribution?.[k] || 0), 0)
+  const parts = LIKERT_KEYS
+    .filter((k) => (s.distribution?.[k] || 0) > 0)
+    .map((k) => `${LIKERT_LABELS[k]} ${s.distribution[k]} (${pct(s.distribution[k], total)}%)`)
+  return parts.join(' · ')
 }
 
 function commonGroundBlock(commonGround) {
@@ -45,7 +85,8 @@ function csvCell(value) {
 }
 
 export function buildCSV(ctx) {
-  const { topic, sessionId, cluster, commonGround } = ctx
+  const { topic, sessionId, cluster, commonGround, voteType = 'binary' } = ctx
+  const likert = voteType === 'likert'
   const lines = []
   const row = (...cells) => lines.push(cells.map(csvCell).join(','))
 
@@ -54,6 +95,7 @@ export function buildCSV(ctx) {
   if (sessionId) row('Session', sessionId)
   if (cluster?.voterCount != null) row('Participants', cluster.voterCount)
   if (cluster?.k != null) row('Opinion groups', cluster.k)
+  if (likert) row('Vote type', 'Likert (5-point)')
 
   const cg = commonGroundBlock(commonGround)
   if (cg) {
@@ -72,7 +114,7 @@ export function buildCSV(ctx) {
     }
   }
 
-  const groups = groupRows(cluster)
+  const groups = groupRows(cluster, voteType)
   if (groups.length) {
     lines.push('')
     row('Opinion groups')
@@ -83,31 +125,62 @@ export function buildCSV(ctx) {
     row('Group positions')
     row('Group', 'Stance', 'Statement')
     groups.forEach((g) => {
-      g.agree.forEach((t) => row(g.group, 'Tend to agree', t))
-      g.disagree.forEach((t) => row(g.group, 'Tend to disagree', t))
+      if (likert) {
+        g.stronglyAgree.forEach((t) => row(g.group, 'Strongly agree on', t))
+        g.agree.forEach((t) => row(g.group, 'Agree on', t))
+        g.stronglyDisagree.forEach((t) => row(g.group, 'Strongly disagree on', t))
+        g.disagree.forEach((t) => row(g.group, 'Disagree on', t))
+      } else {
+        g.agree.forEach((t) => row(g.group, 'Tend to agree', t))
+        g.disagree.forEach((t) => row(g.group, 'Tend to disagree', t))
+      }
     })
   }
 
-  const consensus = statementResults(cluster?.consensus)
-  const divisive = statementResults(cluster?.divisive)
+  const consensus = statementResults(cluster?.consensus, voteType)
+  const divisive = statementResults(cluster?.divisive, voteType)
   if (consensus.length || divisive.length) {
     lines.push('')
     row('Statement results')
-    row('Category', 'Statement', 'Agree', 'Disagree')
-    consensus.forEach((s) => row('Common ground', s.text, s.agree, s.disagree))
-    divisive.forEach((s) => row('Most divisive', s.text, s.agree, s.disagree))
+    if (likert) {
+      row('Category', 'Statement', 'Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree')
+      consensus.forEach((s) => row(
+        'Common ground',
+        s.text,
+        s.distribution?.strongly_disagree || 0,
+        s.distribution?.disagree || 0,
+        s.distribution?.neutral || 0,
+        s.distribution?.agree || 0,
+        s.distribution?.strongly_agree || 0,
+      ))
+      divisive.forEach((s) => row(
+        'Most divisive',
+        s.text,
+        s.distribution?.strongly_disagree || 0,
+        s.distribution?.disagree || 0,
+        s.distribution?.neutral || 0,
+        s.distribution?.agree || 0,
+        s.distribution?.strongly_agree || 0,
+      ))
+    } else {
+      row('Category', 'Statement', 'Agree', 'Disagree')
+      consensus.forEach((s) => row('Common ground', s.text, s.agree, s.disagree))
+      divisive.forEach((s) => row('Most divisive', s.text, s.agree, s.disagree))
+    }
   }
 
   return lines.join('\n')
 }
 
 export function buildJSON(ctx) {
-  const { topic, sessionId, cluster, commonGround } = ctx
+  const { topic, sessionId, cluster, commonGround, voteType = 'binary' } = ctx
+  const likert = voteType === 'likert'
   const data = {
     topic: topic || null,
     session: sessionId || null,
     participants: cluster?.voterCount ?? null,
     opinionGroups: cluster?.k ?? null,
+    voteType: likert ? 'likert' : 'binary',
   }
 
   const cg = commonGroundBlock(commonGround)
@@ -119,28 +192,39 @@ export function buildJSON(ctx) {
     if (cg.vote) data.aiCommonGround.vote = cg.vote
   }
 
-  const groups = groupRows(cluster)
+  const groups = groupRows(cluster, voteType)
   if (groups.length) {
-    data.opinionGroupBreakdown = groups.map((g) => ({
-      group: g.group,
-      size: g.size,
-      share: `${g.sharePct}%`,
-      tendToAgree: g.agree,
-      tendToDisagree: g.disagree,
-    }))
+    data.opinionGroupBreakdown = groups.map((g) => {
+      const entry = {
+        group: g.group,
+        size: g.size,
+        share: `${g.sharePct}%`,
+      }
+      if (likert) {
+        entry.stronglyAgreeOn = g.stronglyAgree
+        entry.agreeOn = g.agree
+        entry.stronglyDisagreeOn = g.stronglyDisagree
+        entry.disagreeOn = g.disagree
+      } else {
+        entry.tendToAgree = g.agree
+        entry.tendToDisagree = g.disagree
+      }
+      return entry
+    })
   }
 
-  const consensus = statementResults(cluster?.consensus)
+  const consensus = statementResults(cluster?.consensus, voteType)
   if (consensus.length) data.commonGround = consensus
 
-  const divisive = statementResults(cluster?.divisive)
+  const divisive = statementResults(cluster?.divisive, voteType)
   if (divisive.length) data.mostDivisive = divisive
 
   return JSON.stringify(data, null, 2)
 }
 
 export function buildSummary(ctx) {
-  const { topic, sessionId, cluster, commonGround } = ctx
+  const { topic, sessionId, cluster, commonGround, voteType = 'binary' } = ctx
+  const likert = voteType === 'likert'
   const out = []
 
   out.push('DEBATE SENSE — RESULTS')
@@ -149,7 +233,7 @@ export function buildSummary(ctx) {
   out.push(`Topic: ${topic || 'Untitled session'}`)
   if (sessionId) out.push(`Session: ${sessionId}`)
   if (cluster?.voterCount != null) {
-    out.push(`${cluster.voterCount} participant${cluster.voterCount === 1 ? '' : 's'} · ${cluster.k} opinion group${cluster.k === 1 ? '' : 's'}`)
+    out.push(`${cluster.voterCount} participant${cluster.voterCount === 1 ? '' : 's'} · ${cluster.k} opinion group${cluster.k === 1 ? '' : 's'}${likert ? ' · Likert scale' : ''}`)
   }
 
   const cg = commonGroundBlock(commonGround)
@@ -169,13 +253,33 @@ export function buildSummary(ctx) {
       : 'Vote: no votes yet')
   }
 
-  const groups = groupRows(cluster)
+  const groups = groupRows(cluster, voteType)
   if (groups.length) {
     out.push('', 'OPINION GROUPS', '--------------')
     groups.forEach((g) => {
       out.push(`Group ${g.group} — ${g.size} ${g.size === 1 ? 'person' : 'people'} (${g.sharePct}%)`)
-      if (!g.agree.length && !g.disagree.length) {
+      const hasPositions = likert
+        ? g.stronglyAgree.length || g.agree.length || g.stronglyDisagree.length || g.disagree.length
+        : g.agree.length || g.disagree.length
+      if (!hasPositions) {
         out.push('  No strong shared positions yet.')
+      } else if (likert) {
+        if (g.stronglyAgree.length) {
+          out.push('  Strongly agree on:')
+          g.stronglyAgree.forEach((t) => out.push(`    • ${t}`))
+        }
+        if (g.agree.length) {
+          out.push('  Agree on:')
+          g.agree.forEach((t) => out.push(`    • ${t}`))
+        }
+        if (g.stronglyDisagree.length) {
+          out.push('  Strongly disagree on:')
+          g.stronglyDisagree.forEach((t) => out.push(`    • ${t}`))
+        }
+        if (g.disagree.length) {
+          out.push('  Disagree on:')
+          g.disagree.forEach((t) => out.push(`    • ${t}`))
+        }
       } else {
         if (g.agree.length) {
           out.push('  Tend to agree:')
@@ -190,17 +294,31 @@ export function buildSummary(ctx) {
     })
   }
 
-  const consensus = statementResults(cluster?.consensus)
+  const consensus = statementResults(cluster?.consensus, voteType)
   if (consensus.length) {
     out.push('COMMON GROUND', '-------------')
-    consensus.forEach((s) => out.push(`  • ${s.text} — ${s.agree} agree / ${s.disagree} disagree`))
+    consensus.forEach((s) => {
+      if (likert && s.distribution) {
+        out.push(`  • ${s.text}`)
+        out.push(`    ${formatLikertLine(s)}`)
+      } else {
+        out.push(`  • ${s.text} — ${s.agree} agree / ${s.disagree} disagree`)
+      }
+    })
     out.push('')
   }
 
-  const divisive = statementResults(cluster?.divisive)
+  const divisive = statementResults(cluster?.divisive, voteType)
   if (divisive.length) {
     out.push('MOST DIVISIVE', '-------------')
-    divisive.forEach((s) => out.push(`  • ${s.text} — ${s.agree} agree / ${s.disagree} disagree`))
+    divisive.forEach((s) => {
+      if (likert && s.distribution) {
+        out.push(`  • ${s.text}`)
+        out.push(`    ${formatLikertLine(s)}`)
+      } else {
+        out.push(`  • ${s.text} — ${s.agree} agree / ${s.disagree} disagree`)
+      }
+    })
   }
 
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
@@ -222,6 +340,29 @@ function divergingBar(agree, disagree) {
     <div class="pdf-bar-meta"><span class="a">${agree} agree</span><span class="d">${disagree} disagree</span></div>`
 }
 
+function likertBar(dist, responded) {
+  const total = responded || LIKERT_KEYS.reduce((n, k) => n + (dist?.[k] || 0), 0) || 1
+  const segs = LIKERT_KEYS
+    .filter((k) => (dist?.[k] || 0) > 0)
+    .map((k) => {
+      const count = dist[k]
+      const width = Math.round((count / total) * 100)
+      return `<span class="pdf-likert-seg ${LIKERT_CLS[k]}" style="width:${width}%">${width >= 12 ? count : ''}</span>`
+    })
+    .join('')
+  const meta = LIKERT_KEYS
+    .filter((k) => (dist?.[k] || 0) > 0)
+    .map((k) => `<span class="pdf-likert-meta ${LIKERT_CLS[k]}">${LIKERT_LABELS[k]} ${dist[k]} (${pct(dist[k], total)}%)</span>`)
+    .join('')
+  return `<div class="pdf-likert-bar">${segs}</div><div class="pdf-likert-meta-row">${meta}</div>`
+}
+
+function statementBlock(s, voteType) {
+  const likert = voteType === 'likert' && s.distribution
+  const chart = likert ? likertBar(s.distribution, s.responded) : divergingBar(s.agree, s.disagree)
+  return `<li><p>${esc(s.text)}</p>${chart}</li>`
+}
+
 const LOGO_SVG = `<svg viewBox="0 0 512 512" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
   <g fill="none" stroke-linecap="round">
     <g stroke="#12b76a"><path d="M201 351.26 A 110 110 0 0 1 201 160.74" stroke-width="30"/><path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" stroke-width="30" stroke-opacity="0.5"/></g>
@@ -231,16 +372,18 @@ const LOGO_SVG = `<svg viewBox="0 0 512 512" width="26" height="26" fill="none" 
 </svg>`
 
 export function buildPrintableHTML(ctx) {
-  const { topic, sessionId, cluster, commonGround } = ctx
+  const { topic, sessionId, cluster, commonGround, voteType = 'binary' } = ctx
+  const likert = voteType === 'likert'
   const cg = commonGroundBlock(commonGround)
-  const groups = groupRows(cluster)
-  const consensus = statementResults(cluster?.consensus)
-  const divisive = statementResults(cluster?.divisive)
+  const groups = groupRows(cluster, voteType)
+  const consensus = statementResults(cluster?.consensus, voteType)
+  const divisive = statementResults(cluster?.divisive, voteType)
 
   const metaBits = []
   if (cluster?.voterCount != null) {
     metaBits.push(`${cluster.voterCount} participant${cluster.voterCount === 1 ? '' : 's'}`)
     metaBits.push(`${cluster.k} opinion group${cluster.k === 1 ? '' : 's'}`)
+    if (likert) metaBits.push('Likert scale')
   }
 
   const sections = []
@@ -276,9 +419,11 @@ export function buildPrintableHTML(ctx) {
       <div class="pdf-cardgrid">
         ${groups.map((g) => `<div class="pdf-card">
           <div class="pdf-card-head"><span class="pdf-badge g${g.group}">${g.group}</span><span class="pdf-card-title">Group ${g.group}<small>${g.size} ${g.size === 1 ? 'person' : 'people'}</small></span></div>
-          ${(!g.agree.length && !g.disagree.length) ? '<p class="pdf-muted">No strong shared positions yet.</p>' : `
-            ${g.agree.length ? `<div class="pdf-stance"><span class="pdf-stance-label a">Tend to agree</span><ul>${g.agree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-            ${g.disagree.length ? `<div class="pdf-stance"><span class="pdf-stance-label d">Tend to disagree</span><ul>${g.disagree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}`}
+          ${(!g.agree.length && !g.disagree.length && !g.stronglyAgree.length && !g.stronglyDisagree.length) ? '<p class="pdf-muted">No strong shared positions yet.</p>' : `
+            ${likert && g.stronglyAgree.length ? `<div class="pdf-stance"><span class="pdf-stance-label sa">Strongly agree on</span><ul>${g.stronglyAgree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+            ${g.agree.length ? `<div class="pdf-stance"><span class="pdf-stance-label a">${likert ? 'Agree on' : 'Tend to agree'}</span><ul>${g.agree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+            ${likert && g.stronglyDisagree.length ? `<div class="pdf-stance"><span class="pdf-stance-label sd">Strongly disagree on</span><ul>${g.stronglyDisagree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
+            ${g.disagree.length ? `<div class="pdf-stance"><span class="pdf-stance-label d">${likert ? 'Disagree on' : 'Tend to disagree'}</span><ul>${g.disagree.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}`}
         </div>`).join('')}
       </div>
     </section>`)
@@ -287,14 +432,14 @@ export function buildPrintableHTML(ctx) {
   if (consensus.length) {
     sections.push(`<section class="pdf-section">
       <h2><span class="pdf-kicker">Common Ground</span><span class="pdf-sub">Where most people agree</span></h2>
-      <ul class="pdf-stmts">${consensus.map((s) => `<li><p>${esc(s.text)}</p>${divergingBar(s.agree, s.disagree)}</li>`).join('')}</ul>
+      <ul class="pdf-stmts">${consensus.map((s) => statementBlock(s, voteType)).join('')}</ul>
     </section>`)
   }
 
   if (divisive.length) {
     sections.push(`<section class="pdf-section">
       <h2><span class="pdf-kicker">Most Divisive</span><span class="pdf-sub">Where opinions split</span></h2>
-      <ul class="pdf-stmts">${divisive.map((s) => `<li><p>${esc(s.text)}</p>${divergingBar(s.agree, s.disagree)}</li>`).join('')}</ul>
+      <ul class="pdf-stmts">${divisive.map((s) => statementBlock(s, voteType)).join('')}</ul>
     </section>`)
   }
 
@@ -355,6 +500,21 @@ export function buildPrintableHTML(ctx) {
     .pdf-stmts { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
     .pdf-stmts li { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; page-break-inside: avoid; }
     .pdf-stmts p { margin: 0 0 7px; font-weight: 600; }
+    .pdf-likert-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: #eceef1; }
+    .pdf-likert-seg { display: flex; align-items: center; justify-content: center; min-width: 0; font-size: 8px; font-weight: 700; color: #fff; overflow: hidden; }
+    .pdf-likert-seg.sd { background: #820018; }
+    .pdf-likert-seg.d { background: #fb7185; color: #4a0010; }
+    .pdf-likert-seg.n { background: #98a2b3; }
+    .pdf-likert-seg.a { background: #34d399; color: #04331f; }
+    .pdf-likert-seg.sa { background: #045a3c; }
+    .pdf-likert-meta-row { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 4px; font-size: 9px; font-weight: 600; color: #6b7280; }
+    .pdf-likert-meta.sd { color: #820018; }
+    .pdf-likert-meta.d { color: #fb7185; }
+    .pdf-likert-meta.n { color: #98a2b3; }
+    .pdf-likert-meta.a { color: #0a7a55; }
+    .pdf-likert-meta.sa { color: #045a3c; }
+    .pdf-stance-label.sa { color: #045a3c; }
+    .pdf-stance-label.sd { color: #820018; }
   </style></head>
   <body><div class="pdf-wrap">
     <div class="pdf-top">

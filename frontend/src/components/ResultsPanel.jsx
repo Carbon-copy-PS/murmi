@@ -41,14 +41,15 @@ function LikertBar({ dist, responded }) {
       {LIKERT_SEGMENTS.map((seg) => {
         const count = dist?.[seg.key] || 0
         if (!count) return null
+        const pct = Math.round((count / total) * 100)
         return (
           <span
             key={seg.key}
             className={`likert-seg ${seg.cls}`}
             style={{ width: `${(count / total) * 100}%` }}
-            title={`${seg.label}: ${count}`}
+            title={`${seg.label}: ${count} (${pct}%)`}
           >
-            {count}
+            {pct >= 12 ? `${count}` : ''}
           </span>
         )
       })}
@@ -68,11 +69,15 @@ function StatementRow({ s, voteType = 'binary' }) {
         <>
           <LikertBar dist={s.dist} responded={s.responded} />
           <div className="result-statement-meta likert">
-            {LIKERT_SEGMENTS.map((seg) => (
-              <span key={seg.key} className={`meta-likert ${seg.cls}`}>
-                <span className="meta-likert-dot" /> {seg.label} {s.dist?.[seg.key] || 0}
-              </span>
-            ))}
+            {LIKERT_SEGMENTS.filter((seg) => (s.dist?.[seg.key] || 0) > 0).map((seg) => {
+              const count = s.dist?.[seg.key] || 0
+              const pct = s.responded ? Math.round((count / s.responded) * 100) : 0
+              return (
+                <span key={seg.key} className={`meta-likert ${seg.cls}`}>
+                  <span className="meta-likert-dot" /> {seg.label} {count} ({pct}%)
+                </span>
+              )
+            })}
           </div>
         </>
       ) : (
@@ -172,8 +177,24 @@ function GroupSizeBars({ clusters, voterCount, youCluster }) {
   )
 }
 
-function GroupCard({ group, isYou }) {
+const GROUP_STANCES = [
+  { key: 'stronglyAgree', label: 'Strongly agree on', cls: 'strongly-agree' },
+  { key: 'agree', label: 'Agree on', cls: 'agree' },
+  { key: 'stronglyDisagree', label: 'Strongly disagree on', cls: 'strongly-disagree' },
+  { key: 'disagree', label: 'Disagree on', cls: 'disagree' },
+]
+
+function GroupCard({ group, isYou, voteType = 'binary' }) {
   const color = CLUSTER_COLORS[group.id % CLUSTER_COLORS.length]
+  const likert = voteType === 'likert'
+  const stances = likert
+    ? GROUP_STANCES
+    : [
+        { key: 'agree', label: 'Tend to agree', cls: 'agree' },
+        { key: 'disagree', label: 'Tend to disagree', cls: 'disagree' },
+      ]
+  const hasStances = stances.some((st) => (group[st.key] || []).length > 0)
+
   return (
     <div className={`group-card ${isYou ? 'you' : ''}`} data-testid={`group-card-${group.id}`}>
       <div className="group-card-head">
@@ -187,31 +208,23 @@ function GroupCard({ group, isYou }) {
         </div>
       </div>
 
-      {group.agree.length === 0 && group.disagree.length === 0 ? (
+      {!hasStances ? (
         <p className="group-card-empty">No strong shared positions yet.</p>
       ) : (
-        <>
-          {group.agree.length > 0 && (
-            <div className="group-stance">
-              <span className="group-stance-label agree">Tend to agree</span>
+        stances.map((st) => {
+          const items = group[st.key] || []
+          if (!items.length) return null
+          return (
+            <div className="group-stance" key={st.key}>
+              <span className={`group-stance-label ${st.cls}`}>{st.label}</span>
               <ul>
-                {group.agree.map((s) => (
-                  <li key={s.id} data-testid={`group-${group.id}-agree-${s.id}`}>{s.text}</li>
+                {items.map((s) => (
+                  <li key={s.id} data-testid={`group-${group.id}-${st.key}-${s.id}`}>{s.text}</li>
                 ))}
               </ul>
             </div>
-          )}
-          {group.disagree.length > 0 && (
-            <div className="group-stance">
-              <span className="group-stance-label disagree">Tend to disagree</span>
-              <ul>
-                {group.disagree.map((s) => (
-                  <li key={s.id} data-testid={`group-${group.id}-disagree-${s.id}`}>{s.text}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </>
+          )
+        })
       )}
     </div>
   )
@@ -436,11 +449,11 @@ export default function ResultsPanel({
   onVoteCommonGround = () => {},
 }) {
   const cluster = useMemo(
-    () => (results ? computeOpinionClusters(results) : null),
-    [results],
+    () => (results ? computeOpinionClusters({ ...results, voteType }) : null),
+    [results, voteType],
   )
 
-  const exportCtx = { topic, sessionId, statements, results, cluster, commonGround }
+  const exportCtx = { topic, sessionId, statements, results, cluster, commonGround, voteType }
 
   const cgPayload = useMemo(() => {
     if (!cluster) return null
@@ -454,6 +467,8 @@ export default function ResultsPanel({
         size: g.size,
         agree: g.agree.map((s) => s.text),
         disagree: g.disagree.map((s) => s.text),
+        stronglyAgree: (g.stronglyAgree || []).map((s) => s.text),
+        stronglyDisagree: (g.stronglyDisagree || []).map((s) => s.text),
       })),
     }
   }, [cluster])
@@ -533,7 +548,7 @@ export default function ResultsPanel({
         </div>
         <div className="group-card-grid">
           {cluster.groups.map((g) => (
-            <GroupCard key={g.id} group={g} isYou={g.id === cluster.youCluster} />
+            <GroupCard key={g.id} group={g} isYou={g.id === cluster.youCluster} voteType={voteType} />
           ))}
         </div>
       </section>
