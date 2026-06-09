@@ -1,15 +1,12 @@
 const THEME_KEY = 'ds_theme'
+const DEFAULT_THEME = 'dark'
 
 export function getStoredTheme() {
   return localStorage.getItem(THEME_KEY)
 }
 
-function systemTheme() {
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
 export function resolveTheme() {
-  return getStoredTheme() || systemTheme()
+  return getStoredTheme() || DEFAULT_THEME
 }
 
 export function applyTheme(theme) {

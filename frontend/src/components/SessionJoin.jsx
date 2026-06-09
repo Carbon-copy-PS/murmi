@@ -91,30 +91,157 @@ const FEATURES = [
   },
 ]
 
+const HERO_CLAIMS = [
+  {
+    topic: 'Education & peace',
+    claim: 'Every child deserves twelve years of free, quality education.',
+    source: 'Malala Yousafzai · Peace 2014',
+    voteType: 'likert',
+    exitVote: 'strongly_agree',
+    voted: 3,
+    total: 5,
+  },
+  {
+    topic: 'Science & society',
+    claim: 'Scientific knowledge should serve humanity, not private profit alone.',
+    source: 'Marie Curie · Physics & Chemistry',
+    voteType: 'binary',
+    exitVote: 'agree',
+    voted: 2,
+    total: 5,
+  },
+  {
+    topic: 'Climate action',
+    claim: 'Human-caused climate change requires immediate global action.',
+    source: 'IPCC · Peace 2007',
+    voteType: 'binary',
+    exitVote: 'disagree',
+    voted: 4,
+    total: 5,
+  },
+  {
+    topic: 'Development',
+    claim: 'Progress should be measured by freedom and capability, not GDP alone.',
+    source: 'Amartya Sen · Economics 1998',
+    voteType: 'likert',
+    exitVote: 'agree',
+    voted: 1,
+    total: 5,
+  },
+  {
+    topic: 'Poverty & finance',
+    claim: 'Microcredit can be a sustainable path out of poverty.',
+    source: 'Muhammad Yunus · Peace 2006',
+    voteType: 'likert',
+    exitVote: 'strongly_disagree',
+    voted: 2,
+    total: 5,
+  },
+  {
+    topic: 'Peace & justice',
+    claim: 'Forgiveness is essential for healing societies after conflict.',
+    source: 'Desmond Tutu · Peace 1984',
+    voteType: 'binary',
+    exitVote: 'agree',
+    voted: 3,
+    total: 5,
+  },
+  {
+    topic: 'Civilization',
+    claim: 'Nationalism is among the greatest threats to human civilization.',
+    source: 'Albert Einstein · Physics 1921',
+    voteType: 'likert',
+    exitVote: 'strongly_agree',
+    voted: 4,
+    total: 5,
+  },
+  {
+    topic: 'Environment & democracy',
+    claim: 'Environmental restoration and democracy are inseparable.',
+    source: 'Wangari Maathai · Peace 2004',
+    voteType: 'binary',
+    exitVote: 'disagree',
+    voted: 5,
+    total: 5,
+  },
+]
+
+const STAMP_LABEL = {
+  agree: 'Agree',
+  disagree: 'Disagree',
+  strongly_agree: 'Strongly agree',
+  strongly_disagree: 'Strongly disagree',
+}
+
 function PhoneDeck() {
+  const [idx, setIdx] = useState(0)
+  const [anim, setAnim] = useState('idle')
+
+  useEffect(() => {
+    let swapTimer
+    const cycle = setInterval(() => {
+      setAnim('out')
+      swapTimer = setTimeout(() => {
+        setIdx((i) => (i + 1) % HERO_CLAIMS.length)
+        setAnim('in')
+        setTimeout(() => setAnim('idle'), 420)
+      }, 480)
+    }, 4200)
+    return () => {
+      clearInterval(cycle)
+      clearTimeout(swapTimer)
+    }
+  }, [])
+
+  const item = HERO_CLAIMS[idx]
+  const isLikert = item.voteType === 'likert'
+  const progress = Math.round((item.voted / item.total) * 100)
+  const exitCls = item.exitVote.replace(/_/g, '-')
+  const showStamp = anim === 'out'
+
   return (
     <div className="phone" data-testid="mock-phone">
       <div className="phone-notch" />
       <div className="phone-screen">
         <div className="mock-room-top">
-          <span className="mock-topic">Should public transit be free?</span>
-          <span className="mock-code">ABC123</span>
+          <span className="mock-topic" key={`topic-${idx}`}>{item.topic}</span>
         </div>
-        <div className="mock-progress"><span style={{ width: '60%' }} /></div>
-        <span className="mock-counter">3 of 5 voted</span>
+        <div className="mock-progress">
+          <span style={{ width: `${progress}%` }} className="mock-progress-fill" />
+        </div>
+        <span className="mock-counter">{item.voted} of {item.total} voted</span>
         <div className="mock-deck">
           <div className="mock-card behind-2" />
           <div className="mock-card behind-1" />
-          <div className="mock-card top">
+          <div
+            key={idx}
+            className={`mock-card top ${isLikert ? 'likert' : ''} anim-${anim} exit-${exitCls}`}
+            data-testid="mock-card"
+          >
             <span className="mock-tag">Claim</span>
-            <p className="mock-card-text">“Free transit would cut city traffic and emissions.”</p>
-            <span className="mock-stamp agree">Agree</span>
+            <p className="mock-card-text">{item.claim}</p>
+            <span className="mock-source">{item.source}</span>
+            {showStamp && (
+              <span className={`mock-stamp ${exitCls}`}>{STAMP_LABEL[item.exitVote]}</span>
+            )}
           </div>
         </div>
-        <div className="mock-controls">
-          <span className="mock-circle disagree">✕</span>
-          <span className="mock-circle pass">↓</span>
-          <span className="mock-circle agree">✓</span>
+        <div className={`mock-controls ${isLikert ? 'likert' : ''}`} data-testid="mock-controls">
+          {isLikert ? (
+            <>
+              <span className="mock-circle disagree strong" aria-hidden="true">⇤</span>
+              <span className="mock-circle disagree" aria-hidden="true">✕</span>
+              <span className="mock-circle pass" aria-hidden="true">↓</span>
+              <span className="mock-circle agree" aria-hidden="true">✓</span>
+              <span className="mock-circle agree strong" aria-hidden="true">⇥</span>
+            </>
+          ) : (
+            <>
+              <span className="mock-circle disagree" aria-hidden="true">✕</span>
+              <span className="mock-circle pass" aria-hidden="true">↓</span>
+              <span className="mock-circle agree" aria-hidden="true">✓</span>
+            </>
+          )}
         </div>
       </div>
     </div>

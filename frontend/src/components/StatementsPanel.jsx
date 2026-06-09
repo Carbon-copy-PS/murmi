@@ -67,6 +67,7 @@ export default function StatementsPanel({
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
   const [votesOpen, setVotesOpen] = useState(false)
+  const [composerOpen, setComposerOpen] = useState(false)
   const [draft, setDraft] = useState('')
 
   const held = heldIds || new Set()
@@ -107,98 +108,112 @@ export default function StatementsPanel({
   return (
     <div className="statements-panel">
       {isHost && (
-        <div className="vote-type-bar" data-testid="vote-type-bar">
-          <div className="vote-type-text">
-            <span className="vote-type-title">Vote scale</span>
-            <p className="vote-type-desc">
-              {voteType === 'likert'
+        <div className="host-toolbar" data-testid="host-toolbar">
+          <div className="host-toolbar-group">
+            <span
+              className="host-toolbar-label"
+              title={voteType === 'likert'
                 ? 'Participants rate each statement from strongly disagree to strongly agree.'
                 : 'Participants agree or disagree with each statement.'}
-            </p>
-          </div>
-          <div className="vote-type-seg" role="group" aria-label="Vote scale">
-            <button
-              type="button"
-              className={`vote-type-opt ${voteType === 'binary' ? 'on' : ''}`}
-              onClick={() => voteType !== 'binary' && onSetVoteType?.('binary')}
-              aria-pressed={voteType === 'binary'}
-              data-testid="vote-type-binary"
             >
-              Agree / Disagree
-            </button>
-            <button
-              type="button"
-              className={`vote-type-opt ${voteType === 'likert' ? 'on' : ''}`}
-              onClick={() => voteType !== 'likert' && onSetVoteType?.('likert')}
-              aria-pressed={voteType === 'likert'}
-              data-testid="vote-type-likert"
-            >
-              Likert (5-point)
-            </button>
+              Vote scale
+            </span>
+            <div className="vote-type-seg" role="group" aria-label="Vote scale">
+              <button
+                type="button"
+                className={`vote-type-opt ${voteType === 'binary' ? 'on' : ''}`}
+                onClick={() => voteType !== 'binary' && onSetVoteType?.('binary')}
+                aria-pressed={voteType === 'binary'}
+                data-testid="vote-type-binary"
+              >
+                Agree / Disagree
+              </button>
+              <button
+                type="button"
+                className={`vote-type-opt ${voteType === 'likert' ? 'on' : ''}`}
+                onClick={() => voteType !== 'likert' && onSetVoteType?.('likert')}
+                aria-pressed={voteType === 'likert'}
+                data-testid="vote-type-likert"
+              >
+                Likert (5-point)
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-
-      {isHost && (
-        <div className="auto-approve-bar" data-testid="auto-approve-bar">
-          <div className="auto-approve-text">
-            <span className="auto-approve-title">Auto-approve</span>
-            <p className="auto-approve-desc">
-              {isRecorder
+          <div className="host-toolbar-group">
+            <span
+              className="host-toolbar-label"
+              title={isRecorder
                 ? 'Statements from your mic go live after 5s unless you hold them for review.'
                 : 'Your preference — applies to statements captured while you hold the mic.'}
-            </p>
+            >
+              Auto-approve
+            </span>
+            <label className="switch" data-testid="auto-approve-switch">
+              <input
+                type="checkbox"
+                checked={autoApprove}
+                onChange={(e) => onToggleAutoApprove(e.target.checked)}
+                data-testid="auto-approve-input"
+              />
+              <span className="switch-slider" />
+            </label>
           </div>
-          <label className="switch" data-testid="auto-approve-switch">
-            <input
-              type="checkbox"
-              checked={autoApprove}
-              onChange={(e) => onToggleAutoApprove(e.target.checked)}
-              data-testid="auto-approve-input"
-            />
-            <span className="switch-slider" />
-          </label>
         </div>
       )}
 
       {isHost && (
         <div className="host-composer" data-testid="host-composer">
-          <div className="composer-head">
-            <span className="composer-icon" aria-hidden="true">＋</span>
-            <div>
-              <label className="composer-label" htmlFor="composer-input">Add a statement</label>
-              <p className="composer-sub">Phrase a claim participants can agree or disagree with.</p>
-            </div>
-          </div>
-
-          <div className="composer-field">
-            <textarea
-              id="composer-input"
-              className="composer-input"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="e.g. Switzerland should regulate AI by sector, not with one broad law."
-              rows={3}
-              maxLength={240}
-              data-testid="composer-input"
-            />
-            <span className="composer-count">{draft.length}/240</span>
-          </div>
-
-          <div className="composer-footer">
-            <span className="composer-hint">
-              <span className="composer-dot" aria-hidden="true" />
-              Shared instantly with everyone
-            </span>
-            <button
-              className="btn primary"
-              onClick={handleAdd}
-              disabled={!draft.trim()}
-              data-testid="composer-add"
-            >
+          <button
+            type="button"
+            className="host-composer-toggle"
+            onClick={() => {
+              setComposerOpen((o) => {
+                if (!o) setTimeout(() => document.getElementById('composer-input')?.focus(), 50)
+                return !o
+              })
+            }}
+            aria-expanded={composerOpen}
+            data-testid="composer-toggle"
+          >
+            <span className="host-composer-toggle-label">
+              <span className="composer-icon-sm" aria-hidden="true">＋</span>
               Add statement
-            </button>
-          </div>
+              {draft.trim() && !composerOpen && <span className="composer-draft-dot" aria-label="Draft in progress" />}
+            </span>
+            <span className={`votes-recap-chevron ${composerOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+          </button>
+
+          {composerOpen && (
+            <div className="host-composer-body">
+              <div className="composer-field">
+                <textarea
+                  id="composer-input"
+                  className="composer-input"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="e.g. Switzerland should regulate AI by sector, not with one broad law."
+                  rows={2}
+                  maxLength={240}
+                  data-testid="composer-input"
+                />
+                <span className="composer-count">{draft.length}/240</span>
+              </div>
+              <div className="composer-footer">
+                <span className="composer-hint">
+                  <span className="composer-dot" aria-hidden="true" />
+                  Shared instantly
+                </span>
+                <button
+                  className="btn primary"
+                  onClick={handleAdd}
+                  disabled={!draft.trim()}
+                  data-testid="composer-add"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
