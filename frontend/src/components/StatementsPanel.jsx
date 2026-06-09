@@ -61,6 +61,8 @@ export default function StatementsPanel({
   onToggleAutoApprove,
   heldIds,
   onHold,
+  voteType = 'binary',
+  onSetVoteType,
 }) {
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
@@ -104,6 +106,39 @@ export default function StatementsPanel({
 
   return (
     <div className="statements-panel">
+      {isHost && (
+        <div className="vote-type-bar" data-testid="vote-type-bar">
+          <div className="vote-type-text">
+            <span className="vote-type-title">Vote scale</span>
+            <p className="vote-type-desc">
+              {voteType === 'likert'
+                ? 'Participants rate each statement from strongly disagree to strongly agree.'
+                : 'Participants agree or disagree with each statement.'}
+            </p>
+          </div>
+          <div className="vote-type-seg" role="group" aria-label="Vote scale">
+            <button
+              type="button"
+              className={`vote-type-opt ${voteType === 'binary' ? 'on' : ''}`}
+              onClick={() => voteType !== 'binary' && onSetVoteType?.('binary')}
+              aria-pressed={voteType === 'binary'}
+              data-testid="vote-type-binary"
+            >
+              Agree / Disagree
+            </button>
+            <button
+              type="button"
+              className={`vote-type-opt ${voteType === 'likert' ? 'on' : ''}`}
+              onClick={() => voteType !== 'likert' && onSetVoteType?.('likert')}
+              aria-pressed={voteType === 'likert'}
+              data-testid="vote-type-likert"
+            >
+              Likert (5-point)
+            </button>
+          </div>
+        </div>
+      )}
+
       {isHost && (
         <div className="auto-approve-bar" data-testid="auto-approve-bar">
           <div className="auto-approve-text">
@@ -197,7 +232,7 @@ export default function StatementsPanel({
               {isHost && pending.length > 0 && (
                 <div className="section-divider"><span>Live</span></div>
               )}
-              <SwipeDeck statements={unvoted} onVote={handleVote} votedCount={voted.length} />
+              <SwipeDeck statements={unvoted} onVote={handleVote} votedCount={voted.length} voteType={voteType} />
             </>
           ) : (
             approved.length > 0 && (
@@ -228,6 +263,7 @@ export default function StatementsPanel({
                     justVotedId={justVotedId}
                     onAnimationDone={() => setJustVotedId(null)}
                     onChangeVote={handleRevote}
+                    voteType={voteType}
                   />
                 </div>
               )}

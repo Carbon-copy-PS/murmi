@@ -3,7 +3,42 @@ import { motion, useMotionValue, useTransform, animate } from 'motion/react'
 
 const SWIPE_DISTANCE = 110
 const SWIPE_VELOCITY = 500
+const STRONG_DISTANCE = 215
+const STRONG_VELOCITY = 1100
 const VISIBLE = 3
+
+function SwipeAction({ tone, strong = false, lit, btnScale, onClick, glyph, label, lines, testId }) {
+  const highlight = useTransform(lit, (v) => v * 0.9)
+
+  return (
+    <motion.div
+      className={`swipe-action ${tone}${strong ? ' strong' : ''}`}
+      data-testid={`${testId}-action`}
+    >
+      <div className={`swipe-action-btn-wrap ${tone}${strong ? ' strong' : ''}`}>
+        <motion.span className="swipe-action-highlight" style={{ opacity: highlight }} aria-hidden="true" />
+        <button
+          type="button"
+          className={`swipe-circle ${tone}${strong ? ' strong' : ''}`}
+          onClick={onClick}
+          aria-label={lines ? `${lines[0]} ${lines[1]}` : label}
+          data-testid={testId}
+        >
+          <motion.span className="swipe-circle-glyph" style={{ scale: btnScale }} aria-hidden="true">
+            {glyph}
+          </motion.span>
+        </button>
+      </div>
+      {lines ? (
+        <span className={`swipe-action-label ${tone} two-line`}>
+          {lines.map((line) => <span key={line}>{line}</span>)}
+        </span>
+      ) : (
+        <span className={`swipe-action-label ${tone}`}>{label}</span>
+      )}
+    </motion.div>
+  )
+}
 
 function vibrate(ms) {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
@@ -18,7 +53,8 @@ function isTypingTarget() {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
 }
 
-export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocus = false }) {
+export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocus = false, voteType = 'binary' }) {
+  const isLikert = voteType === 'likert'
   const [focus, setFocus] = useState(false)
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -26,11 +62,21 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
 
   const clamp = (v) => Math.min(Math.max(v, 0), 1)
   const ramp = (v) => clamp((Math.abs(v) - 16) / 60)
+  const strongRamp = (v) => clamp((Math.abs(v) - SWIPE_DISTANCE) / (STRONG_DISTANCE - SWIPE_DISTANCE))
   const horizActive = ([xv, yv]) => Math.abs(xv) >= Math.abs(yv)
 
   const agreeOpacity = useTransform([x, y], ([xv, yv]) => (horizActive([xv, yv]) && xv > 0 ? ramp(xv) : 0))
   const disagreeOpacity = useTransform([x, y], ([xv, yv]) => (horizActive([xv, yv]) && xv < 0 ? ramp(xv) : 0))
   const passOpacity = useTransform([x, y], ([xv, yv]) => (!horizActive([xv, yv]) && yv > 0 ? ramp(yv) : 0))
+
+  const agreeStrong = useTransform([x, y], ([xv, yv]) => (isLikert && horizActive([xv, yv]) && xv > 0 ? strongRamp(xv) : 0))
+  const disagreeStrong = useTransform([x, y], ([xv, yv]) => (isLikert && horizActive([xv, yv]) && xv < 0 ? strongRamp(xv) : 0))
+
+  const agreeStrongStep = useTransform(agreeStrong, (s) => (s > 0 ? 1 : 0))
+  const disagreeStrongStep = useTransform(disagreeStrong, (s) => (s > 0 ? 1 : 0))
+
+  const agreeBase = useTransform([agreeOpacity, agreeStrong], ([o, s]) => (s > 0 ? 0 : o))
+  const disagreeBase = useTransform([disagreeOpacity, disagreeStrong], ([o, s]) => (s > 0 ? 0 : o))
 
   const agreeStampScale = useTransform(agreeOpacity, [0, 1], [0.6, 1.1])
   const disagreeStampScale = useTransform(disagreeOpacity, [0, 1], [0.6, 1.1])
@@ -39,6 +85,25 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
   const agreeBtnScale = useTransform(agreeOpacity, [0, 1], [1, 1.22])
   const disagreeBtnScale = useTransform(disagreeOpacity, [0, 1], [1, 1.22])
   const passBtnScale = useTransform(passOpacity, [0, 1], [1, 1.22])
+  const agreeStrongBtnScale = useTransform(agreeStrongStep, [0, 1], [1, 1.22])
+  const disagreeStrongBtnScale = useTransform(disagreeStrongStep, [0, 1], [1, 1.22])
+
+  const cardStrongScale = useTransform(
+    [agreeStrongStep, disagreeStrongStep],
+    ([a, d]) => (isLikert && (a > 0 || d > 0) ? 1.018 : 1),
+  )
+  const cardStrongShadow = useTransform(
+    [agreeStrongStep, disagreeStrongStep],
+    ([a, d]) => {
+      if (!isLikert || (a <= 0 && d <= 0)) {
+        return '0 18px 44px rgba(16, 24, 40, 0.12), 0 2px 6px rgba(16, 24, 40, 0.05)'
+      }
+      if (a > 0) {
+        return '0 0 0 2px rgba(52, 211, 153, 0.7), 0 0 32px rgba(4, 90, 60, 0.38), 0 18px 44px rgba(16, 24, 40, 0.14)'
+      }
+      return '0 0 0 2px rgba(251, 113, 133, 0.7), 0 0 32px rgba(130, 0, 24, 0.38), 0 18px 44px rgba(16, 24, 40, 0.14)'
+    },
+  )
 
   const flinging = useRef(false)
   const hinted = useRef(false)
@@ -72,7 +137,8 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
     if (!top || flinging.current) return
     flinging.current = true
     stopHint()
-    vibrate(choice === 'pass' ? 8 : 16)
+    const strong = choice === 'strongly_agree' || choice === 'strongly_disagree'
+    vibrate(choice === 'pass' ? 8 : strong ? 26 : 16)
     if (choice === 'pass') {
       const distance = (typeof window !== 'undefined' ? window.innerHeight : 800) * 1.1
       animate(y, distance, {
@@ -82,16 +148,19 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
         onComplete: () => onVote(top.id, 'pass'),
       })
     } else {
-      const dir = choice === 'agree' ? 1 : -1
-      const distance = (typeof window !== 'undefined' ? window.innerWidth : 600) * 1.35
+      const dir = choice === 'agree' || choice === 'strongly_agree' ? 1 : -1
+      const mult = strong ? 1.6 : 1.35
+      const distance = (typeof window !== 'undefined' ? window.innerWidth : 600) * mult
       animate(x, dir * distance, {
         type: 'spring',
-        stiffness: 260,
+        stiffness: strong ? 300 : 260,
         damping: 30,
         onComplete: () => onVote(top.id, choice),
       })
     }
   }
+
+  const handleDragStart = () => stopHint()
 
   const handleDragEnd = (_, info) => {
     const { offset, velocity } = info
@@ -100,9 +169,15 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
       flyOut('pass')
       return
     }
-    if (offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY) flyOut('agree')
-    else if (offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY) flyOut('disagree')
-    else {
+    const right = offset.x > SWIPE_DISTANCE || velocity.x > SWIPE_VELOCITY
+    const left = offset.x < -SWIPE_DISTANCE || velocity.x < -SWIPE_VELOCITY
+    if (right) {
+      const strong = isLikert && (offset.x >= STRONG_DISTANCE || velocity.x >= STRONG_VELOCITY)
+      flyOut(strong ? 'strongly_agree' : 'agree')
+    } else if (left) {
+      const strong = isLikert && (offset.x <= -STRONG_DISTANCE || velocity.x <= -STRONG_VELOCITY)
+      flyOut(strong ? 'strongly_disagree' : 'disagree')
+    } else {
       animate(x, 0, { type: 'spring', stiffness: 340, damping: 32 })
       animate(y, 0, { type: 'spring', stiffness: 340, damping: 32 })
     }
@@ -112,13 +187,13 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
     if (!top) return
     const onKey = (e) => {
       if (isTypingTarget()) return
-      if (e.key === 'ArrowRight') { e.preventDefault(); flyOut('agree') }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); flyOut('disagree') }
+      if (e.key === 'ArrowRight') { e.preventDefault(); flyOut(isLikert && e.shiftKey ? 'strongly_agree' : 'agree') }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); flyOut(isLikert && e.shiftKey ? 'strongly_disagree' : 'disagree') }
       else if (e.key === 'ArrowDown') { e.preventDefault(); flyOut('pass') }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [top?.id])
+  }, [top?.id, isLikert])
 
   useEffect(() => {
     if (!focus) return undefined
@@ -135,6 +210,10 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
   if (!top) return null
 
   const behind = statements.slice(1, VISIBLE)
+
+  const hintText = isLikert
+    ? 'Swipe right to agree, further for strongly. ↓ to pass'
+    : 'Drag, tap, or use arrow keys'
 
   const body = (
     <>
@@ -187,12 +266,19 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
 
         <motion.div
           key={top.id}
-          className="swipe-card top"
-          style={{ x, y, rotate, zIndex: VISIBLE }}
+          className={`swipe-card top ${isLikert ? 'likert' : ''}`}
+          style={{
+            x,
+            y,
+            rotate,
+            zIndex: VISIBLE,
+            scale: isLikert ? cardStrongScale : 1,
+            boxShadow: isLikert ? cardStrongShadow : undefined,
+          }}
           drag
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
           dragElastic={0.65}
-          onDragStart={stopHint}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           initial={{ scale: 0.94, opacity: 0, y: 14 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -200,63 +286,85 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           whileTap={{ cursor: 'grabbing' }}
           data-testid="swipe-card-top"
         >
-          <motion.span className="swipe-tint agree" style={{ opacity: agreeOpacity }} aria-hidden="true" />
-          <motion.span className="swipe-tint disagree" style={{ opacity: disagreeOpacity }} aria-hidden="true" />
+          <motion.span className="swipe-tint agree" style={{ opacity: agreeBase }} aria-hidden="true" />
+          <motion.span className="swipe-tint disagree" style={{ opacity: disagreeBase }} aria-hidden="true" />
           <motion.span className="swipe-tint pass" style={{ opacity: passOpacity }} aria-hidden="true" />
-          <motion.span className="swipe-stamp agree" style={{ opacity: agreeOpacity, scale: agreeStampScale }}>AGREE</motion.span>
-          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeOpacity, scale: disagreeStampScale }}>DISAGREE</motion.span>
+          {isLikert && (
+            <>
+              <motion.span className="swipe-tint agree strong" style={{ opacity: agreeStrongStep }} aria-hidden="true" />
+              <motion.span className="swipe-tint disagree strong" style={{ opacity: disagreeStrongStep }} aria-hidden="true" />
+            </>
+          )}
+          <motion.span className="swipe-stamp agree" style={{ opacity: agreeBase, scale: agreeStampScale }}>AGREE</motion.span>
+          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeBase, scale: disagreeStampScale }}>DISAGREE</motion.span>
           <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>PASS</motion.span>
+          {isLikert && (
+            <>
+              <motion.span className="swipe-stamp agree strong" style={{ opacity: agreeStrongStep }}>STRONGLY AGREE</motion.span>
+              <motion.span className="swipe-stamp disagree strong" style={{ opacity: disagreeStrongStep }}>STRONGLY DISAGREE</motion.span>
+            </>
+          )}
           {top.custom && <span className="card-tag">Custom</span>}
           <p className="swipe-text">{top.text}</p>
           <span className="swipe-hint-row" aria-hidden="true">
             <span className="swipe-grip"><span /><span /><span /></span>
-            <span className="swipe-hint-text">Drag, tap, or use arrow keys</span>
+            <span className="swipe-hint-text">{hintText}</span>
           </span>
         </motion.div>
       </div>
 
-      <div className="swipe-controls">
-        <div className="swipe-action">
-          <motion.button
-            type="button"
-            className="swipe-circle disagree"
-            style={{ scale: disagreeBtnScale }}
-            onClick={() => flyOut('disagree')}
-            aria-label="Disagree"
-            data-testid="swipe-disagree"
-          >
-            ✕
-          </motion.button>
-          <span className="swipe-action-label disagree">Disagree</span>
-        </div>
-
-        <div className="swipe-action">
-          <motion.button
-            type="button"
-            className="swipe-circle pass"
-            style={{ scale: passBtnScale }}
-            onClick={() => flyOut('pass')}
-            aria-label="Pass"
-            data-testid="swipe-pass"
-          >
-            ↓
-          </motion.button>
-          <span className="swipe-action-label pass">Pass</span>
-        </div>
-
-        <div className="swipe-action">
-          <motion.button
-            type="button"
-            className="swipe-circle agree"
-            style={{ scale: agreeBtnScale }}
-            onClick={() => flyOut('agree')}
-            aria-label="Agree"
-            data-testid="swipe-agree"
-          >
-            ✓
-          </motion.button>
-          <span className="swipe-action-label agree">Agree</span>
-        </div>
+      <div className={`swipe-controls ${isLikert ? 'likert' : ''}`}>
+        {isLikert && (
+          <SwipeAction
+            tone="disagree"
+            strong
+            lit={disagreeStrongStep}
+            btnScale={disagreeStrongBtnScale}
+            onClick={() => flyOut('strongly_disagree')}
+            glyph="⇤"
+            lines={['Strongly', 'Disagree']}
+            testId="swipe-strongly-disagree"
+          />
+        )}
+        <SwipeAction
+          tone="disagree"
+          lit={disagreeBase}
+          btnScale={disagreeBtnScale}
+          onClick={() => flyOut('disagree')}
+          glyph="✕"
+          label="Disagree"
+          testId="swipe-disagree"
+        />
+        <SwipeAction
+          tone="pass"
+          lit={passOpacity}
+          btnScale={passBtnScale}
+          onClick={() => flyOut('pass')}
+          glyph="↓"
+          label="Pass"
+          testId="swipe-pass"
+        />
+        <SwipeAction
+          tone="agree"
+          lit={agreeBase}
+          btnScale={agreeBtnScale}
+          onClick={() => flyOut('agree')}
+          glyph="✓"
+          label="Agree"
+          testId="swipe-agree"
+        />
+        {isLikert && (
+          <SwipeAction
+            tone="agree"
+            strong
+            lit={agreeStrongStep}
+            btnScale={agreeStrongBtnScale}
+            onClick={() => flyOut('strongly_agree')}
+            glyph="⇥"
+            lines={['Strongly', 'Agree']}
+            testId="swipe-strongly-agree"
+          />
+        )}
       </div>
     </>
   )

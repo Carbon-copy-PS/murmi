@@ -35,6 +35,7 @@ class SessionRow(Base):
     topic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     threshold: Mapped[int] = mapped_column(Integer, default=5)
+    vote_type: Mapped[str] = mapped_column(String(16), default="binary", server_default="binary")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
@@ -142,6 +143,10 @@ class Database:
                 "ALTER TABLE participants "
                 "ADD COLUMN IF NOT EXISTS is_host boolean NOT NULL DEFAULT false"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'binary'"
+            ))
         return True
 
     async def disconnect(self):
@@ -157,6 +162,7 @@ class Database:
             "topic": session.topic,
             "current_round": session.current_round,
             "threshold": session.threshold,
+            "vote_type": getattr(session, "vote_type", "binary"),
             "created_at": created,
             "expires_at": datetime.fromtimestamp(expires_epoch, timezone.utc),
         }
@@ -199,6 +205,15 @@ class Database:
         async with self._sessionmaker() as db:
             await db.execute(
                 update(SessionRow).where(SessionRow.id == session_id).values(current_round=current_round)
+            )
+            await db.commit()
+
+    async def update_vote_type(self, session_id: str, vote_type: str):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(vote_type=vote_type)
             )
             await db.commit()
 
@@ -365,6 +380,7 @@ class Database:
             "topic": row.topic,
             "current_round": row.current_round,
             "threshold": row.threshold,
+            "vote_type": row.vote_type,
             "created_at": row.created_at.timestamp(),
             "expires_at": row.expires_at.timestamp(),
             "transcript": [t.payload for t in transcript],

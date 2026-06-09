@@ -26,18 +26,64 @@ function VoteBar({ agree, disagree }) {
   )
 }
 
-function StatementRow({ s }) {
+const LIKERT_SEGMENTS = [
+  { key: 'strongly_disagree', cls: 'sd', label: 'Strongly disagree' },
+  { key: 'disagree', cls: 'd', label: 'Disagree' },
+  { key: 'neutral', cls: 'n', label: 'Neutral' },
+  { key: 'agree', cls: 'a', label: 'Agree' },
+  { key: 'strongly_agree', cls: 'sa', label: 'Strongly agree' },
+]
+
+function LikertBar({ dist, responded }) {
+  const total = responded || 1
+  return (
+    <div className="likert-bar" aria-hidden="true">
+      {LIKERT_SEGMENTS.map((seg) => {
+        const count = dist?.[seg.key] || 0
+        if (!count) return null
+        return (
+          <span
+            key={seg.key}
+            className={`likert-seg ${seg.cls}`}
+            style={{ width: `${(count / total) * 100}%` }}
+            title={`${seg.label}: ${count}`}
+          >
+            {count}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function StatementRow({ s, voteType = 'binary' }) {
+  const likert = voteType === 'likert'
   return (
     <li className="result-statement" data-testid={`result-statement-${s.id}`}>
       <p className="result-statement-text">
         {s.custom && <span className="card-tag inline">Custom</span>}
         {s.text}
       </p>
-      <VoteBar agree={s.agree} disagree={s.disagree} />
-      <div className="result-statement-meta">
-        <span className="meta-agree">{s.agree} agree</span>
-        <span className="meta-disagree">{s.disagree} disagree</span>
-      </div>
+      {likert ? (
+        <>
+          <LikertBar dist={s.dist} responded={s.responded} />
+          <div className="result-statement-meta likert">
+            {LIKERT_SEGMENTS.map((seg) => (
+              <span key={seg.key} className={`meta-likert ${seg.cls}`}>
+                <span className="meta-likert-dot" /> {seg.label} {s.dist?.[seg.key] || 0}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <VoteBar agree={s.agree} disagree={s.disagree} />
+          <div className="result-statement-meta">
+            <span className="meta-agree">{s.agree} agree</span>
+            <span className="meta-disagree">{s.disagree} disagree</span>
+          </div>
+        </>
+      )}
     </li>
   )
 }
@@ -380,6 +426,7 @@ export default function ResultsPanel({
   isHost = false,
   topic = null,
   sessionId = null,
+  voteType = 'binary',
   commonGround = null,
   cgMyVote = null,
   cgPending = false,
@@ -448,7 +495,7 @@ export default function ResultsPanel({
       <div className="results-panel">
         <Placeholder title="Opinion Clusters" message={message} />
         {commonGroundSection}
-        {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} />}
+        {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
         <ExportBar ctx={exportCtx} />
       </div>
     )
@@ -491,14 +538,14 @@ export default function ResultsPanel({
         </div>
       </section>
 
-      <ConsensusBlocks cluster={cluster} />
+      <ConsensusBlocks cluster={cluster} voteType={voteType} />
 
       <ExportBar ctx={exportCtx} />
     </div>
   )
 }
 
-function ConsensusBlocks({ cluster }) {
+function ConsensusBlocks({ cluster, voteType = 'binary' }) {
   return (
     <>
       {cluster.consensus.length > 0 && (
@@ -508,7 +555,7 @@ function ConsensusBlocks({ cluster }) {
             <span className="result-section-hint">Where most people agree</span>
           </div>
           <ul className="result-statement-list">
-            {cluster.consensus.map((s) => <StatementRow key={s.id} s={s} />)}
+            {cluster.consensus.map((s) => <StatementRow key={s.id} s={s} voteType={voteType} />)}
           </ul>
         </section>
       )}
@@ -520,7 +567,7 @@ function ConsensusBlocks({ cluster }) {
             <span className="result-section-hint">Where opinions split</span>
           </div>
           <ul className="result-statement-list">
-            {cluster.divisive.map((s) => <StatementRow key={s.id} s={s} />)}
+            {cluster.divisive.map((s) => <StatementRow key={s.id} s={s} voteType={voteType} />)}
           </ul>
         </section>
       )}

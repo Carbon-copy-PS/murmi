@@ -99,6 +99,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [currentRoundCount, setCurrentRoundCount] = useState(0)
   const [threshold, setThreshold] = useState(5)
   const [topic, setTopic] = useState(null)
+  const [voteType, setVoteType] = useState('binary')
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
@@ -246,6 +247,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           setCurrentRoundCount(msg.currentRoundCount || 0)
           setThreshold(msg.threshold || 5)
           setTopic(msg.topic || null)
+          setVoteType(msg.voteType || 'binary')
           setParticipants(msg.participantsStatus || [])
           if (msg.presence) setPresence(msg.presence)
           if (typeof msg.autoApprove === 'boolean') setAutoApprove(msg.autoApprove)
@@ -346,6 +348,10 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           setStatements(msg.statements)
           setCurrentRoundCount(msg.currentRoundCount)
           setThreshold(msg.threshold)
+          if (msg.voteType) setVoteType(msg.voteType)
+          break
+        case 'vote_type_updated':
+          setVoteType(msg.voteType || 'binary')
           break
         case 'threshold_reached':
           setView('statements')
@@ -499,6 +505,11 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   function handleToggleAutoApprove(value) {
     setAutoApprove(value)
     wsRef.current?.send(JSON.stringify({ type: 'set_auto_approve', autoApprove: value }))
+  }
+
+  function handleSetVoteType(value) {
+    setVoteType(value)
+    wsRef.current?.send(JSON.stringify({ type: 'set_vote_type', voteType: value }))
   }
 
   function handleToggleHost(targetId, makeHost) {
@@ -844,6 +855,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           onToggleAutoApprove={tourActive ? noop : handleToggleAutoApprove}
           heldIds={heldIds}
           onHold={tourActive ? noop : handleHold}
+          voteType={voteType}
+          onSetVoteType={tourActive ? noop : handleSetVoteType}
         />
       )}
       {view === 'results' && (
@@ -853,6 +866,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           isHost={isHost}
           topic={tourActive ? 'Essentials for a fair society' : topic}
           sessionId={sessionId}
+          voteType={voteType}
           commonGround={tourActive ? TOUR_COMMON_GROUND : commonGround}
           cgMyVote={cgMyVote}
           cgPending={tourActive ? false : cgPending}

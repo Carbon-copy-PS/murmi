@@ -1,4 +1,7 @@
-const VOTE_VALUE = { agree: 1, disagree: -1 }
+const VOTE_VALUE = { strongly_agree: 2, agree: 1, disagree: -1, strongly_disagree: -2 }
+
+const isAgree = (v) => v === 'agree' || v === 'strongly_agree'
+const isDisagree = (v) => v === 'disagree' || v === 'strongly_disagree'
 
 function dot(a, b) {
   let s = 0
@@ -155,17 +158,18 @@ function scaleCoords(coords) {
 
 function statementStats(statements, voters) {
   return statements.map((s) => {
-    let agree = 0
-    let disagree = 0
+    const dist = { strongly_agree: 0, agree: 0, neutral: 0, disagree: 0, strongly_disagree: 0 }
     for (const v of voters) {
       const val = v.votes[s.id]
-      if (val === 'agree') agree++
-      else if (val === 'disagree') disagree++
+      if (val in dist) dist[val]++
     }
+    const agree = dist.strongly_agree + dist.agree
+    const disagree = dist.strongly_disagree + dist.disagree
+    const responded = agree + disagree + dist.neutral
     const total = agree + disagree
     const agreeRate = total ? agree / total : 0
     const split = total ? 1 - Math.abs(agreeRate - 0.5) * 2 : 0
-    return { id: s.id, text: s.text, custom: s.custom, agree, disagree, total, agreeRate, split }
+    return { id: s.id, text: s.text, custom: s.custom, agree, disagree, total, agreeRate, split, dist, responded }
   })
 }
 
@@ -248,8 +252,8 @@ export function computeOpinionClusters({ statements = [], voters = [] }) {
       let disagree = 0
       for (const m of members) {
         const val = m.votes[s.id]
-        if (val === 'agree') agree++
-        else if (val === 'disagree') disagree++
+        if (isAgree(val)) agree++
+        else if (isDisagree(val)) disagree++
       }
       const total = agree + disagree
       return { id: s.id, text: s.text, custom: s.custom, agree, disagree, total, rate: total ? agree / total : 0 }

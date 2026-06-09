@@ -816,6 +816,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await sessions.broadcast_hosts(session_id)
                     await sessions.broadcast_participants(session_id)
 
+            elif msg_type == "set_vote_type":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                vote_type = sessions.set_vote_type(session_id, data.get("voteType"))
+                if vote_type:
+                    await _safe_db(db.update_vote_type(session_id, vote_type))
+                    await sessions.broadcast(session_id, {
+                        "type": "vote_type_updated",
+                        "voteType": vote_type,
+                    })
+
             elif msg_type == "set_topic":
                 if not sessions.is_host(session_id, participant_id):
                     continue

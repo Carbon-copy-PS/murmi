@@ -52,6 +52,7 @@ class Session:
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
     threshold: int = 5
+    vote_type: str = "binary"
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
@@ -63,6 +64,12 @@ class Session:
 SILENCE_THRESHOLD = 0.01
 LEVEL_STALE_SECONDS = 2.0
 ANALYSIS_BATCH_SIZE = 3
+
+VOTE_TYPES = ("binary", "likert")
+VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
+VALID_LIKERT_VOTES = ("strongly_agree", "agree", "neutral", "disagree", "strongly_disagree")
+AGREE_VOTES = ("agree", "strongly_agree")
+DISAGREE_VOTES = ("disagree", "strongly_disagree")
 
 
 class SessionManager:
@@ -86,6 +93,7 @@ class SessionManager:
             topic=data.get("topic"),
             current_round=data.get("current_round", 1),
             threshold=data.get("threshold", 5),
+            vote_type=data.get("vote_type", "binary"),
             created_at=data.get("created_at", time.time()),
             expires_at=data.get("expires_at"),
         )
@@ -177,6 +185,7 @@ class SessionManager:
             ),
             "currentRoundCount": self.get_current_round_count(session_id),
             "threshold": session.threshold,
+            "voteType": session.vote_type,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
@@ -408,7 +417,8 @@ class SessionManager:
             return False
         if vote == "undo":
             return stmt.votes.pop(participant_id, None) is not None
-        if vote not in ("agree", "disagree", "neutral"):
+        valid = VALID_LIKERT_VOTES if session.vote_type == "likert" else VALID_BINARY_VOTES
+        if vote not in valid:
             return False
         if stmt.votes.get(participant_id) == vote:
             return False
@@ -419,8 +429,8 @@ class SessionManager:
         return True
 
     def format_statement(self, stmt: Statement, participant_id: str) -> dict:
-        agrees = sum(1 for v in stmt.votes.values() if v == "agree")
-        disagrees = sum(1 for v in stmt.votes.values() if v == "disagree")
+        agrees = sum(1 for v in stmt.votes.values() if v in AGREE_VOTES)
+        disagrees = sum(1 for v in stmt.votes.values() if v in DISAGREE_VOTES)
         return {
             "id": stmt.id,
             "text": stmt.text,
@@ -555,6 +565,7 @@ class SessionManager:
                     ),
                     "currentRoundCount": round_count,
                     "threshold": session.threshold,
+                    "voteType": session.vote_type,
                 })
             except Exception:
                 disconnected.append(pid)
@@ -569,9 +580,9 @@ class SessionManager:
         if not stmt:
             return
         disconnected = []
+        agrees = sum(1 for v in stmt.votes.values() if v in AGREE_VOTES)
+        disagrees = sum(1 for v in stmt.votes.values() if v in DISAGREE_VOTES)
         for pid, participant in session.participants.items():
-            agrees = sum(1 for v in stmt.votes.values() if v == "agree")
-            disagrees = sum(1 for v in stmt.votes.values() if v == "disagree")
             try:
                 await participant.websocket.send_json({
                     "type": "vote_updated",
@@ -644,6 +655,13 @@ class SessionManager:
             return None
         session.topic = (topic or "").strip()[:200] or None
         return session.topic
+
+    def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session or vote_type not in VOTE_TYPES:
+            return None
+        session.vote_type = vote_type
+        return vote_type
 
     def rename_participant(self, session_id: str, participant_id: str, name: str) -> bool:
         session = self.sessions.get(session_id)

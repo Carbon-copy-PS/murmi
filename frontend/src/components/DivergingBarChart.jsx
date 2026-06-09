@@ -2,9 +2,30 @@ function truncate(text, max) {
   return text.length > max ? text.slice(0, max) + '...' : text
 }
 
-const VOTE_LABEL = { agree: 'Agree', disagree: 'Disagree', neutral: 'Pass' }
+const VOTE_LABEL = {
+  strongly_agree: 'Strongly agree',
+  agree: 'Agree',
+  neutral: 'Pass',
+  disagree: 'Disagree',
+  strongly_disagree: 'Strongly disagree',
+}
 
-export default function DivergingBarChart({ statements, justVotedId, onAnimationDone, onChangeVote }) {
+const LIKERT_CHIPS = [
+  { vote: 'strongly_disagree', cls: 'disagree strong', glyph: '⇤', label: 'Strongly disagree' },
+  { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
+  { vote: 'pass', cls: 'pass', glyph: '↓', label: 'Pass', match: 'neutral' },
+  { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
+  { vote: 'strongly_agree', cls: 'agree strong', glyph: '⇥', label: 'Strongly agree' },
+]
+
+const BINARY_CHIPS = [
+  { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
+  { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
+  { vote: 'pass', cls: 'pass', glyph: '↓', label: 'Pass', match: 'neutral' },
+]
+
+export default function DivergingBarChart({ statements, justVotedId, onAnimationDone, onChangeVote, voteType = 'binary' }) {
+  const chips = voteType === 'likert' ? LIKERT_CHIPS : BINARY_CHIPS
   return (
     <div className="bar-chart">
       {[...statements].reverse().map((stmt) => {
@@ -42,29 +63,24 @@ export default function DivergingBarChart({ statements, justVotedId, onAnimation
             </div>
 
             {onChangeVote && (
-              <div className="bar-revote" data-testid={`revote-${stmt.id}`}>
+              <div className={`bar-revote ${voteType === 'likert' ? 'likert' : ''}`} data-testid={`revote-${stmt.id}`}>
                 <span className="bar-myvote">
                   You: <strong className={stmt.myVote}>{VOTE_LABEL[stmt.myVote] || '—'}</strong>
                 </span>
                 <div className="bar-revote-actions">
-                  <button
-                    className={`revote-chip agree ${stmt.myVote === 'agree' ? 'on' : ''}`}
-                    onClick={() => onChangeVote(stmt.id, 'agree')}
-                    aria-label="Change vote to agree"
-                    data-testid={`revote-agree-${stmt.id}`}
-                  >✓</button>
-                  <button
-                    className={`revote-chip disagree ${stmt.myVote === 'disagree' ? 'on' : ''}`}
-                    onClick={() => onChangeVote(stmt.id, 'disagree')}
-                    aria-label="Change vote to disagree"
-                    data-testid={`revote-disagree-${stmt.id}`}
-                  >✕</button>
-                  <button
-                    className={`revote-chip pass ${stmt.myVote === 'neutral' ? 'on' : ''}`}
-                    onClick={() => onChangeVote(stmt.id, 'pass')}
-                    aria-label="Change vote to pass"
-                    data-testid={`revote-pass-${stmt.id}`}
-                  >↓</button>
+                  {chips.map((c) => {
+                    const active = stmt.myVote === (c.match || c.vote)
+                    return (
+                      <button
+                        key={c.vote}
+                        className={`revote-chip ${c.cls} ${active ? 'on' : ''}`}
+                        onClick={() => onChangeVote(stmt.id, c.vote)}
+                        aria-label={`Change vote to ${c.label.toLowerCase()}`}
+                        title={c.label}
+                        data-testid={`revote-${c.vote}-${stmt.id}`}
+                      >{c.glyph}</button>
+                    )
+                  })}
                   <button
                     className="revote-undo"
                     onClick={() => onChangeVote(stmt.id, 'undo')}
