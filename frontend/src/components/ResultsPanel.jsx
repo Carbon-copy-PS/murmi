@@ -6,6 +6,7 @@ import {
   buildSummary,
   downloadFile,
   exportFilename,
+  exportPDF,
 } from '../utils/export-results'
 
 const CLUSTER_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
@@ -194,6 +195,13 @@ function ExportBar({ ctx }) {
         <span className="result-section-hint">Download or share this session</span>
       </div>
       <div className="export-actions">
+        <button
+          className="export-btn"
+          onClick={() => exportPDF(ctx, exportFilename(sid, 'pdf'))}
+          data-testid="export-pdf"
+        >
+          PDF
+        </button>
         <button
           className="export-btn"
           onClick={() => downloadFile(exportFilename(sid, 'csv'), buildCSV(ctx), 'text/csv')}
