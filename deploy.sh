@@ -61,7 +61,7 @@ npm run build
 
 echo "==> Starting pm2 apps"
 cd "$DIR"
-pm2 delete debate-backend debate-frontend 2>/dev/null || true
+pm2 delete hear-backend debate-backend debate-frontend 2>/dev/null || true
 pm2 start ecosystem.config.js
 pm2 save
 
@@ -76,5 +76,5 @@ pm2 ls
 echo "============================================"
 echo "  Local: http://127.0.0.1:8000  (bound to localhost)"
 echo "  Next:  point DNS to this server, then run ./setup-https.sh <domain>"
-echo "  Logs:  pm2 logs debate-backend"
+echo "  Logs:  pm2 logs hear-backend"
 echo "============================================"

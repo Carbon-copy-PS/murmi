@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import SessionJoin from './components/SessionJoin'
-import DebateRoom from './components/DebateRoom'
+import HearRoom from './components/hear-room'
 import { getSavedSession, saveSession, clearSession } from './identity'
 
 export default function App() {
@@ -21,7 +21,7 @@ export default function App() {
   }
 
   return (
-    <DebateRoom
+    <HearRoom
       sessionId={session.sessionId}
       userName={session.userName}
       userLanguage={session.userLanguage}

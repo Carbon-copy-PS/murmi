@@ -1,21 +1,21 @@
-# Debate Sense
+# HearTheRoom
 
-A web app for collaborative sense-making in live debates.
+A web app for collaborative sense-making in live rooms.
 
 ## The Idea
 
-Imagine 10 people sitting in a room having a structured debate. Everyone opens the app on their phone or laptop and joins a shared session. The app listens, transcribes what's being said, and — here's the key part — uses AI to identify the core claims being made.
+Imagine 10 people in a room having a structured discussion. Everyone opens the app on their phone or laptop and joins a shared session. The app listens, transcribes what's being said, and — here's the key part — uses AI to identify the core claims being made.
 
-Once enough claims have been identified (currently 5 per round), the app prompts everyone to vote: **agree or disagree** on each statement. Votes are anonymous. Then the debate continues and the next round of claims accumulates.
+Once enough claims have been identified (currently 5 per round), the app prompts everyone to vote: **agree or disagree** on each statement. Votes are anonymous. Then the conversation continues and the next round of claims accumulates.
 
 The result is a real-time, structured picture of where the group stands — not just what was said, but what people actually think about it.
 
 ## How It Works
 
-1. **One person creates a session** (optionally with a debate topic), others join via a 6-character code
+1. **One person creates a session** (optionally with a topic), others join via a 6-character code
 2. **The session creator acts as the host recorder** — only that browser opens the microphone and streams audio
 3. **Other participants listen, read captions, and vote** without sending microphone audio
-4. **AI extracts claims** from completed speaker turns as the debate progresses
+4. **AI extracts claims** from completed speaker turns as the discussion progresses
 5. **A progress bar** shows how many claims have been found so far
 6. **At 5 claims**, the app switches to a voting screen where everyone votes agree/disagree
 7. **The cycle repeats** — new claims accumulate toward the next voting round, while earlier claims remain votable
@@ -72,7 +72,7 @@ The app works without an API key using built-in mock data. To test:
 
 1. Run `./start.sh` (leave `.env` as-is)
 2. Create a session in the browser
-3. In a separate terminal, inject fake debate entries:
+3. In a separate terminal, inject fake transcript entries:
    ```bash
    curl -X POST http://localhost:8000/api/sessions/YOUR_CODE/mock
    ```
@@ -103,5 +103,5 @@ This is an early prototype built during a single session. It works end-to-end bu
 - [ ] HTTPS for production deployment (required for mic access on mobile)
 - [ ] User authentication / session access control
 - [ ] Export transcript and voting results
-- [ ] AI-generated debate summary at end of session
+- [ ] AI-generated session summary at end of session
 - [ ] Mobile UI refinements

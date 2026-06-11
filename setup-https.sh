@@ -2,22 +2,38 @@
 set -euo pipefail
 
 # Usage: ./setup-https.sh <domain> [email]
-# Run this AFTER your domain's DNS A record points to this server's public IP.
+# Example: ./setup-https.sh hear.atgora.org you@example.com
+#
+# Run AFTER the domain DNS A record points to this server's public IP.
 
 DOMAIN="${1:-}"
-EMAIL="${2:-admin@${DOMAIN}}"
+EMAIL="${2:-}"
 
 if [ -z "$DOMAIN" ]; then
   echo "Usage: ./setup-https.sh <domain> [email]"
+  echo "Example: ./setup-https.sh hear.atgora.org you@example.com"
   exit 1
 fi
+
+if [ -z "$EMAIL" ]; then
+  EMAIL="admin@${DOMAIN}"
+fi
+
+SITE_NAME=$(echo "$DOMAIN" | tr '.' '-')
+SITE="/etc/nginx/sites-available/${SITE_NAME}"
+ENABLED="/etc/nginx/sites-enabled/${SITE_NAME}"
+
+echo "==> Domain: ${DOMAIN}"
+echo "==> Email:  ${EMAIL}"
 
 echo "==> Installing nginx + certbot"
 sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 
+echo "==> Removing legacy nginx sites (if present)"
+sudo rm -f /etc/nginx/sites-enabled/debate /etc/nginx/sites-available/debate
+
 echo "==> Writing nginx site for ${DOMAIN}"
-SITE="/etc/nginx/sites-available/debate"
 sudo tee "$SITE" >/dev/null <<NGINX
 server {
     listen 80;
@@ -33,7 +49,6 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
 
-        # WebSocket upgrade (covers /ws/* on the same location)
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400;
@@ -41,7 +56,7 @@ server {
 }
 NGINX
 
-sudo ln -sf "$SITE" /etc/nginx/sites-enabled/debate
+sudo ln -sf "$SITE" "$ENABLED"
 sudo rm -f /etc/nginx/sites-enabled/default
 
 echo "==> Testing & reloading nginx"

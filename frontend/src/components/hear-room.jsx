@@ -89,7 +89,7 @@ function EditIcon() {
   )
 }
 
-export default function DebateRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
+export default function HearRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
   const [connected, setConnected] = useState(false)
   const [transcript, setTranscript] = useState([])
   const [partialCaption, setPartialCaption] = useState(null)

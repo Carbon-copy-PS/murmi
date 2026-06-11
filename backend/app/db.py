@@ -125,7 +125,7 @@ class Database:
         user = os.environ.get("POSTGRES_USER", "postgres")
         password = os.environ.get("POSTGRES_PASSWORD", "")
         port = os.environ.get("POSTGRES_PORT", "5432")
-        name = os.environ.get("POSTGRES_DB", "debate_sense")
+        name = os.environ.get("POSTGRES_DB", "hear_the_room")
         return f"postgresql+asyncpg://{user}:{password}@{self.host}:{port}/{name}"
 
     async def connect(self) -> bool:

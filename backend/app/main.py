@@ -167,7 +167,7 @@ async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     return {"sessionId": session_id, "topic": topic}
 
 
-MOCK_DEBATE = [
+MOCK_TRANSCRIPT = [
     ("Anna", "I think Switzerland needs to take a much stronger stance on AI regulation. We're falling behind the EU."),
     ("Beat", "I disagree. Over-regulation will kill our startup ecosystem. Zurich and Lausanne are thriving precisely because we haven't strangled innovation."),
     ("Clara", "But we need some guardrails. Look at what happened with facial recognition in public spaces — there was no framework at all."),
@@ -190,22 +190,22 @@ mock_index: dict[str, int] = {}
 
 @app.post("/api/sessions/{session_id}/mock")
 async def mock_transcript(session_id: str):
-    """Inject 3 fake debate entries to trigger analysis. Call multiple times."""
+    """Inject 3 fake transcript entries to trigger analysis. Call multiple times."""
     session_id = session_id.upper()
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
     idx = mock_index.get(session_id, 0)
-    if idx >= len(MOCK_DEBATE):
+    if idx >= len(MOCK_TRANSCRIPT):
         mock_index[session_id] = 0
         idx = 0
 
     added = []
     for i in range(3):
-        if idx + i >= len(MOCK_DEBATE):
+        if idx + i >= len(MOCK_TRANSCRIPT):
             break
-        speaker, text = MOCK_DEBATE[idx + i]
+        speaker, text = MOCK_TRANSCRIPT[idx + i]
         entry = {
             "type": "transcript",
             "text": text,
@@ -225,7 +225,7 @@ async def mock_transcript(session_id: str):
     return {
         "added": len(added),
         "total": len(session.transcript),
-        "remaining": max(0, len(MOCK_DEBATE) - mock_index[session_id]),
+        "remaining": max(0, len(MOCK_TRANSCRIPT) - mock_index[session_id]),
     }
 
 
@@ -234,11 +234,11 @@ auto_play_tasks: dict[str, asyncio.Task] = {}
 
 async def auto_play(session_id: str):
     idx = mock_index.get(session_id, 0)
-    while idx < len(MOCK_DEBATE):
+    while idx < len(MOCK_TRANSCRIPT):
         session = sessions.get(session_id)
         if not session:
             break
-        speaker, text = MOCK_DEBATE[idx]
+        speaker, text = MOCK_TRANSCRIPT[idx]
         entry = {
             "type": "transcript",
             "text": text,
@@ -272,7 +272,7 @@ async def mock_auto_play(session_id: str):
 
     task = asyncio.create_task(auto_play(session_id))
     auto_play_tasks[session_id] = task
-    remaining = len(MOCK_DEBATE) - mock_index.get(session_id, 0)
+    remaining = len(MOCK_TRANSCRIPT) - mock_index.get(session_id, 0)
     return {"status": "started", "entries": remaining}
 
 
