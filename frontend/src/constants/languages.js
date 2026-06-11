@@ -30,10 +30,21 @@ export const SPOKEN_LANGUAGES = [
   { code: 'sl', flag: '🇸🇮', label: 'Slovenian', native: 'Slovenščina' },
   { code: 'es', flag: '🇪🇸', label: 'Spanish', native: 'Español' },
   { code: 'sv', flag: '🇸🇪', label: 'Swedish', native: 'Svenska' },
-  { code: 'zh', flag: '🇨🇳', label: 'Chinese', native: '中文' },
+  { code: 'zh', flag: '🇹🇼', label: 'Traditional Chinese', native: '繁體中文' },
 ].sort((a, b) => a.label.localeCompare(b.label))
 
-export const LANGUAGE_OPTIONS = [AUTO_LANGUAGE, ...SPOKEN_LANGUAGES]
+export const SHOWCASE_LANGUAGE_CODES = ['en', 'de', 'fr', 'it', 'zh']
+
+export const SHOWCASE_LANGUAGES = SHOWCASE_LANGUAGE_CODES
+  .map((code) => SPOKEN_LANGUAGES.find((lang) => lang.code === code))
+  .filter(Boolean)
+
+export const LANGUAGE_SHOWCASE = [
+  ...SHOWCASE_LANGUAGES,
+  ...SPOKEN_LANGUAGES.filter((lang) => !SHOWCASE_LANGUAGE_CODES.includes(lang.code)),
+]
+
+export const LANGUAGE_OPTIONS = [AUTO_LANGUAGE, ...LANGUAGE_SHOWCASE]
 
 export const LANGUAGE_CODES = SPOKEN_LANGUAGES.map((lang) => lang.code)
 

@@ -23,7 +23,7 @@ LANGUAGE_LABELS = {
     "sl": "Slovenian",
     "es": "Spanish",
     "sv": "Swedish",
-    "zh": "Chinese",
+    "zh": "Traditional Chinese",
 }
 
 LANGUAGE_CODES = frozenset(LANGUAGE_LABELS)

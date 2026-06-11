@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { APP_NAME } from '../constants/app'
-import { SPOKEN_LANGUAGES } from '../constants/languages'
+import { LANGUAGE_SHOWCASE, SPOKEN_LANGUAGES } from '../constants/languages'
 import { getSavedName, saveName } from '../identity'
 import LanguageSelect from './language-select'
 import ThemeToggle from './ThemeToggle'
@@ -16,7 +16,7 @@ function LanguageShowcase() {
         </p>
       </div>
       <div className="ls-lang-grid">
-        {SPOKEN_LANGUAGES.map((lang) => (
+        {LANGUAGE_SHOWCASE.map((lang) => (
           <span key={lang.code} className="ls-lang-chip" title={lang.label} data-testid={`lang-chip-${lang.code}`}>
             <span className="ls-lang-flag" aria-hidden="true">{lang.flag}</span>
             <span className="ls-lang-name">{lang.native}</span>
@@ -442,7 +442,7 @@ export default function SessionJoin({ onJoin }) {
         <div className="ls-hero-copy">
           <span className="ls-eyebrow">Collaborative sense-making for live rooms</span>
           <h1 className="ls-h1">
-            Hear the room. <span className="ls-grad">See what it thinks.</span>
+            Hear the room. <span className="ls-grad">Learn what we all think.</span>
           </h1>
           <p className="ls-lead">
             {APP_NAME} listens to your discussion, turns it into clear claims with AI,
