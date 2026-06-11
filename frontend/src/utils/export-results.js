@@ -1,3 +1,5 @@
+import { APP_NAME } from '../constants/app'
+
 const GROUP_LETTERS = ['A', 'B', 'C', 'D']
 
 const LIKERT_KEYS = ['strongly_disagree', 'disagree', 'neutral', 'agree', 'strongly_agree']
@@ -90,7 +92,7 @@ export function buildCSV(ctx) {
   const lines = []
   const row = (...cells) => lines.push(cells.map(csvCell).join(','))
 
-  row('Debate Sense — Results')
+  row(`${APP_NAME} — Results`)
   row('Topic', topic || 'Untitled session')
   if (sessionId) row('Session', sessionId)
   if (cluster?.voterCount != null) row('Participants', cluster.voterCount)
@@ -227,7 +229,7 @@ export function buildSummary(ctx) {
   const likert = voteType === 'likert'
   const out = []
 
-  out.push('DEBATE SENSE — RESULTS')
+  out.push(`${APP_NAME.toUpperCase()} — RESULTS`)
   out.push('======================')
   out.push('')
   out.push(`Topic: ${topic || 'Untitled session'}`)
@@ -444,7 +446,7 @@ export function buildPrintableHTML(ctx) {
   }
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/>
-  <title>${esc(`Debate Sense — ${topic || 'Results'}`)}</title>
+  <title>${esc(`${APP_NAME} — ${topic || 'Results'}`)}</title>
   <style>
     @page { size: A4; margin: 18mm 16mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -519,7 +521,7 @@ export function buildPrintableHTML(ctx) {
   <body><div class="pdf-wrap">
     <div class="pdf-top">
       <span class="pdf-logo">${LOGO_SVG}</span>
-      <span class="pdf-brand">Debate Sense<small>Debate Results</small></span>
+      <span class="pdf-brand">${esc(APP_NAME)}<small>Session Results</small></span>
     </div>
     <h1 class="pdf-title">${esc(topic || 'Untitled session')}</h1>
     <p class="pdf-meta">${metaBits.join(' · ')}${sessionId ? `${metaBits.length ? ' · ' : ''}Session <span class="code">${esc(sessionId)}</span>` : ''}</p>
@@ -563,5 +565,5 @@ export function downloadFile(filename, content, mime) {
 
 export function exportFilename(sessionId, ext) {
   const stamp = new Date().toISOString().slice(0, 10)
-  return `debate-sense-${sessionId || 'session'}-${stamp}.${ext}`
+  return `hear-the-room-${sessionId || 'session'}-${stamp}.${ext}`
 }

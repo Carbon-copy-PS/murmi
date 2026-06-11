@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
+import { APP_NAME } from '../constants/app'
 import { resolveTheme } from '../theme'
 
 export default function ShareModal({ sessionId, topic, onClose }) {
@@ -27,7 +28,7 @@ export default function ShareModal({ sessionId, topic, onClose }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `debate-sense-${sessionId}-qr.png`
+    a.download = `hear-the-room-${sessionId}-qr.png`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -37,13 +38,13 @@ export default function ShareModal({ sessionId, topic, onClose }) {
   async function shareQr() {
     const blob = await qrToBlob()
     if (!blob) return
-    const file = new File([blob], `debate-sense-${sessionId}-qr.png`, { type: 'image/png' })
+    const file = new File([blob], `hear-the-room-${sessionId}-qr.png`, { type: 'image/png' })
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
-          title: 'Debate Sense',
-          text: topic ? `Scan to join my debate: "${topic}"` : 'Scan to join my debate on Debate Sense',
+          title: APP_NAME,
+          text: topic ? `Scan to join my session: "${topic}"` : `Scan to join my session on ${APP_NAME}`,
         })
       } catch {
         /* user cancelled */
@@ -75,8 +76,8 @@ export default function ShareModal({ sessionId, topic, onClose }) {
   async function nativeShare() {
     try {
       await navigator.share({
-        title: 'Debate Sense',
-        text: topic ? `Join my debate: "${topic}"` : 'Join my debate on Debate Sense',
+        title: APP_NAME,
+        text: topic ? `Join my session: "${topic}"` : `Join my session on ${APP_NAME}`,
         url: shareLink,
       })
     } catch {
@@ -99,7 +100,7 @@ export default function ShareModal({ sessionId, topic, onClose }) {
         </button>
 
         <h2 className="modal-title">Invite others</h2>
-        <p className="modal-sub">Scan the QR code, or share the code or link so people can join your debate.</p>
+        <p className="modal-sub">Scan the QR code, or share the code or link so people can join your session.</p>
 
         <div className="share-qr" data-testid="share-qr">
           <div className="share-qr-frame" ref={qrRef}>

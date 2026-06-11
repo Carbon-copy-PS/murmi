@@ -8,6 +8,8 @@ from typing import Awaitable, Callable, Optional
 
 import websockets
 
+from .languages import LANGUAGE_LABELS
+
 
 CaptionDeltaHandler = Callable[[str, str, str, str], Awaitable[None]]
 CaptionFinalHandler = Callable[[str, str, str, str, Optional[bytes]], Awaitable[None]]
@@ -211,27 +213,18 @@ class RealtimeTranscriptionSession:
 
     def _default_prompt(self, language: str | None) -> str:
         base = (
-            "Transcribe a live debate. Preserve the language being spoken; do not translate. "
+            "Transcribe a live discussion. Preserve the language being spoken; do not translate. "
             "Ignore non-speech sounds and brief filler noises."
         )
-        if language == "en":
-            return (
-                "The speaker selected English as their primary spoken language. "
-                f"{base} Preserve occasional German or French code-switching when it happens."
-            )
-        if language == "de":
-            return (
-                "The speaker selected German or Swiss German as their primary spoken language. "
-                f"{base} Preserve occasional English or French code-switching when it happens."
-            )
-        if language == "fr":
-            return (
-                "The speaker selected French as their primary spoken language. "
-                f"{base} Preserve occasional English or German code-switching when it happens."
-            )
+        if language and language in LANGUAGE_LABELS:
+            label = LANGUAGE_LABELS[language]
+            if language == "de":
+                label = "German or Swiss German"
+            return f"The speaker selected {label} as their primary spoken language. {base}"
+        supported = ", ".join(LANGUAGE_LABELS.values())
         return (
-            "Transcribe a live multilingual debate. Speakers may use English, German, "
-            "Swiss German, or French. Preserve the language being spoken; do not translate. "
+            f"Transcribe a live multilingual discussion. Speakers may use any of these languages: "
+            f"{supported}. Preserve the language being spoken; do not translate. "
             "Ignore non-speech sounds and brief filler noises."
         )
 

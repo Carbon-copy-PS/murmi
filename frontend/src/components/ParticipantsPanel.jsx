@@ -1,10 +1,5 @@
 import { useMemo, useState } from 'react'
-
-const LANGUAGE_LABELS = {
-  en: 'English',
-  de: 'Deutsch',
-  fr: 'Français',
-}
+import { getLanguage, getLanguageLabel } from '../constants/languages'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -48,7 +43,12 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder }) {
             {p.isRecorder && <span className="recorder-chip" title="Recording mic">Mic</span>}
           </span>
           {p.language && (
-            <span className="participant-lang">{LANGUAGE_LABELS[p.language] || p.language}</span>
+            <span className="participant-lang" title={getLanguageLabel(p.language)}>
+              {getLanguage(p.language)?.flag && (
+                <span className="participant-lang-flag" aria-hidden="true">{getLanguage(p.language).flag}</span>
+              )}
+              {getLanguageLabel(p.language)}
+            </span>
           )}
         </div>
 

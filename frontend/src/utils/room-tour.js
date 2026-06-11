@@ -89,7 +89,7 @@ function buildSteps({ isHost, isRecorder, baseView }) {
       view: 'record',
       element: '.record-btn',
       popover: {
-        title: 'Capture the debate',
+        title: 'Capture the room',
         description: 'Press Record and only your device streams audio. Live captions show up below as people speak.',
       },
     })

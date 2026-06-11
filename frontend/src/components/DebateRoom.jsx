@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { APP_NAME } from '../constants/app'
+import { getLanguage } from '../constants/languages'
+import LanguageSelect from './language-select'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
@@ -116,6 +119,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   const [nameDraft, setNameDraft] = useState(userName)
   const [editingTopic, setEditingTopic] = useState(false)
   const [topicDraft, setTopicDraft] = useState('')
+  const [roomLanguage, setRoomLanguage] = useState(userLanguage || 'auto')
   const [tourActive, setTourActive] = useState(false)
   const tourRef = useRef(null)
   const tourStartedRef = useRef(false)
@@ -247,6 +251,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           setCurrentRoundCount(msg.currentRoundCount || 0)
           setThreshold(msg.threshold || 5)
           setTopic(msg.topic || null)
+          setRoomLanguage(msg.recorderLanguage || 'auto')
           setVoteType(msg.voteType || 'binary')
           setParticipants(msg.participantsStatus || [])
           if (msg.presence) setPresence(msg.presence)
@@ -281,12 +286,15 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
         case 'topic_updated':
           setTopic(msg.topic || null)
           break
+        case 'language_updated':
+          setRoomLanguage(msg.language || 'auto')
+          break
         case 'participant_renamed':
           break
         case 'active_mic':
           break
         case 'session_expired':
-          notify('Debate Sense', 'This session has expired', { tag: 'expired', force: true })
+          notify(APP_NAME, 'This session has expired', { tag: 'expired', force: true })
           onLeave()
           break
         case 'participant_joined':
@@ -298,7 +306,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           speechStartedRef.current = false
           silenceFramesRef.current = 0
           setCaptionError('')
-          notify('Debate Sense', 'Recording started', { tag: 'recording', duration: 4000 })
+          notify(APP_NAME, 'Recording started', { tag: 'recording', duration: 4000 })
           break
         case 'recording_stopped':
           setRecording(false)
@@ -306,7 +314,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           speechStartedRef.current = false
           silenceFramesRef.current = 0
           setPartialCaption(null)
-          notify('Debate Sense', 'Recording stopped', { tag: 'recording', duration: 4000 })
+          notify(APP_NAME, 'Recording stopped', { tag: 'recording', duration: 4000 })
           break
         case 'caption_delta':
           setPartialCaption((prev) => {
@@ -355,7 +363,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
           break
         case 'threshold_reached':
           setView('statements')
-          notify('Debate Sense', `Round ${msg.round} complete — vote on the statements!`, {
+          notify(APP_NAME, `Round ${msg.round} complete — vote on the statements!`, {
             tag: 'threshold',
             force: true,
           })
@@ -520,7 +528,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     setConfirm({
       title: p.isHost ? 'Revoke host access?' : `Make ${p.name} a host?`,
       message: p.isHost
-        ? `${p.name} will lose host controls for this debate.`
+        ? `${p.name} will lose host controls for this session.`
         : `${p.name} will be able to manage statements, recording and other participants.`,
       confirmLabel: p.isHost ? 'Revoke host' : 'Make host',
       danger: p.isHost,
@@ -538,7 +546,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
       title: isYou ? 'Take the mic?' : `Give the mic to ${p.name}?`,
       message: isYou
         ? 'You become the recorder — recording will capture your microphone.'
-        : `${p.name} becomes the recorder. Their microphone will capture the debate audio.`,
+        : `${p.name} becomes the recorder. Their microphone will capture the room audio.`,
       confirmLabel: isYou ? 'Take mic' : 'Give mic',
       danger: false,
       onConfirm: () => handleSetRecorder(p.id),
@@ -547,7 +555,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
 
   function requestLeave() {
     setConfirm({
-      title: 'Leave this debate?',
+      title: 'Leave this session?',
       message: 'You can rejoin anytime with the session code.',
       confirmLabel: 'Leave',
       danger: true,
@@ -584,6 +592,15 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
   function startEditTopic() {
     setTopicDraft(topic || '')
     setEditingTopic(true)
+  }
+
+  function handleLanguageChange(code) {
+    setRoomLanguage(code)
+    wsRef.current?.send(JSON.stringify({ type: 'set_language', language: code }))
+    const lang = code === 'auto' ? null : code
+    if (isRecorder) {
+      saveSession({ sessionId, userName: displayName, userLanguage: lang, wantsHost })
+    }
   }
 
   function saveTopic() {
@@ -659,6 +676,8 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
     setHeldIds((prev) => new Set(prev).add(statementId))
   }
 
+  const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
+
   return (
     <div className="room">
       <div className="room-top">
@@ -669,6 +688,19 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
             {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
           </div>
           <div className="room-actions">
+            {isHost ? (
+              <LanguageSelect
+                value={roomLanguage}
+                onChange={handleLanguageChange}
+                data-testid="room-language"
+                inline
+              />
+            ) : (
+              <span className="room-lang-pill" data-testid="room-language" title={activeLanguage.label}>
+                <span className="room-lang-flag" aria-hidden="true">{activeLanguage.flag}</span>
+                <span className="room-lang-text">{activeLanguage.label}</span>
+              </span>
+            )}
             <ThemeToggle />
             <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
               Share
@@ -716,7 +748,7 @@ export default function DebateRoom({ sessionId, userName, userLanguage, wantsHos
                   onKeyDown={handleTopicKeyDown}
                   autoFocus
                   maxLength={200}
-                  placeholder="What are you debating?"
+                  placeholder="What is the room discussing?"
                   aria-label="Edit topic"
                   data-testid="topic-edit-input"
                 />

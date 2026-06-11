@@ -21,6 +21,7 @@ from .transcription import TranscriptionService
 from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
 from .db import Database
+from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 
 load_dotenv()
 
@@ -111,7 +112,7 @@ async def lifespan(_app: FastAPI):
         await db.disconnect()
 
 
-app = FastAPI(title="Debate Sense", lifespan=lifespan)
+app = FastAPI(title="HearTheRoom", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -127,7 +128,6 @@ realtime_errors_seen: set[tuple[str, str]] = set()
 turn_analysis_tasks: dict[tuple[str, str], asyncio.Task] = {}
 TRANSCRIPT_MERGE_WINDOW_SECONDS = 12
 SPEAKER_TURN_IDLE_SECONDS = 2
-PARTICIPANT_LANGUAGES = {"en", "de", "fr"}
 FILLER_TRANSCRIPTS = {
     "uh",
     "um",
@@ -310,6 +310,7 @@ async def run_analysis(session_id: str):
             transcript_entries=session.transcript,
             existing_statements=[s.text for s in session.statements],
             topic=session.topic,
+            language=session_statement_language(session_id),
         )
         if not new_texts:
             return
@@ -335,11 +336,11 @@ async def run_analysis(session_id: str):
 COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
 
 
-async def run_common_ground(session_id: str, payload: dict, topic: str | None):
+async def run_common_ground(session_id: str, payload: dict, topic: str | None, language: str | None):
     result = None
     try:
         result = await asyncio.wait_for(
-            analysis.generate_common_ground(payload, topic),
+            analysis.generate_common_ground(payload, topic, language),
             timeout=COMMON_GROUND_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -383,6 +384,7 @@ async def run_turn_analysis(session_id: str, entry_id: str):
         turn_entry=entry,
         existing_statements=[s.text for s in session.statements],
         topic=session.topic,
+        language=session_statement_language(session_id),
     )
     if not new_texts:
         return
@@ -414,10 +416,18 @@ def schedule_turn_analysis(session_id: str, entry: dict):
 
 
 def normalize_language(value) -> str | None:
+    if value is None:
+        return None
     if not isinstance(value, str):
         return None
     language = value.strip().lower()
+    if not language or language == "auto":
+        return None
     return language if language in PARTICIPANT_LANGUAGES else None
+
+
+def session_statement_language(session_id: str) -> str | None:
+    return sessions.get_recorder_language(session_id)
 
 
 def should_merge_transcript(last_entry: dict | None, speaker: str, now: float) -> bool:
@@ -712,8 +722,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     continue
                 session = sessions.get(session_id)
                 topic = session.topic if session else None
+                language = session_statement_language(session_id) if session else None
                 await sessions.broadcast(session_id, {"type": "common_ground_pending"})
-                asyncio.create_task(run_common_ground(session_id, payload, topic))
+                asyncio.create_task(run_common_ground(session_id, payload, topic, language))
 
             elif msg_type == "set_auto_approve":
                 if not sessions.is_host(session_id, participant_id):
@@ -835,6 +846,38 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await sessions.broadcast(session_id, {
                     "type": "topic_updated",
                     "topic": topic,
+                })
+
+            elif msg_type == "set_language":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                session = sessions.get(session_id)
+                if not session or not session.host_participant_id:
+                    continue
+                recorder_id = session.host_participant_id
+                raw = data.get("language")
+                if raw in (None, "", "auto"):
+                    language = None
+                else:
+                    language = normalize_language(raw)
+                    if language is None:
+                        continue
+                recorder = session.participants.get(recorder_id)
+                if not recorder or not sessions.set_participant_language(session_id, recorder_id, language):
+                    continue
+                await _safe_db(db.save_participant(
+                    session,
+                    recorder_id,
+                    recorder.client_id,
+                    recorder.name,
+                    language,
+                    is_host=sessions.is_host(session_id, recorder_id),
+                ))
+                await close_realtime_sessions(session_id, recorder_id)
+                await sessions.broadcast(session_id, {
+                    "type": "language_updated",
+                    "participantId": recorder_id,
+                    "language": language,
                 })
 
             elif msg_type == "rename":

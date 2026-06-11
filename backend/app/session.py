@@ -189,6 +189,8 @@ class SessionManager:
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
+            "language": language,
+            "recorderLanguage": self.get_recorder_language(session_id),
         })
 
         await self.broadcast(session_id, {
@@ -706,6 +708,27 @@ class SessionManager:
         if session and participant_id in session.participants:
             return session.participants[participant_id].language
         return None
+
+    def get_recorder_language(self, session_id: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session or not session.host_participant_id:
+            return None
+        return self.get_participant_language(session_id, session.host_participant_id)
+
+    def set_participant_language(
+        self,
+        session_id: str,
+        participant_id: str,
+        language: str | None,
+    ) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        participant = session.participants.get(participant_id)
+        if not participant:
+            return False
+        participant.language = language
+        return True
 
     def _participant_list(self, session: Session) -> list:
         return [

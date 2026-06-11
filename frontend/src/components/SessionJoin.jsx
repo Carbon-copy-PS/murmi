@@ -1,15 +1,31 @@
 import { useState, useEffect } from 'react'
+import { APP_NAME } from '../constants/app'
+import { SPOKEN_LANGUAGES } from '../constants/languages'
 import { getSavedName, saveName } from '../identity'
+import LanguageSelect from './language-select'
 import ThemeToggle from './ThemeToggle'
 
-const LANGUAGES = (
-  <>
-    <option value="auto">Auto language</option>
-    <option value="en">English</option>
-    <option value="de">Deutsch / Schwiizerdutsch</option>
-    <option value="fr">Français</option>
-  </>
-)
+function LanguageShowcase() {
+  return (
+    <section className="ls-lang-showcase" data-testid="language-showcase">
+      <div className="ls-lang-showcase-head">
+        <span className="ls-kicker">Languages</span>
+        <h2 className="ls-h2">Built for Europe — and beyond</h2>
+        <p className="ls-lead compact">
+          Every EU official language, plus Chinese. Participants choose their spoken language; transcription stays in that language.
+        </p>
+      </div>
+      <div className="ls-lang-grid">
+        {SPOKEN_LANGUAGES.map((lang) => (
+          <span key={lang.code} className="ls-lang-chip" title={lang.label} data-testid={`lang-chip-${lang.code}`}>
+            <span className="ls-lang-flag" aria-hidden="true">{lang.flag}</span>
+            <span className="ls-lang-name">{lang.native}</span>
+          </span>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 const Req = () => <span className="req" aria-hidden="true">*</span>
 
@@ -48,7 +64,7 @@ const STEPS = [
     num: '03',
     icon: '👆',
     title: 'Everyone votes',
-    text: 'Swipe to agree, disagree, or pass. Votes are anonymous and update live as the debate rolls on.',
+    text: 'Swipe to agree, disagree, or pass. Votes are anonymous and update live as the conversation rolls on.',
   },
   {
     num: '04',
@@ -77,7 +93,7 @@ const FEATURES = [
   {
     icon: '🌍',
     title: 'Multilingual',
-    text: 'English, German / Swiss German, French, or auto-detect — per participant.',
+    text: 'All 24 EU official languages plus Chinese — or auto-detect. Each participant picks their own.',
   },
   {
     icon: '🤝',
@@ -349,7 +365,7 @@ export default function SessionJoin({ onJoin }) {
     return {
       sessionId,
       userName: name.trim(),
-      userLanguage: language === 'auto' ? null : language,
+      userLanguage: wantsHost && language !== 'auto' ? language : null,
       wantsHost,
     }
   }
@@ -407,7 +423,7 @@ export default function SessionJoin({ onJoin }) {
       <nav className="ls-nav">
         <a className="ls-brand" href="#top">
           <span className="ls-brand-logo"><LogoMark /></span>
-          <span className="ls-brand-name">Debate Sense</span>
+          <span className="ls-brand-name">{APP_NAME}</span>
         </a>
         <div className="ls-nav-actions">
           <a className="ls-nav-link" href="#how">How it works</a>
@@ -417,25 +433,25 @@ export default function SessionJoin({ onJoin }) {
             Join
           </button>
           <button type="button" className="ls-btn solid" onClick={() => switchMode('create')} data-testid="nav-host">
-            Host a debate
+            Host a session
           </button>
         </div>
       </nav>
 
       <header className="ls-hero" id="top">
         <div className="ls-hero-copy">
-          <span className="ls-eyebrow">Collaborative sense-making for live debates</span>
+          <span className="ls-eyebrow">Collaborative sense-making for live rooms</span>
           <h1 className="ls-h1">
             Hear the room. <span className="ls-grad">See what it thinks.</span>
           </h1>
           <p className="ls-lead">
-            Debate Sense listens to your discussion, turns it into clear claims with AI,
+            {APP_NAME} listens to your discussion, turns it into clear claims with AI,
             and lets everyone vote anonymously — so a messy conversation becomes a shared,
             real-time picture of where people actually stand.
           </p>
           <div className="ls-cta-row">
             <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="hero-host">
-              Host a debate
+              Host a session
             </button>
             <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="hero-join">
               I have a code →
@@ -444,7 +460,7 @@ export default function SessionJoin({ onJoin }) {
           <ul className="ls-trust">
             <li>🔒 Anonymous votes</li>
             <li>⚡ Realtime captions</li>
-            <li>🌍 4 languages</li>
+            <li>🌍 {SPOKEN_LANGUAGES.length} languages</li>
           </ul>
         </div>
         <div className="ls-hero-visual">
@@ -484,10 +500,12 @@ export default function SessionJoin({ onJoin }) {
         </div>
       </section>
 
+      <LanguageShowcase />
+
       <section className="ls-section" id="features">
         <div className="ls-section-head">
           <span className="ls-kicker">Features</span>
-          <h2 className="ls-h2">Everything you need to make a debate make sense</h2>
+          <h2 className="ls-h2">Everything you need to make sense of the room</h2>
         </div>
         <div className="ls-features">
           {FEATURES.map((f) => (
@@ -506,7 +524,7 @@ export default function SessionJoin({ onJoin }) {
           <p className="ls-lead">Spin up a session in seconds. No sign-up, no setup.</p>
           <div className="ls-cta-row center">
             <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="final-host">
-              Host a debate
+              Host a session
             </button>
             <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="final-join">
               Join with a code
@@ -518,15 +536,65 @@ export default function SessionJoin({ onJoin }) {
       <footer className="ls-footer">
         <div className="ls-brand">
           <span className="ls-brand-logo"><LogoMark /></span>
-          <span className="ls-brand-name">Debate Sense</span>
+          <span className="ls-brand-name">{APP_NAME}</span>
         </div>
-        <span className="ls-foot-note">Collaborative sense-making in live debates.</span>
+        <span className="ls-foot-note">Collaborative sense-making in live rooms.</span>
       </footer>
 
       {mode && (
         <div className="modal-backdrop" onClick={closeModal} data-testid="auth-modal">
-          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <button type="button" className="modal-close" onClick={closeModal} aria-label="Close" data-testid="modal-close">×</button>
+          <div
+            className={`modal auth-modal${mode === 'create' ? ' host' : ' join'}`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-modal-title"
+          >
+            <button type="button" className="auth-modal-close" onClick={closeModal} aria-label="Close" data-testid="modal-close">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            <div className="auth-modal-toolbar">
+              <div className="auth-modal-tabs" role="tablist" aria-label="Session mode">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'create'}
+                  className={`auth-modal-tab${mode === 'create' ? ' active' : ''}`}
+                  onClick={() => switchMode('create')}
+                  data-testid="auth-tab-host"
+                >
+                  Host
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'join'}
+                  className={`auth-modal-tab${mode === 'join' ? ' active' : ''}`}
+                  onClick={() => switchMode('join')}
+                  data-testid="auth-tab-join"
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+
+            <div className="auth-modal-body">
+              <div className="auth-modal-header">
+                <span className="auth-modal-icon" aria-hidden="true">{mode === 'create' ? '🎙️' : '🔗'}</span>
+                <div className="auth-modal-copy">
+                  <h2 id="auth-modal-title" className="auth-modal-title">
+                    {mode === 'create' ? 'Host a session' : 'Join a session'}
+                  </h2>
+                  <p className="auth-modal-lead">
+                    {mode === 'create'
+                      ? 'Set up a room, share the code, and capture what the group thinks.'
+                      : 'Enter the 6-character code from your host to jump in.'}
+                  </p>
+                </div>
+              </div>
 
             {mode === 'create' && (
               <form
@@ -538,8 +606,6 @@ export default function SessionJoin({ onJoin }) {
                   handleCreate()
                 }}
               >
-                <h2 className="form-heading">Host a debate</h2>
-
                 <label className="field">
                   <span className="field-label">Your name <Req /></span>
                   <input
@@ -561,23 +627,21 @@ export default function SessionJoin({ onJoin }) {
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="What are you debating?"
+                    placeholder="What is the room discussing?"
                     data-testid="host-topic"
                   />
                 </label>
 
                 <label className="field">
                   <span className="field-label">Spoken language</span>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="host-language">
-                    {LANGUAGES}
-                  </select>
+                  <LanguageSelect value={language} onChange={setLanguage} data-testid="host-language" singleLine />
                 </label>
 
-                <button type="submit" className="btn primary" disabled={loading} data-testid="create-submit">
+                <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="create-submit">
                   {loading ? 'Creating…' : 'Create session'}
                 </button>
 
-                {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
+                {errors.form && <p className="auth-form-error" data-testid="form-error">{errors.form}</p>}
               </form>
             )}
 
@@ -591,9 +655,7 @@ export default function SessionJoin({ onJoin }) {
                   handleJoin()
                 }}
               >
-                <h2 className="form-heading">Join a debate</h2>
-
-                <label className="field">
+                <label className="field auth-code-field">
                   <span className="field-label">Session code <Req /></span>
                   <input
                     type="text"
@@ -605,8 +667,10 @@ export default function SessionJoin({ onJoin }) {
                     placeholder="ABC123"
                     maxLength={6}
                     autoFocus
+                    autoComplete="off"
+                    inputMode="text"
                     aria-invalid={!!errors.code}
-                    className={`code-input ${errors.code ? 'invalid' : ''}`}
+                    className={`auth-code-input${errors.code ? ' invalid' : ''}`}
                     data-testid="join-code"
                   />
                   {errors.code && <span className="field-error" data-testid="error-code">{errors.code}</span>}
@@ -626,20 +690,14 @@ export default function SessionJoin({ onJoin }) {
                   {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
                 </label>
 
-                <label className="field">
-                  <span className="field-label">Spoken language</span>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} data-testid="join-language">
-                    {LANGUAGES}
-                  </select>
-                </label>
-
-                <button type="submit" className="btn primary" disabled={loading} data-testid="join-submit">
+                <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="join-submit">
                   {loading ? 'Joining…' : 'Join session'}
                 </button>
 
-                {errors.form && <p className="error" data-testid="form-error">{errors.form}</p>}
+                {errors.form && <p className="auth-form-error" data-testid="form-error">{errors.form}</p>}
               </form>
             )}
+            </div>
           </div>
         </div>
       )}

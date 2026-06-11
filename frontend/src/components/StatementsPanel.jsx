@@ -239,7 +239,7 @@ export default function StatementsPanel({
       )}
 
       {approved.length === 0 && pending.length === 0 ? (
-        <div className="flash-card-empty">Statements will appear as the debate progresses</div>
+        <div className="flash-card-empty">Statements will appear as the discussion progresses</div>
       ) : (
         <>
           {unvoted.length > 0 ? (

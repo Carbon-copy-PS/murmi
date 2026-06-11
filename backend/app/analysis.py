@@ -8,10 +8,12 @@ from typing import Optional
 
 from openai import OpenAI
 
-SYSTEM_PROMPT = """You are a debate analyst. You extract substantive claims from a debate transcript that participants could agree or disagree with.
+from .languages import LANGUAGE_LABELS
+
+SYSTEM_PROMPT = """You are a discussion analyst. You extract substantive claims from a room transcript that participants could agree or disagree with.
 
 Rules:
-- Only extract claims directly relevant to the debate topic
+- Only extract claims directly relevant to the session topic
 - Each statement must be a clear, standalone claim (one sentence)
 - Skip pleasantries, procedural talk, and trivial observations
 - Do not rephrase or duplicate any of the existing statements provided
@@ -19,7 +21,7 @@ Rules:
 
 Respond with a JSON object: {"statements": ["claim 1", "claim 2", ...]}"""
 
-TURN_SYSTEM_PROMPT = """You are a debate analyst. Convert one speaker's completed contribution into at most one votable statement.
+TURN_SYSTEM_PROMPT = """You are a discussion analyst. Convert one speaker's completed contribution into at most one votable statement.
 
 Rules:
 - Capture the speaker's overall argument or opinion, not every fragment
@@ -28,13 +30,11 @@ Rules:
 - Skip procedural talk, transcription chatter, greetings, filler, and incomplete thoughts
 - If the speaker did not make a substantive argument, return an empty array
 - Do not duplicate any existing statement
-- Use the dominant language of the speaker's contribution; do not translate unless the contribution itself mixes languages heavily
-
 Respond with a JSON object: {"statements": ["single overall claim"]}"""
 
 COMMON_GROUND_PROMPT = """You are an impartial deliberation mediator, inspired by the "group-aware consensus" used in Pol.is and the AI-mediator approach studied by DeepMind.
 
-You receive, for a live debate: the topic, how opinion groups voted, statements that found broad agreement, and statements that divided people.
+You receive, for a live room discussion: the topic, how opinion groups voted, statements that found broad agreement, and statements that divided people.
 
 Write a short "group statement" that the whole room could endorse. It must:
 - Capture genuine common ground first, in plain language
@@ -63,6 +63,23 @@ MOCK_COMMON_GROUND = {
     ],
     "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
 }
+
+def _language_rule(language: Optional[str] = None) -> str:
+    if language and language in LANGUAGE_LABELS:
+        label = LANGUAGE_LABELS[language]
+        if language == "de":
+            label = "German (including Swiss German)"
+        return (
+            f"\nLanguage rule (critical):\n"
+            f"- Write every statement in {label}.\n"
+            f"- Do not translate into English or any other language.\n"
+        )
+    return (
+        "\nLanguage rule (critical):\n"
+        "- Write every statement in the same language as the speaker's contribution.\n"
+        "- Never default to English when the contribution is in another language.\n"
+    )
+
 
 MOCK_STATEMENTS = [
     ["Switzerland needs stronger AI regulation to keep pace with the EU.",
@@ -96,6 +113,7 @@ class AnalysisService:
         transcript_entries: list[dict],
         existing_statements: list[str],
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> list[str]:
         if not transcript_entries:
             return []
@@ -103,13 +121,14 @@ class AnalysisService:
         if self._mock:
             return self._mock_extract(existing_statements)
 
-        return await self._live_extract(transcript_entries, existing_statements, topic)
+        return await self._live_extract(transcript_entries, existing_statements, topic, language)
 
     async def extract_turn_statement(
         self,
         turn_entry: dict,
         existing_statements: list[str],
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> list[str]:
         if not turn_entry or not turn_entry.get("text"):
             return []
@@ -117,25 +136,27 @@ class AnalysisService:
         if self._mock:
             return self._mock_extract(existing_statements)[:1]
 
-        return await self._live_extract_turn(turn_entry, existing_statements, topic)
+        return await self._live_extract_turn(turn_entry, existing_statements, topic, language)
 
     async def generate_common_ground(
         self,
         analysis: dict,
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> Optional[dict]:
         if self._mock:
             return MOCK_COMMON_GROUND
 
-        return await self._live_common_ground(analysis, topic)
+        return await self._live_common_ground(analysis, topic, language)
 
     async def _live_common_ground(
         self,
         analysis: dict,
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> Optional[dict]:
         parts = []
-        parts.append(f"Debate topic: {topic}" if topic else "Debate topic: Not specified — infer from the data.")
+        parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
         parts.append(f"\nParticipants who voted: {analysis.get('voterCount', 0)}")
 
         consensus = analysis.get("consensus") or []
@@ -172,7 +193,7 @@ class AnalysisService:
                     temperature=0.4,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": COMMON_GROUND_PROMPT},
+                        {"role": "system", "content": COMMON_GROUND_PROMPT + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
@@ -207,6 +228,7 @@ class AnalysisService:
         transcript_entries: list[dict],
         existing_statements: list[str],
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> list[str]:
         transcript_text = "\n".join(
             f"{e.get('speaker', 'Unknown')}: {e.get('text', '')}"
@@ -215,9 +237,9 @@ class AnalysisService:
 
         user_parts = []
         if topic:
-            user_parts.append(f"Debate topic: {topic}")
+            user_parts.append(f"Session topic: {topic}")
         else:
-            user_parts.append("Debate topic: Not specified — infer from the discussion.")
+            user_parts.append("Session topic: Not specified — infer from the discussion.")
 
         if existing_statements:
             user_parts.append("Existing statements (do NOT duplicate):")
@@ -239,7 +261,7 @@ class AnalysisService:
                     temperature=0.3,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": SYSTEM_PROMPT + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
@@ -260,20 +282,27 @@ class AnalysisService:
         turn_entry: dict,
         existing_statements: list[str],
         topic: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> list[str]:
         speaker = turn_entry.get("speaker", "Unknown")
         text = turn_entry.get("text", "")
 
         user_parts = []
         if topic:
-            user_parts.append(f"Debate topic: {topic}")
+            user_parts.append(f"Session topic: {topic}")
         else:
-            user_parts.append("Debate topic: Not specified — infer from the contribution.")
+            user_parts.append("Session topic: Not specified — infer from the contribution.")
 
         if existing_statements:
             user_parts.append("Existing statements (do NOT duplicate):")
             for s in existing_statements:
                 user_parts.append(f"- {s}")
+
+        if language and language in LANGUAGE_LABELS:
+            label = LANGUAGE_LABELS[language]
+            if language == "de":
+                label = "German (including Swiss German)"
+            user_parts.append(f"Required output language: {label}")
 
         user_parts.append("\nCompleted speaker contribution:")
         user_parts.append(f"{speaker}: {text}")
@@ -289,7 +318,7 @@ class AnalysisService:
                     temperature=0.2,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": TURN_SYSTEM_PROMPT},
+                        {"role": "system", "content": TURN_SYSTEM_PROMPT + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
