@@ -157,14 +157,16 @@ GENERIC_ASR_HALLUCINATION_MARKERS = (
 
 class CreateSessionRequest(BaseModel):
     topic: Optional[str] = None
+    voteType: Optional[str] = None
 
 
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
-    session_id = sessions.create(topic=topic)
+    vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
+    session_id = sessions.create(topic=topic, vote_type=vote_type)
     await persist_session(sessions.get(session_id))
-    return {"sessionId": session_id, "topic": topic}
+    return {"sessionId": session_id, "topic": topic, "voteType": vote_type}
 
 
 MOCK_TRANSCRIPT = [
@@ -334,6 +336,52 @@ async def run_analysis(session_id: str):
 
 
 COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
+TENSION_TIMEOUT_SECONDS = float(os.environ.get("TENSION_TIMEOUT_SECONDS", "45"))
+
+
+async def run_tensions(
+    session_id: str,
+    participant_id: str,
+    payload: dict,
+    count: int,
+    topic: str | None,
+    language: str | None,
+):
+    session = sessions.get(session_id)
+    participant = session.participants.get(participant_id) if session else None
+    if not participant:
+        return
+
+    await participant.websocket.send_json({"type": "tensions_pending"})
+
+    tensions: list[str] = []
+    try:
+        tensions = await asyncio.wait_for(
+            analysis.generate_tension_statements(payload, count, topic, language),
+            timeout=TENSION_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        print("Tension generation timed out")
+    except Exception as e:
+        print(f"Tension task error: {e}")
+
+    if not sessions.exists(session_id):
+        return
+
+    participant = sessions.get(session_id).participants.get(participant_id)
+    if not participant:
+        return
+
+    if tensions:
+        await participant.websocket.send_json({
+            "type": "tensions_draft",
+            "tensions": [{"id": f"t{i}", "text": t} for i, t in enumerate(tensions)],
+        })
+    else:
+        await participant.websocket.send_json({
+            "type": "tensions_error",
+            "message": "Could not generate tension statements. Try again.",
+        })
 
 
 async def run_common_ground(session_id: str, payload: dict, topic: str | None, language: str | None):
@@ -713,6 +761,43 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     "type": "results",
                     **sessions.vote_matrix(session_id, participant_id),
                 })
+
+            elif msg_type == "generate_tensions":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                payload = data.get("analysis")
+                if not isinstance(payload, dict):
+                    continue
+                count = data.get("count", 3)
+                session = sessions.get(session_id)
+                topic = session.topic if session else None
+                language = session_statement_language(session_id) if session else None
+                asyncio.create_task(
+                    run_tensions(session_id, participant_id, payload, count, topic, language)
+                )
+
+            elif msg_type == "publish_tensions":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                raw = data.get("texts")
+                if not isinstance(raw, list):
+                    continue
+                texts = [t.strip() for t in raw if isinstance(t, str) and t.strip()]
+                if not texts:
+                    continue
+                added = sessions.add_tension_statements(session_id, texts)
+                if not added:
+                    continue
+                session = sessions.get(session_id)
+                await _safe_db(db.save_statements(session, added))
+                completed_round = sessions.check_and_advance_round(session_id)
+                await sessions.broadcast_statements(session_id)
+                if completed_round is not None:
+                    await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
+                    await sessions.broadcast(session_id, {
+                        "type": "threshold_reached",
+                        "round": completed_round,
+                    })
 
             elif msg_type == "get_common_ground":
                 if not sessions.is_host(session_id, participant_id):

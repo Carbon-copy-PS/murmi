@@ -103,6 +103,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [threshold, setThreshold] = useState(5)
   const [topic, setTopic] = useState(null)
   const [voteType, setVoteType] = useState('binary')
+  const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
@@ -112,6 +113,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [cgMyVote, setCgMyVote] = useState(null)
   const [cgPending, setCgPending] = useState(false)
   const [cgError, setCgError] = useState(null)
+  const [tensionsPending, setTensionsPending] = useState(false)
+  const [tensionsError, setTensionsError] = useState(null)
+  const [tensionDrafts, setTensionDrafts] = useState(null)
   const [participants, setParticipants] = useState([])
   const [presence, setPresence] = useState({ here: 0, votingNow: 0 })
   const [displayName, setDisplayName] = useState(userName)
@@ -126,6 +130,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   const approveTimersRef = useRef(new Map())
   const cgTimeoutRef = useRef(null)
+  const tensionsTimeoutRef = useRef(null)
 
   const wsRef = useRef(null)
   const streamRef = useRef(null)
@@ -214,6 +219,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
       if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
+      if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
     }
   }, [])
 
@@ -253,6 +259,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setTopic(msg.topic || null)
           setRoomLanguage(msg.recorderLanguage || 'auto')
           setVoteType(msg.voteType || 'binary')
+          setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
           setParticipants(msg.participantsStatus || [])
           if (msg.presence) setPresence(msg.presence)
           if (typeof msg.autoApprove === 'boolean') setAutoApprove(msg.autoApprove)
@@ -302,6 +309,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           break
         case 'recording_started':
           setRecording(true)
+          setVoteTypeLocked(true)
           recordingRef.current = true
           speechStartedRef.current = false
           silenceFramesRef.current = 0
@@ -401,6 +409,20 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
           setCgError(msg.message || 'Could not generate common ground.')
+          break
+        case 'tensions_pending':
+          setTensionsPending(true)
+          setTensionsError(null)
+          break
+        case 'tensions_draft':
+          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
+          setTensionsPending(false)
+          setTensionDrafts(msg.tensions || [])
+          break
+        case 'tensions_error':
+          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
+          setTensionsPending(false)
+          setTensionsError(msg.message || 'Could not generate tensions.')
           break
       }
     }
@@ -513,11 +535,6 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   function handleToggleAutoApprove(value) {
     setAutoApprove(value)
     wsRef.current?.send(JSON.stringify({ type: 'set_auto_approve', autoApprove: value }))
-  }
-
-  function handleSetVoteType(value) {
-    setVoteType(value)
-    wsRef.current?.send(JSON.stringify({ type: 'set_vote_type', voteType: value }))
   }
 
   function handleToggleHost(targetId, makeHost) {
@@ -665,6 +682,29 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   function handleAddStatement(text) {
     wsRef.current?.send(JSON.stringify({ type: 'add_statement', text }))
+  }
+
+  function requestTensions(count, analysis) {
+    if (!analysis) return
+    if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
+    setTensionsPending(true)
+    setTensionsError(null)
+    wsRef.current?.send(JSON.stringify({ type: 'generate_tensions', count, analysis }))
+    tensionsTimeoutRef.current = setTimeout(() => {
+      setTensionsPending(false)
+      setTensionsError('Timed out generating tensions. Please try again.')
+    }, 60000)
+  }
+
+  function publishTensions(texts) {
+    wsRef.current?.send(JSON.stringify({ type: 'publish_tensions', texts }))
+    setTensionDrafts(null)
+    setTensionsError(null)
+  }
+
+  function clearTensionDrafts() {
+    setTensionDrafts(null)
+    setTensionsError(null)
   }
 
   function handleHold(statementId) {
@@ -888,7 +928,13 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           heldIds={heldIds}
           onHold={tourActive ? noop : handleHold}
           voteType={voteType}
-          onSetVoteType={tourActive ? noop : handleSetVoteType}
+          voteTypeLocked={voteTypeLocked}
+          tensionsPending={tourActive ? false : tensionsPending}
+          tensionsError={tourActive ? null : tensionsError}
+          tensionDrafts={tourActive ? null : tensionDrafts}
+          onGenerateTensions={tourActive ? noop : requestTensions}
+          onPublishTensions={tourActive ? noop : publishTensions}
+          onClearTensionDrafts={tourActive ? noop : clearTensionDrafts}
         />
       )}
       {view === 'results' && (

@@ -51,6 +51,25 @@ Respond ONLY with JSON:
   "bridgingProposal": "one sentence proposal likely to gain cross-group support"
 }"""
 
+TENSION_PROMPT = """You are a deliberation facilitator. Given live vote results from a group discussion, write crisp votable statements that surface the key open tensions — unresolved disagreements worth testing with the room.
+
+Rules:
+- Each output is one clear sentence participants can agree or disagree with
+- Prioritize tensions revealed by the most split / divisive source statements
+- Frame neutrally — no straw-manning either side
+- Be specific to this discussion and topic; do not invent positions unsupported by the data
+- Do not duplicate any existing statement
+- Return exactly the requested count when possible; fewer only if the data is too thin
+
+Respond ONLY with JSON:
+{"tensions": ["statement 1", "statement 2", ...]}"""
+
+MOCK_TENSIONS = [
+    "Switzerland should adopt a horizontal federal AI law rather than relying mainly on sector-specific rules.",
+    "Mandatory AI transparency should apply to every consumer-facing system, not only high-risk use cases.",
+    "Sensitive Swiss data must be processed only on infrastructure located in Switzerland.",
+]
+
 MOCK_COMMON_GROUND = {
     "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden.",
     "commonGround": [
@@ -138,6 +157,20 @@ class AnalysisService:
 
         return await self._live_extract_turn(turn_entry, existing_statements, topic, language)
 
+    async def generate_tension_statements(
+        self,
+        analysis: dict,
+        count: int = 3,
+        topic: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> list[str]:
+        count = max(1, min(5, int(count or 3)))
+        if self._mock:
+            existing = set(analysis.get("existingStatements") or [])
+            return [t for t in MOCK_TENSIONS if t not in existing][:count]
+
+        return await self._live_tension_statements(analysis, count, topic, language)
+
     async def generate_common_ground(
         self,
         analysis: dict,
@@ -148,6 +181,71 @@ class AnalysisService:
             return MOCK_COMMON_GROUND
 
         return await self._live_common_ground(analysis, topic, language)
+
+    async def _live_tension_statements(
+        self,
+        analysis: dict,
+        count: int,
+        topic: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> list[str]:
+        parts = []
+        parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
+        parts.append(f"\nGenerate exactly {count} open-tension statement(s).")
+
+        existing = analysis.get("existingStatements") or []
+        if existing:
+            parts.append("\nExisting statements (do NOT duplicate):")
+            for s in existing:
+                parts.append(f"- {s}")
+
+        divisive = analysis.get("divisive") or []
+        if divisive:
+            parts.append("\nMost divisive statements (prioritize these splits):")
+            for s in divisive:
+                split = s.get("splitPct")
+                split_note = f", ~{split}% split" if split is not None else ""
+                parts.append(
+                    f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree{split_note})"
+                )
+
+        consensus = analysis.get("consensus") or []
+        if consensus:
+            parts.append("\nStatements with broad agreement (for context — tensions should contrast with these):")
+            for s in consensus:
+                parts.append(f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree)")
+
+        user_message = "\n".join(parts)
+
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    temperature=0.45,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": TENSION_PROMPT + _language_rule(language)},
+                        {"role": "user", "content": user_message},
+                    ],
+                ),
+            )
+            data = json.loads(response.choices[0].message.content)
+            tensions = [
+                s.strip()
+                for s in (data.get("tensions") or [])
+                if isinstance(s, str) and s.strip()
+            ]
+            existing_set = set(existing)
+            return [t for t in tensions if t not in existing_set][:count]
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            print(f"Tension parse error: {e}")
+            return []
+        except Exception as e:
+            print(f"Tension generation error: {e}")
+            return []
 
     async def _live_common_ground(
         self,

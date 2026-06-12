@@ -1138,6 +1138,22 @@ body {
   flex-shrink: 0;
 }
 
+.auth-form .field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--ds-text-muted);
+}
+
+.auth-vote-type {
+  width: 100%;
+}
+
+.auth-vote-type .vote-type-opt {
+  flex: 1;
+  text-align: center;
+}
+
 .auth-form-error {
   margin: 0;
   font-size: 0.82rem;
@@ -2562,11 +2578,25 @@ select:focus { border-color: var(--ds-text); }
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
 }
 
+.vote-type-locked {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ds-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.vote-type-lock {
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
 /* Host composer — collapsible */
 .host-composer {
   border: 1px solid var(--ds-border);
   border-radius: 12px;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   background: var(--ds-surface);
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
@@ -2817,6 +2847,11 @@ select:focus { border-color: var(--ds-text); }
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.card-tag.tension {
+  background: #e0a400;
+  color: #3d2e00;
 }
 
 /* Countdown */
@@ -4462,6 +4497,288 @@ select:focus { border-color: var(--ds-text); }
   font-size: 0.78rem;
   color: var(--ds-text-muted);
   text-align: center;
+}
+
+.tension-gen {
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(224, 164, 0, 0.06) 0%, var(--ds-surface) 48%);
+  margin: 0 0 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.tension-gen-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tension-gen-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.tension-gen-icon { font-size: 1rem; line-height: 1; }
+
+.tension-gen-badge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(224, 164, 0, 0.18);
+  color: #9a6f00;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tension-gen-body {
+  padding: 0 0.85rem 0.85rem;
+  border-top: 1px solid var(--ds-border);
+}
+
+.tension-gen-lead {
+  margin: 0.7rem 0 0.85rem;
+  font-size: 0.78rem;
+  color: var(--ds-text-muted);
+  line-height: 1.45;
+}
+
+.tension-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.tension-step {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-text-muted);
+}
+
+.tension-step.on { color: #9a6f00; }
+.tension-step.done { color: #2a9d4e; }
+
+.tension-source {
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 10px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+}
+
+.tension-source-label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ds-text-muted);
+}
+
+.tension-source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.tension-source-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem 0.55rem;
+  align-items: start;
+  font-size: 0.74rem;
+}
+
+.tension-source-split {
+  padding: 0.12rem 0.38rem;
+  border-radius: 999px;
+  background: rgba(224, 164, 0, 0.16);
+  color: #9a6f00;
+  font-size: 0.62rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tension-source-text { color: var(--ds-text); line-height: 1.35; }
+.tension-source-votes {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+}
+
+.tension-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tension-config-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ds-text-muted);
+}
+
+.tension-count-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  width: fit-content;
+}
+
+.tension-count-opt {
+  border: none;
+  background: none;
+  width: 2.1rem;
+  height: 2rem;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+}
+
+.tension-count-opt.on {
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.12);
+}
+
+.tension-generate-btn { width: 100%; }
+
+.tension-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--ds-text-muted);
+  padding: 0.5rem 0;
+}
+
+.tension-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #f04438;
+}
+
+.tension-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.tension-review-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ds-text-muted);
+}
+
+.tension-link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #2a9d4e;
+  cursor: pointer;
+}
+
+.tension-link-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tension-draft-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.tension-draft {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.45rem;
+  align-items: start;
+  padding: 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+}
+
+.tension-draft.off { opacity: 0.55; }
+
+.tension-draft-check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.2rem;
+  cursor: pointer;
+}
+
+.tension-draft-tag {
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a6f00;
+}
+
+.tension-draft-input {
+  width: 100%;
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 2.6rem;
+  background: var(--ds-surface-2);
+  color: var(--ds-text);
+}
+
+.tension-draft-remove {
+  border: none;
+  background: none;
+  color: var(--ds-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+}
+
+.tension-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .cg-generate-btn {

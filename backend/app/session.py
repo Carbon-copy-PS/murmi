@@ -33,6 +33,7 @@ class Statement:
     round: int
     approved: bool = False
     custom: bool = False
+    tension: bool = False
     created_at: float = field(default_factory=time.time)
     votes: Dict[str, str] = field(default_factory=dict)
 
@@ -53,6 +54,7 @@ class Session:
     analysis_in_progress: bool = False
     threshold: int = 5
     vote_type: str = "binary"
+    started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
@@ -77,14 +79,20 @@ class SessionManager:
         self.sessions: Dict[str, Session] = {}
         self.ttl_seconds = ttl_seconds
 
-    def _new_session(self, session_id: str, topic: str | None = None) -> Session:
+    def _new_session(
+        self,
+        session_id: str,
+        topic: str | None = None,
+        vote_type: str = "binary",
+    ) -> Session:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
-        return Session(id=session_id, topic=topic, created_at=now, expires_at=expires_at)
+        vt = vote_type if vote_type in VOTE_TYPES else "binary"
+        return Session(id=session_id, topic=topic, vote_type=vt, created_at=now, expires_at=expires_at)
 
-    def create(self, topic: str | None = None) -> str:
+    def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
         session_id = uuid.uuid4().hex[:6].upper()
-        self.sessions[session_id] = self._new_session(session_id, topic)
+        self.sessions[session_id] = self._new_session(session_id, topic, vote_type)
         return session_id
 
     def hydrate(self, data: dict) -> Session:
@@ -98,6 +106,7 @@ class SessionManager:
             expires_at=data.get("expires_at"),
         )
         session.transcript = list(data.get("transcript", []))
+        session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
             if client_id and pid:
@@ -113,6 +122,7 @@ class SessionManager:
                 round=s.get("round", 1),
                 approved=s.get("approved", False),
                 custom=s.get("custom", False),
+                tension=s.get("tension", False),
                 created_at=s.get("created_at", time.time()),
                 votes=dict(s.get("votes", {})),
             ))
@@ -186,6 +196,7 @@ class SessionManager:
             "currentRoundCount": self.get_current_round_count(session_id),
             "threshold": session.threshold,
             "voteType": session.vote_type,
+            "voteTypeLocked": session.started,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
@@ -293,6 +304,7 @@ class SessionManager:
             return
         session.recording = recording
         if recording:
+            session.started = True
             session.active_mic_id = session.host_participant_id
         msg_type = "recording_started" if recording else "recording_stopped"
         await self.broadcast(session_id, {"type": msg_type})
@@ -361,6 +373,32 @@ class SessionManager:
         )
         session.statements.append(stmt)
         return stmt
+
+    def add_tension_statements(self, session_id: str, texts: list[str]) -> list[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return []
+        seen = {normalize_statement(s.text) for s in session.statements}
+        added = []
+        for raw in texts:
+            text = (raw or "").strip()[:240]
+            if not text:
+                continue
+            key = normalize_statement(text)
+            if key in seen:
+                continue
+            seen.add(key)
+            stmt = Statement(
+                id=uuid.uuid4().hex[:8],
+                text=text,
+                round=session.current_round,
+                approved=True,
+                custom=True,
+                tension=True,
+            )
+            session.statements.append(stmt)
+            added.append(stmt)
+        return added
 
     def approve_statements(self, session_id: str, statement_ids: set[str] | None = None) -> list[Statement]:
         session = self.sessions.get(session_id)
@@ -439,6 +477,7 @@ class SessionManager:
             "round": stmt.round,
             "approved": stmt.approved,
             "custom": stmt.custom,
+            "tension": stmt.tension,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
@@ -660,7 +699,7 @@ class SessionManager:
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)
-        if not session or vote_type not in VOTE_TYPES:
+        if not session or vote_type not in VOTE_TYPES or session.started:
             return None
         session.vote_type = vote_type
         return vote_type

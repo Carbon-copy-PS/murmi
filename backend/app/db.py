@@ -72,6 +72,7 @@ class StatementRow(Base):
     round: Mapped[int] = mapped_column(Integer, default=1)
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
     custom: Mapped[bool] = mapped_column(Boolean, default=False)
+    tension: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[float] = mapped_column(Float, default=0.0)
 
 
@@ -147,6 +148,10 @@ class Database:
                 "ALTER TABLE sessions "
                 "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'binary'"
             ))
+            await conn.execute(text(
+                "ALTER TABLE statements "
+                "ADD COLUMN IF NOT EXISTS tension boolean NOT NULL DEFAULT false"
+            ))
         return True
 
     async def disconnect(self):
@@ -184,6 +189,7 @@ class Database:
                 round=s.round,
                 approved=s.approved,
                 custom=s.custom,
+                tension=getattr(s, "tension", False),
                 created_at=float(s.created_at),
             )
             .on_conflict_do_update(
@@ -391,6 +397,7 @@ class Database:
                     "round": s.round,
                     "approved": s.approved,
                     "custom": s.custom,
+                    "tension": getattr(s, "tension", False),
                     "created_at": s.created_at,
                     "votes": votes_by_statement.get(s.id, {}),
                 }

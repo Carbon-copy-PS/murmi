@@ -331,6 +331,7 @@ export default function SessionJoin({ onJoin }) {
   const [name, setName] = useState(getSavedName)
   const [language, setLanguage] = useState('auto')
   const [topic, setTopic] = useState('')
+  const [voteType, setVoteType] = useState('binary')
   const [code, setCode] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -386,7 +387,7 @@ export default function SessionJoin({ onJoin }) {
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic.trim() || null }),
+        body: JSON.stringify({ topic: topic.trim() || null, voteType }),
       })
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -636,6 +637,31 @@ export default function SessionJoin({ onJoin }) {
                   <span className="field-label">Spoken language</span>
                   <LanguageSelect value={language} onChange={setLanguage} data-testid="host-language" singleLine />
                 </label>
+
+                <div className="field">
+                  <span className="field-label">Vote scale</span>
+                  <div className="vote-type-seg auth-vote-type" role="group" aria-label="Vote scale">
+                    <button
+                      type="button"
+                      className={`vote-type-opt ${voteType === 'binary' ? 'on' : ''}`}
+                      onClick={() => setVoteType('binary')}
+                      aria-pressed={voteType === 'binary'}
+                      data-testid="create-vote-type-binary"
+                    >
+                      Agree / Disagree
+                    </button>
+                    <button
+                      type="button"
+                      className={`vote-type-opt ${voteType === 'likert' ? 'on' : ''}`}
+                      onClick={() => setVoteType('likert')}
+                      aria-pressed={voteType === 'likert'}
+                      data-testid="create-vote-type-likert"
+                    >
+                      Likert (5-point)
+                    </button>
+                  </div>
+                  <span className="field-hint">Locked once recording starts.</span>
+                </div>
 
                 <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="create-submit">
                   {loading ? 'Creating…' : 'Create session'}

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
+import TensionGenerator from './tension-generator'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold, onReject }) {
   return (
     <div className="flash-card statement-card pending-card" data-testid={`pending-${statement.id}`}>
-      {statement.custom && <span className="card-tag">Custom</span>}
+      {statement.tension && <span className="card-tag tension">Tension</span>}
+      {statement.custom && !statement.tension && <span className="card-tag">Custom</span>}
       <button
         className="pending-reject"
         onClick={() => onReject(statement.id)}
@@ -62,7 +64,13 @@ export default function StatementsPanel({
   heldIds,
   onHold,
   voteType = 'binary',
-  onSetVoteType,
+  voteTypeLocked = false,
+  tensionsPending = false,
+  tensionsError = null,
+  tensionDrafts = null,
+  onGenerateTensions,
+  onPublishTensions,
+  onClearTensionDrafts,
 }) {
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
@@ -110,34 +118,15 @@ export default function StatementsPanel({
       {isHost && (
         <div className="host-toolbar" data-testid="host-toolbar">
           <div className="host-toolbar-group">
+            <span className="host-toolbar-label">Vote scale</span>
             <span
-              className="host-toolbar-label"
-              title={voteType === 'likert'
-                ? 'Participants rate each statement from strongly disagree to strongly agree.'
-                : 'Participants agree or disagree with each statement.'}
+              className="vote-type-locked"
+              data-testid="vote-type-display"
+              title={voteTypeLocked ? 'Vote scale is locked for this session.' : undefined}
             >
-              Vote scale
+              {voteType === 'likert' ? 'Likert (5-point)' : 'Agree / Disagree'}
+              {voteTypeLocked && <span className="vote-type-lock" aria-label="Locked">🔒</span>}
             </span>
-            <div className="vote-type-seg" role="group" aria-label="Vote scale">
-              <button
-                type="button"
-                className={`vote-type-opt ${voteType === 'binary' ? 'on' : ''}`}
-                onClick={() => voteType !== 'binary' && onSetVoteType?.('binary')}
-                aria-pressed={voteType === 'binary'}
-                data-testid="vote-type-binary"
-              >
-                Agree / Disagree
-              </button>
-              <button
-                type="button"
-                className={`vote-type-opt ${voteType === 'likert' ? 'on' : ''}`}
-                onClick={() => voteType !== 'likert' && onSetVoteType?.('likert')}
-                aria-pressed={voteType === 'likert'}
-                data-testid="vote-type-likert"
-              >
-                Likert (5-point)
-              </button>
-            </div>
           </div>
           <div className="host-toolbar-group">
             <span
@@ -215,6 +204,18 @@ export default function StatementsPanel({
             </div>
           )}
         </div>
+      )}
+
+      {isHost && (
+        <TensionGenerator
+          statements={statements}
+          pending={tensionsPending}
+          error={tensionsError}
+          drafts={tensionDrafts}
+          onGenerate={onGenerateTensions}
+          onPublish={onPublishTensions}
+          onClearDrafts={onClearTensionDrafts}
+        />
       )}
 
       {isHost && pending.length > 0 && (
