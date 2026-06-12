@@ -34,13 +34,21 @@ export const TOUR_RESULTS = {
   ],
 }
 
-export const TOUR_COMMON_GROUND = {
+export const TOUR_COMMON_GROUND_HISTORY = [{
+  id: 'tour-cg-1',
+  depth: 'basic',
+  generatedAt: Date.now() / 1000 - 3600,
+  generatedByName: 'You',
+  voterCountAtGeneration: 8,
+  statementCountAtGeneration: 4,
   groupStatement: 'The room broadly agrees that access to water, education, and a healthy planet are shared priorities, while differing on how they should be funded.',
   bridgingProposal: 'Pilot community-owned funding for one essential service and review the results together.',
   commonGround: ['Essentials like water and education matter to everyone.', 'Future generations deserve protection.'],
   divides: ['How to pay for it — public vs shared funding.'],
   votes: { agree: 6, disagree: 2, total: 8 },
-}
+  myVote: null,
+  myReason: '',
+}]
 
 export const TOUR_PARTICIPANTS = [
   { id: 'you', name: 'You', isHost: true, isRecorder: true, language: 'en', votesRequired: 3, votesCast: 3 },

@@ -16,10 +16,12 @@ import {
   TOUR_TRANSCRIPT,
   TOUR_STATEMENTS,
   TOUR_RESULTS,
-  TOUR_COMMON_GROUND,
+  TOUR_COMMON_GROUND_HISTORY,
   TOUR_PARTICIPANTS,
 } from '../utils/room-tour'
 import { createRoomSocket } from '../utils/room-socket'
+import CommonGroundHotbar from './common-ground-hotbar'
+import { CG_DEPTH_LABELS } from '../constants/common-ground-depth'
 
 const noop = () => {}
 
@@ -109,10 +111,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [autoApprove, setAutoApprove] = useState(true)
   const [heldIds, setHeldIds] = useState(() => new Set())
   const [results, setResults] = useState(null)
-  const [commonGround, setCommonGround] = useState(null)
-  const [cgMyVote, setCgMyVote] = useState(null)
+  const [commonGroundHistory, setCommonGroundHistory] = useState([])
   const [cgPending, setCgPending] = useState(false)
+  const [cgPendingDepth, setCgPendingDepth] = useState(null)
   const [cgError, setCgError] = useState(null)
+  const [cgHotbar, setCgHotbar] = useState(null)
+  const cgSeenIdsRef = useRef(new Set())
   const [tensionsPending, setTensionsPending] = useState(false)
   const [tensionsError, setTensionsError] = useState(null)
   const [tensionDrafts, setTensionDrafts] = useState(null)
@@ -261,6 +265,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setRoomLanguage(msg.recorderLanguage || 'auto')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
+          if (msg.commonGroundHistory) {
+            msg.commonGroundHistory.forEach((item) => cgSeenIdsRef.current.add(item.id))
+            setCommonGroundHistory(msg.commonGroundHistory)
+          }
           setParticipants(msg.participantsStatus || [])
           if (msg.presence) setPresence(msg.presence)
           if (typeof msg.autoApprove === 'boolean') setAutoApprove(msg.autoApprove)
@@ -380,27 +388,40 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           break
         case 'results':
           setResults({ statements: msg.statements, voters: msg.voters })
-          if (msg.commonGround !== undefined) {
-            setCommonGround(msg.commonGround)
-            setCgMyVote(msg.commonGround?.myVote ?? null)
-          }
+          if (msg.commonGroundHistory) setCommonGroundHistory(msg.commonGroundHistory)
           break
         case 'common_ground_pending':
           setCgPending(true)
+          setCgPendingDepth(msg.depth || 'basic')
           setCgError(null)
           break
-        case 'common_ground':
+        case 'common_ground_history': {
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
-          setCommonGround(msg.commonGround ? { ...msg.commonGround, votes: msg.votes } : null)
-          setCgMyVote(null)
+          const history = msg.history || []
+          if (msg.addedId && !cgSeenIdsRef.current.has(msg.addedId)) {
+            cgSeenIdsRef.current.add(msg.addedId)
+            const added = history.find((item) => item.id === msg.addedId)
+            setCgHotbar({
+              id: msg.addedId,
+              depth: added?.depth || 'basic',
+              versionNum: history.length,
+              generatedByName: added?.generatedByName || null,
+            })
+            const depthLabel = CG_DEPTH_LABELS[added?.depth || 'basic'] || 'New'
+            notify(APP_NAME, `${depthLabel} common ground is ready — open Results to review`, {
+              tag: 'common-ground',
+              duration: 8000,
+            })
+          }
+          setCommonGroundHistory(history)
           setCgPending(false)
+          setCgPendingDepth(null)
           break
-        case 'common_ground_votes':
-          setCommonGround((prev) => (prev ? { ...prev, votes: msg.votes } : prev))
-          break
+        }
         case 'common_ground_error':
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
+          setCgPendingDepth(null)
           setCgError(msg.message || 'Could not generate common ground.')
           break
         case 'tensions_pending':
@@ -648,29 +669,29 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'get_results' }))
   }
 
-  function requestCommonGround(analysis) {
+  function requestCommonGround(analysis, depth = 'basic') {
     if (!analysis) return
     if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
     setCgPending(true)
+    setCgPendingDepth(depth)
     setCgError(null)
-    wsRef.current?.send(JSON.stringify({ type: 'get_common_ground', analysis }))
+    wsRef.current?.send(JSON.stringify({ type: 'get_common_ground', analysis, depth }))
     cgTimeoutRef.current = setTimeout(() => {
       setCgPending(false)
+      setCgPendingDepth(null)
       setCgError('Timed out generating common ground. Please try again.')
     }, 60000)
   }
 
-  function dismissCommonGround() {
-    setCommonGround(null)
-    setCgMyVote(null)
+  function dismissCommonGround(cgId) {
+    if (!cgId) return
     setCgError(null)
-    wsRef.current?.send(JSON.stringify({ type: 'dismiss_common_ground' }))
+    wsRef.current?.send(JSON.stringify({ type: 'dismiss_common_ground', id: cgId }))
   }
 
-  function voteCommonGround(vote) {
-    const next = cgMyVote === vote ? 'undo' : vote
-    setCgMyVote(next === 'undo' ? null : next)
-    wsRef.current?.send(JSON.stringify({ type: 'vote_common_ground', vote: next }))
+  function voteCommonGround(cgId, vote, reason = '') {
+    if (!cgId) return
+    wsRef.current?.send(JSON.stringify({ type: 'vote_common_ground', id: cgId, vote, reason }))
   }
 
   function handleApprove(statementId) {
@@ -727,6 +748,21 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   }
 
   const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
+
+  useEffect(() => {
+    if (!cgHotbar) return undefined
+    const timer = setTimeout(() => setCgHotbar(null), 15000)
+    return () => clearTimeout(timer)
+  }, [cgHotbar])
+
+  useEffect(() => {
+    if (view === 'results' && cgHotbar) setCgHotbar(null)
+  }, [view, cgHotbar])
+
+  function openCommonGroundResults() {
+    setView('results')
+    setCgHotbar(null)
+  }
 
   return (
     <div className={`room${view === 'record' ? ' room-record' : ''}`}>
@@ -869,6 +905,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
       )}
 
+      {cgHotbar && (
+        <CommonGroundHotbar
+          depth={cgHotbar.depth}
+          versionNum={cgHotbar.versionNum}
+          generatedByName={cgHotbar.generatedByName}
+          onView={openCommonGroundResults}
+          onDismiss={() => setCgHotbar(null)}
+        />
+      )}
+
       <div className="tabs">
         {isRecorder && (
           <button
@@ -954,9 +1000,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           topic={tourActive ? 'Essentials for a fair society' : topic}
           sessionId={sessionId}
           voteType={voteType}
-          commonGround={tourActive ? TOUR_COMMON_GROUND : commonGround}
-          cgMyVote={cgMyVote}
+          commonGroundHistory={tourActive ? TOUR_COMMON_GROUND_HISTORY : commonGroundHistory}
           cgPending={tourActive ? false : cgPending}
+          cgPendingDepth={tourActive ? null : cgPendingDepth}
           cgError={tourActive ? null : cgError}
           onGenerateCommonGround={tourActive ? noop : requestCommonGround}
           onDismissCommonGround={tourActive ? noop : dismissCommonGround}

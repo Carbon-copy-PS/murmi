@@ -376,11 +376,35 @@ async def run_tensions(
         })
 
 
-async def run_common_ground(session_id: str, payload: dict, topic: str | None, language: str | None):
+async def broadcast_common_ground_history(session_id: str, added_id: str | None = None):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    for pid, participant in session.participants.items():
+        try:
+            payload = {
+                "type": "common_ground_history",
+                "history": sessions.get_common_ground_history(session_id, pid),
+            }
+            if added_id:
+                payload["addedId"] = added_id
+            await participant.websocket.send_json(payload)
+        except Exception:
+            pass
+
+
+async def run_common_ground(
+    session_id: str,
+    payload: dict,
+    topic: str | None,
+    language: str | None,
+    depth: str = "basic",
+    participant_id: str | None = None,
+):
     result = None
     try:
         result = await asyncio.wait_for(
-            analysis.generate_common_ground(payload, topic, language),
+            analysis.generate_common_ground(payload, topic, language, depth=depth),
             timeout=COMMON_GROUND_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -393,12 +417,15 @@ async def run_common_ground(session_id: str, payload: dict, topic: str | None, l
 
     if result:
         result["generatedAt"] = time.time()
-        sessions.set_common_ground(session_id, result)
-        await sessions.broadcast(session_id, {
-            "type": "common_ground",
-            "commonGround": result,
-            "votes": sessions.common_ground_tally(session_id),
-        })
+        snapshot = {
+            "voterCount": payload.get("voterCount"),
+            "statementCount": payload.get("statementCount"),
+        }
+        added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
+        await broadcast_common_ground_history(
+            session_id,
+            added_id=added.get("id") if added else None,
+        )
     else:
         await sessions.broadcast(session_id, {
             "type": "common_ground_error",
@@ -785,11 +812,18 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 payload = data.get("analysis")
                 if not isinstance(payload, dict):
                     continue
+                depth = data.get("depth") or "basic"
+                if depth not in ("basic", "extended", "comprehensive"):
+                    depth = "basic"
+                payload = dict(payload)
+                payload["previousFeedback"] = sessions.collect_common_ground_feedback(session_id)
                 session = sessions.get(session_id)
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
-                await sessions.broadcast(session_id, {"type": "common_ground_pending"})
-                asyncio.create_task(run_common_ground(session_id, payload, topic, language))
+                await sessions.broadcast(session_id, {"type": "common_ground_pending", "depth": depth})
+                asyncio.create_task(
+                    run_common_ground(session_id, payload, topic, language, depth, participant_id)
+                )
 
             elif msg_type == "set_auto_approve":
                 if not sessions.is_host(session_id, participant_id):
@@ -800,25 +834,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await _safe_db(db.save_auto_approve(session_id, client_id, value))
 
             elif msg_type == "vote_common_ground":
+                cg_id = data.get("id") or ""
                 vote_value = data.get("vote", "")
+                reason = data.get("reason")
                 ok = sessions.record_common_ground_vote(
-                    session_id, participant_id, vote_value,
+                    session_id, cg_id, participant_id, vote_value, reason=reason,
                 )
                 if ok:
-                    await sessions.broadcast(session_id, {
-                        "type": "common_ground_votes",
-                        "votes": sessions.common_ground_tally(session_id),
-                    })
+                    await broadcast_common_ground_history(session_id)
 
             elif msg_type == "dismiss_common_ground":
                 if not sessions.is_host(session_id, participant_id):
                     continue
-                sessions.set_common_ground(session_id, None)
-                await sessions.broadcast(session_id, {
-                    "type": "common_ground",
-                    "commonGround": None,
-                    "votes": sessions.common_ground_tally(session_id),
-                })
+                cg_id = data.get("id") or ""
+                if not cg_id or not sessions.remove_common_ground(session_id, cg_id):
+                    continue
+                await broadcast_common_ground_history(session_id)
 
             elif msg_type == "approve_statement":
                 if not sessions.is_host(session_id, participant_id):

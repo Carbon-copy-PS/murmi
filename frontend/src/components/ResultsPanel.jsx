@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { CG_DEPTH_OPTIONS, CG_DEPTH_LABELS, CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
 import {
   buildCSV,
@@ -16,12 +17,49 @@ function project(v) {
   return 50 + v * 24
 }
 
-function VoteBar({ agree, disagree }) {
-  const total = agree + disagree || 1
+function VoteBar({ agree, disagree, empty = false }) {
+  const total = agree + disagree
+  if (!total) {
+    return (
+      <div className={`vote-bar ${empty ? 'vote-bar-empty' : ''}`} aria-hidden="true">
+        <span className="vote-bar-agree" style={{ width: '50%' }} />
+        <span className="vote-bar-disagree" style={{ width: '50%' }} />
+      </div>
+    )
+  }
   return (
     <div className="vote-bar" aria-hidden="true">
       <span className="vote-bar-agree" style={{ width: `${(agree / total) * 100}%` }} />
       <span className="vote-bar-disagree" style={{ width: `${(disagree / total) * 100}%` }} />
+    </div>
+  )
+}
+
+function CgVoteSummary({ votes, compact = false, testId }) {
+  const agree = votes?.agree || 0
+  const disagree = votes?.disagree || 0
+  const total = agree + disagree
+  const agreePct = total ? Math.round((agree / total) * 100) : 0
+  const disagreePct = total ? 100 - agreePct : 0
+
+  return (
+    <div className={`cg-vote-summary ${compact ? 'compact' : ''}`} data-testid={testId}>
+      <VoteBar agree={agree} disagree={disagree} empty={!total} />
+      {total > 0 ? (
+        compact ? (
+          <div className="cg-vote-pcts-compact">
+            <span className="meta-agree">{agreePct}% agree</span>
+            <span className="meta-disagree">{disagreePct}% disagree</span>
+          </div>
+        ) : (
+          <div className="result-statement-meta">
+            <span className="meta-agree">{agreePct}% agree</span>
+            <span className="meta-disagree">{disagreePct}% disagree</span>
+          </div>
+        )
+      ) : (
+        <span className="cg-vote-summary-empty">No votes yet</span>
+      )}
     </div>
   )
 }
@@ -304,139 +342,459 @@ function Placeholder({ title, message, stats }) {
   )
 }
 
-function CommonGroundVote({ votes, myVote, onVote }) {
+function formatCgTimestamp(ts) {
+  if (!ts) return 'Unknown time'
+  return new Date(ts * 1000).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function formatCgRelative(ts) {
+  if (!ts) return ''
+  const diff = Math.max(0, Date.now() - ts * 1000)
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return formatCgTimestamp(ts)
+}
+
+function CgSharedTensions({ shared = [], tensions = [], id }) {
+  if (!shared.length && !tensions.length) return null
+  return (
+    <div className="cg-split" data-testid="cg-split">
+      <div className="cg-split-col agree">
+        <span className="cg-split-label">Shared ground</span>
+        <ul className="cg-split-list">
+          {shared.length ? shared.map((t, i) => (
+            <li key={`${id}-s-${i}`} data-testid={`cg-shared-${i}`}>{t}</li>
+          )) : <li className="cg-split-empty">—</li>}
+        </ul>
+      </div>
+      <div className="cg-split-col disagree">
+        <span className="cg-split-label">Open tensions</span>
+        <ul className="cg-split-list">
+          {tensions.length ? tensions.map((t, i) => (
+            <li key={`${id}-t-${i}`} data-testid={`cg-tension-${i}`}>{t}</li>
+          )) : <li className="cg-split-empty">—</li>}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function CgExtrasCollapsible({ data }) {
+  const extras = [
+    { key: 'alt', title: 'Alternative bridges', items: data.bridgingAlternatives },
+    { key: 'insight', title: 'Insights', items: data.insights },
+    { key: 'trade', title: 'Trade-offs', items: data.tradeoffs },
+  ].filter((e) => e.items?.length)
+  const hasGroups = data.groupNotes?.length > 0
+  if (!extras.length && !hasGroups) return null
+
+  return (
+    <details className="cg-extras-toggle" data-testid="cg-extras-toggle">
+      <summary className="cg-extras-summary">More analysis</summary>
+      <div className="cg-extras-body">
+        {extras.map((e) => (
+          <CgExtraList key={e.key} title={e.title} items={e.items} testId={`cg-${e.key}`} />
+        ))}
+        {hasGroups && (
+          <div className="cg-group-notes" data-testid="cg-group-notes">
+            <span className="cg-extra-label">Group perspectives</span>
+            <ul className="cg-extra-list">
+              {data.groupNotes.map((g, i) => (
+                <li key={`cg-group-note-${i}`} data-testid={`cg-group-note-${i}`}>
+                  <strong>Group {g.group}:</strong> {g.note}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
+function CgVersionPicker({ sorted, selectedId, onSelect }) {
+  if (sorted.length <= 1) return null
+  return (
+    <div className="cg-version-picker" data-testid="cg-history-tabs" role="tablist" aria-label="Common ground versions">
+      <div className="cg-version-scroll">
+        {sorted.map((item, index) => {
+          const isLatest = index === 0
+          const versionNum = sorted.length - index
+          const isSelected = item.id === selectedId
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              className={`cg-version-chip ${isSelected ? 'on' : ''}`}
+              data-testid={`cg-tab-${item.id}`}
+              title={formatCgTimestamp(item.generatedAt)}
+              onClick={() => onSelect(item.id)}
+            >
+              <span className="cg-version-chip-top">
+                <span className="cg-version-chip-ver">v{versionNum}</span>
+                {isLatest && <span className="cg-version-chip-latest">Latest</span>}
+                {item.depth && (
+                  <span className={`cg-version-chip-depth depth-${item.depth}`}>
+                    {CG_DEPTH_LABELS[item.depth]}
+                  </span>
+                )}
+              </span>
+              <span className="cg-version-chip-time">{formatCgRelative(item.generatedAt)}</span>
+              <CgVoteSummary votes={item.votes} compact testId={`cg-tab-votes-${item.id}`} />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
+  const [reason, setReason] = useState(myReason || '')
+  const [pendingVote, setPendingVote] = useState(null)
+  const activeVote = myVote || pendingVote
   const agree = votes?.agree || 0
   const disagree = votes?.disagree || 0
-  const total = agree + disagree
-  const agreePct = total ? Math.round((agree / total) * 100) : 0
-  const disagreePct = total ? 100 - agreePct : 0
+  const reasonLen = reason.length
+  const reasonInvalid = reasonLen > CG_VOTE_REASON_MAX
+
+  useEffect(() => {
+    setReason(myReason || '')
+  }, [myReason, myVote, cgId])
+
+  useEffect(() => {
+    if (myVote) setPendingVote(null)
+  }, [myVote])
+
+  function submitVote(vote) {
+    const next = myVote === vote ? 'undo' : vote
+    const trimmed = reason.trim()
+    if (next !== 'undo' && trimmed.length > CG_VOTE_REASON_MAX) return
+    setPendingVote(next === 'undo' ? null : next)
+    onVote(next, next === 'undo' ? '' : trimmed)
+  }
+
+  function saveReason() {
+    if (!activeVote || reasonInvalid) return
+    onVote(activeVote, reason.trim())
+  }
 
   return (
     <div className="cg-vote" data-testid="cg-vote">
-      <span className="cg-vote-label">Do you agree with this common ground?</span>
+      <div className="cg-vote-head">
+        <span className="cg-vote-label">Your reaction</span>
+        {activeVote && (
+          <span className={`cg-vote-you ${activeVote}`} data-testid="cg-your-vote">
+            You {activeVote === 'agree' ? 'agree' : 'disagree'}
+          </span>
+        )}
+      </div>
       <div className="cg-vote-actions">
         <button
           type="button"
-          className={`cg-vote-btn agree ${myVote === 'agree' ? 'on' : ''}`}
-          onClick={() => onVote('agree')}
-          aria-pressed={myVote === 'agree'}
+          className={`cg-vote-btn agree ${activeVote === 'agree' ? 'on' : ''}`}
+          onClick={() => submitVote('agree')}
+          aria-pressed={activeVote === 'agree'}
           data-testid="cg-vote-agree"
         >
           👍 Agree <span className="cg-vote-count">{agree}</span>
         </button>
         <button
           type="button"
-          className={`cg-vote-btn disagree ${myVote === 'disagree' ? 'on' : ''}`}
-          onClick={() => onVote('disagree')}
-          aria-pressed={myVote === 'disagree'}
+          className={`cg-vote-btn disagree ${activeVote === 'disagree' ? 'on' : ''}`}
+          onClick={() => submitVote('disagree')}
+          aria-pressed={activeVote === 'disagree'}
           data-testid="cg-vote-disagree"
         >
           👎 Disagree <span className="cg-vote-count">{disagree}</span>
         </button>
       </div>
-      {total > 0 ? (
-        <>
-          <div className="vote-bar" aria-hidden="true">
-            <span className="vote-bar-agree" style={{ width: `${agreePct}%` }} />
-            <span className="vote-bar-disagree" style={{ width: `${disagreePct}%` }} />
+      {activeVote && (
+        <div className="cg-reason-wrap cg-reason-animate">
+          <label className="cg-reason-label" htmlFor={`cg-vote-reason-${cgId}`}>
+            Why? <span className="cg-reason-optional">(optional)</span>
+          </label>
+          <textarea
+            id={`cg-vote-reason-${cgId}`}
+            className={`cg-reason-input ${reasonInvalid ? 'invalid' : ''}`}
+            data-testid="cg-vote-reason"
+            value={reason}
+            maxLength={CG_VOTE_REASON_MAX}
+            rows={2}
+            placeholder="Share what resonates or what’s missing…"
+            onChange={(e) => setReason(e.target.value)}
+            onBlur={saveReason}
+          />
+          <div className="cg-reason-meta">
+            <span className={reasonInvalid ? 'cg-reason-error' : 'cg-reason-count'} data-testid="cg-reason-count">
+              {reasonLen}/{CG_VOTE_REASON_MAX}
+            </span>
           </div>
-          <div className="result-statement-meta">
-            <span className="meta-agree">{agreePct}% agree</span>
-            <span className="meta-disagree">{disagreePct}% disagree</span>
-          </div>
-        </>
-      ) : (
-        <p className="cg-vote-empty" data-testid="cg-vote-empty">No votes yet — be the first.</p>
+        </div>
+      )}
+      <CgVoteSummary votes={votes} testId="cg-vote-summary" />
+    </div>
+  )
+}
+
+function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null }) {
+  const depthLabel = data.depth ? CG_DEPTH_LABELS[data.depth] : null
+
+  return (
+    <div className="cg-card" data-testid={`cg-card-${data.id}`}>
+      <div className="cg-card-toolbar" data-testid="cg-card-toolbar">
+        <div className="cg-card-toolbar-meta">
+          {multiVersion && versionNum != null && (
+            <span className="cg-card-ver" data-testid="cg-card-ver">v{versionNum}</span>
+          )}
+          <span className="cg-meta-time" data-testid="cg-meta-time">{formatCgTimestamp(data.generatedAt)}</span>
+          <span className="cg-meta-relative">{formatCgRelative(data.generatedAt)}</span>
+          {depthLabel && <span className={`cg-depth-badge depth-${data.depth}`}>{depthLabel}</span>}
+          {data.generatedByName && (
+            <span className="cg-meta-host" data-testid="cg-meta-host">· {data.generatedByName}</span>
+          )}
+          {(data.voterCountAtGeneration != null || data.statementCountAtGeneration != null) && (
+            <span className="cg-meta-snapshot" data-testid="cg-meta-snapshot">
+              · {data.voterCountAtGeneration != null && `${data.voterCountAtGeneration} voters`}
+              {data.voterCountAtGeneration != null && data.statementCountAtGeneration != null && ' · '}
+              {data.statementCountAtGeneration != null && `${data.statementCountAtGeneration} stmts`}
+            </span>
+          )}
+        </div>
+        {isHost && (
+          <button
+            type="button"
+            className="cg-remove-version-btn"
+            data-testid={`cg-remove-${data.id}`}
+            onClick={() => onDismiss(data.id)}
+            aria-label="Remove this common ground version"
+          >
+            Remove version
+          </button>
+        )}
+      </div>
+
+      {!multiVersion && (
+        <CgVoteSummary votes={data.votes} compact testId={`cg-header-votes-${data.id}`} />
+      )}
+
+      <blockquote className="cg-statement" cite={`#cg-card-${data.id}`}>
+        {data.groupStatement}
+      </blockquote>
+
+      <CgSharedTensions
+        id={data.id}
+        shared={data.commonGround}
+        tensions={data.divides}
+      />
+
+      {data.bridgingProposal && (
+        <div className="cg-bridge">
+          <span className="cg-bridge-label">Bridging proposal</span>
+          <p>{data.bridgingProposal}</p>
+        </div>
+      )}
+
+      <CgExtrasCollapsible data={data} />
+
+      <div className="cg-vote-panel">
+        <CommonGroundVote
+          cgId={data.id}
+          votes={data.votes}
+          myVote={data.myVote}
+          myReason={data.myReason}
+          onVote={(vote, reason) => onVote(data.id, vote, reason)}
+        />
+      </div>
+    </div>
+  )
+}
+
+function CgExtraList({ title, items, testId }) {
+  if (!items?.length) return null
+  return (
+    <div className="cg-extra" data-testid={testId}>
+      <span className="cg-extra-label">{title}</span>
+      <ul className="cg-extra-list">
+        {items.map((item, i) => (
+          <li key={`${testId}-${i}`} data-testid={`${testId}-${i}`}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function CgDepthPicker({ sorted, canGenerate, pending, payload, onGenerate, onClose, popover = false }) {
+  return (
+    <div
+      className={`cg-depth-picker ${popover ? 'popover' : ''}`}
+      data-testid="cg-depth-picker"
+      role={popover ? 'dialog' : undefined}
+      aria-label={popover ? 'Choose analysis depth' : undefined}
+    >
+      <span className="cg-depth-picker-label">
+        {sorted.length ? 'Choose depth for the next version' : 'Choose analysis depth'}
+      </span>
+      <div className="cg-depth-options">
+        {CG_DEPTH_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`cg-depth-btn depth-${opt.id}`}
+            data-testid={`cg-generate-${opt.id}`}
+            disabled={!canGenerate || pending}
+            onClick={() => {
+              onGenerate(payload, opt.id)
+              onClose?.()
+            }}
+            title={opt.hint}
+          >
+            <span className="cg-depth-btn-tier">Level {opt.tier}</span>
+            <span className="cg-depth-btn-label">
+              {opt.label}
+              {opt.recommended && <span className="cg-depth-rec">Recommended</span>}
+            </span>
+            <span className="cg-depth-btn-hint">{opt.hint}</span>
+          </button>
+        ))}
+      </div>
+      {!canGenerate && (
+        <p className="cg-hint">Needs votes on at least one statement before generating.</p>
       )}
     </div>
   )
 }
 
-function CommonGroundSection({ data, myVote, pending, error, isHost, payload, onGenerate, onDismiss, onVote }) {
+function CommonGroundSection({
+  history,
+  pending,
+  pendingDepth,
+  error,
+  isHost,
+  payload,
+  onGenerate,
+  onDismiss,
+  onVote,
+}) {
   const canGenerate =
     isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
+  const depthLabel = pending && pendingDepth ? CG_DEPTH_LABELS[pendingDepth] : null
+  const sorted = useMemo(
+    () => [...(history || [])].sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0)),
+    [history],
+  )
+  const [selectedId, setSelectedId] = useState(null)
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const selected = sorted.find((item) => item.id === selectedId) || sorted[0] || null
+  const multiVersion = sorted.length > 1
 
-  if (!isHost && !data && !pending) return null
+  useEffect(() => {
+    if (!sorted.length) {
+      setSelectedId(null)
+      return
+    }
+    if (!selectedId || !sorted.some((item) => item.id === selectedId)) {
+      setSelectedId(sorted[0].id)
+    }
+  }, [sorted, selectedId])
+
+  if (!isHost && !sorted.length && !pending) return null
+
+  const showGeneratePanel = isHost && (generateOpen || !sorted.length)
 
   return (
     <section className="result-section common-ground" data-testid="common-ground">
-      <div className="result-section-head">
-        <span className="result-section-title">AI common ground</span>
-        {isHost && data && !pending ? (
-          <button
-            type="button"
-            className="cg-close-btn"
-            data-testid="cg-close"
-            onClick={onDismiss}
-            aria-label="Close common ground for everyone"
-          >
-            Close
-          </button>
-        ) : (
-          <span className="result-section-hint">A statement the room could share</span>
+      <div className="result-section-head cg-section-head">
+        <div className="cg-section-title-wrap">
+          <span className="result-section-title">AI common ground</span>
+          <span className="result-section-hint">
+            {multiVersion
+              ? `${sorted.length} versions — pick one to compare room sentiment`
+              : 'Synthesized from votes — refine as the discussion evolves'}
+          </span>
+        </div>
+        {isHost && sorted.length > 0 && (
+          <div className="cg-generate-anchor">
+            <button
+              type="button"
+              className={`cg-new-version-btn ${generateOpen ? 'open' : ''}`}
+              data-testid="cg-toggle-generate"
+              disabled={pending}
+              aria-expanded={generateOpen}
+              aria-haspopup="dialog"
+              onClick={() => setGenerateOpen((o) => !o)}
+            >
+              {generateOpen ? 'Cancel' : '+ New version'}
+            </button>
+            {generateOpen && !pending && (
+              <CgDepthPicker
+                sorted={sorted}
+                canGenerate={canGenerate}
+                pending={pending}
+                payload={payload}
+                onGenerate={onGenerate}
+                onClose={() => setGenerateOpen(false)}
+                popover
+              />
+            )}
+          </div>
         )}
       </div>
 
       {pending && (
         <div className="cg-loading" data-testid="cg-loading">
-          <span className="cg-spinner" /> Mediator is finding common ground…
+          <div className="cg-loading-row">
+            <span className="cg-spinner" />
+            <div className="cg-loading-copy">
+              <strong>{depthLabel ? `${depthLabel} analysis` : 'Finding common ground'}</strong>
+              <span>Reading votes and prior feedback…</span>
+            </div>
+          </div>
+          <div className="cg-skeleton" aria-hidden="true">
+            <span /><span /><span />
+          </div>
         </div>
       )}
 
       {!pending && error && <p className="cg-error" data-testid="cg-error">{error}</p>}
 
-      {!pending && data && (
-        <div className="cg-card" data-testid="cg-card">
-          <p className="cg-statement">{data.groupStatement}</p>
-
-          {(data.commonGround?.length > 0 || data.divides?.length > 0) && (
-            <div className="cg-table-wrap">
-              <table className="cg-table" data-testid="cg-table">
-                <thead>
-                  <tr>
-                    <th className="cg-th agree">Shared ground</th>
-                    <th className="cg-th disagree">Open tensions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({
-                    length: Math.max(data.commonGround?.length || 0, data.divides?.length || 0),
-                  }).map((_, i) => (
-                    <tr key={`cg-row-${i}`}>
-                      <td data-testid={`cg-shared-${i}`}>{data.commonGround?.[i] || '—'}</td>
-                      <td data-testid={`cg-tension-${i}`}>{data.divides?.[i] || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {data.bridgingProposal && (
-            <div className="cg-bridge">
-              <span className="cg-bridge-label">Bridging proposal</span>
-              <p>{data.bridgingProposal}</p>
-            </div>
-          )}
-
-          <CommonGroundVote votes={data.votes} myVote={myVote} onVote={onVote} />
+      {!pending && !sorted.length && isHost && !showGeneratePanel && (
+        <div className="cg-empty" data-testid="cg-empty">
+          <p>No common ground yet. Generate one when the room has voted on a few statements.</p>
         </div>
       )}
 
-      {isHost && (
-        <button
-          type="button"
-          className="cg-generate-btn"
-          data-testid="cg-generate"
-          disabled={!canGenerate || pending}
-          onClick={() => onGenerate(payload)}
-        >
-          {pending ? 'Generating…' : data ? 'Regenerate' : 'Find common ground'}
-        </button>
+      <CgVersionPicker sorted={sorted} selectedId={selected?.id} onSelect={setSelectedId} />
+
+      {!pending && selected && (
+        <CommonGroundCard
+          data={selected}
+          isHost={isHost}
+          multiVersion={multiVersion}
+          versionNum={multiVersion ? sorted.length - sorted.findIndex((i) => i.id === selected.id) : null}
+          onDismiss={onDismiss}
+          onVote={onVote}
+        />
       )}
 
-      {isHost && !canGenerate && !data && (
-        <p className="cg-hint">Needs a few votes on at least one statement first.</p>
+      {isHost && showGeneratePanel && !sorted.length && (
+        <CgDepthPicker
+          sorted={sorted}
+          canGenerate={canGenerate}
+          pending={pending}
+          payload={payload}
+          onGenerate={onGenerate}
+        />
       )}
     </section>
   )
@@ -449,9 +807,9 @@ export default function ResultsPanel({
   topic = null,
   sessionId = null,
   voteType = 'binary',
-  commonGround = null,
-  cgMyVote = null,
+  commonGroundHistory = [],
   cgPending = false,
+  cgPendingDepth = null,
   cgError = null,
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
@@ -462,7 +820,15 @@ export default function ResultsPanel({
     [results, voteType],
   )
 
-  const exportCtx = { topic, sessionId, statements, results, cluster, commonGround, voteType }
+  const exportCtx = {
+    topic,
+    sessionId,
+    statements,
+    results,
+    cluster,
+    commonGroundHistory,
+    voteType,
+  }
 
   const cgPayload = useMemo(() => {
     if (!cluster) return null
@@ -484,9 +850,9 @@ export default function ResultsPanel({
 
   const commonGroundSection = (
     <CommonGroundSection
-      data={commonGround}
-      myVote={cgMyVote}
+      history={commonGroundHistory}
       pending={cgPending}
+      pendingDepth={cgPendingDepth}
       error={cgError}
       isHost={isHost}
       payload={cgPayload}

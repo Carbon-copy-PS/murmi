@@ -57,14 +57,14 @@ class Session:
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
-    common_ground: Optional[dict] = None
-    common_ground_votes: Dict[str, str] = field(default_factory=dict)
+    common_ground_history: list = field(default_factory=list)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
 
 
 SILENCE_THRESHOLD = 0.01
 LEVEL_STALE_SECONDS = 2.0
 ANALYSIS_BATCH_SIZE = 3
+COMMON_GROUND_REASON_MAX = 280
 
 VOTE_TYPES = ("binary", "likert")
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
@@ -198,6 +198,7 @@ class SessionManager:
             "autoApprove": self.get_auto_approve(session_id, participant_id),
             "language": language,
             "recorderLanguage": self.get_recorder_language(session_id),
+            "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
         })
 
         if not returning:
@@ -501,17 +502,11 @@ class SessionManager:
                 "isYou": pid == participant_id,
                 "votes": votes,
             })
-        common_ground = session.common_ground
-        if common_ground is not None:
-            common_ground = {
-                **common_ground,
-                "votes": self.common_ground_tally(session_id),
-                "myVote": session.common_ground_votes.get(participant_id),
-            }
+        history = self.get_common_ground_history(session_id, participant_id)
         return {
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
-            "commonGround": common_ground,
+            "commonGroundHistory": history,
         }
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
@@ -535,32 +530,130 @@ class SessionManager:
         session.auto_approve_prefs[client_id] = value
         return client_id
 
-    def set_common_ground(self, session_id: str, payload: Optional[dict]) -> Optional[dict]:
+    def _cg_vote_tally(self, participant_votes: dict) -> dict:
+        agree = sum(1 for v in participant_votes.values() if v.get("vote") == "agree")
+        disagree = sum(1 for v in participant_votes.values() if v.get("vote") == "disagree")
+        return {"agree": agree, "disagree": disagree, "total": agree + disagree}
+
+    def _find_common_ground(self, session: Session, cg_id: str) -> Optional[dict]:
+        for item in session.common_ground_history:
+            if item.get("id") == cg_id:
+                return item
+        return None
+
+    def format_common_ground_item(self, item: dict, participant_id: str) -> dict:
+        participant_votes = item.get("participantVotes") or {}
+        mine = participant_votes.get(participant_id) or {}
+        public = {k: v for k, v in item.items() if k != "participantVotes"}
+        return {
+            **public,
+            "votes": self._cg_vote_tally(participant_votes),
+            "myVote": mine.get("vote"),
+            "myReason": mine.get("reason") or "",
+        }
+
+    def get_common_ground_history(self, session_id: str, participant_id: str) -> list:
+        session = self.sessions.get(session_id)
+        if not session:
+            return []
+        return [
+            self.format_common_ground_item(item, participant_id)
+            for item in session.common_ground_history
+        ]
+
+    def add_common_ground(
+        self,
+        session_id: str,
+        payload: dict,
+        participant_id: str,
+        snapshot: Optional[dict] = None,
+    ) -> Optional[dict]:
         session = self.sessions.get(session_id)
         if not session:
             return None
-        session.common_ground = payload
-        session.common_ground_votes = {}
-        return payload
+        snapshot = snapshot or {}
+        item = {
+            "id": uuid.uuid4().hex[:10],
+            **payload,
+            "generatedAt": payload.get("generatedAt", time.time()),
+            "generatedBy": participant_id,
+            "generatedByName": self.get_participant_name(session_id, participant_id),
+            "voterCountAtGeneration": snapshot.get("voterCount"),
+            "statementCountAtGeneration": snapshot.get("statementCount"),
+            "participantVotes": {},
+        }
+        session.common_ground_history.append(item)
+        return self.format_common_ground_item(item, participant_id)
 
-    def record_common_ground_vote(self, session_id: str, participant_id: str, vote: str) -> bool:
+    def remove_common_ground(self, session_id: str, cg_id: str) -> bool:
         session = self.sessions.get(session_id)
-        if not session or not session.common_ground:
+        if not session:
             return False
+        before = len(session.common_ground_history)
+        session.common_ground_history = [
+            item for item in session.common_ground_history if item.get("id") != cg_id
+        ]
+        return len(session.common_ground_history) < before
+
+    def record_common_ground_vote(
+        self,
+        session_id: str,
+        cg_id: str,
+        participant_id: str,
+        vote: str,
+        reason: str | None = None,
+    ) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        item = self._find_common_ground(session, cg_id)
+        if not item:
+            return False
+        participant_votes = item.setdefault("participantVotes", {})
         if vote == "undo":
-            session.common_ground_votes.pop(participant_id, None)
+            participant_votes.pop(participant_id, None)
             return True
         if vote not in ("agree", "disagree"):
             return False
-        session.common_ground_votes[participant_id] = vote
+        trimmed_reason = (reason or "").strip()[:COMMON_GROUND_REASON_MAX]
+        participant_votes[participant_id] = {
+            "vote": vote,
+            "reason": trimmed_reason or None,
+            "name": self.get_participant_name(session_id, participant_id),
+        }
         return True
 
-    def common_ground_tally(self, session_id: str) -> dict:
+    def common_ground_vote_tally(self, session_id: str, cg_id: str) -> dict:
         session = self.sessions.get(session_id)
-        votes = session.common_ground_votes if session else {}
-        agree = sum(1 for v in votes.values() if v == "agree")
-        disagree = sum(1 for v in votes.values() if v == "disagree")
-        return {"agree": agree, "disagree": disagree, "total": agree + disagree}
+        if not session:
+            return {"agree": 0, "disagree": 0, "total": 0}
+        item = self._find_common_ground(session, cg_id)
+        if not item:
+            return {"agree": 0, "disagree": 0, "total": 0}
+        return self._cg_vote_tally(item.get("participantVotes") or {})
+
+    def collect_common_ground_feedback(self, session_id: str) -> list:
+        session = self.sessions.get(session_id)
+        if not session:
+            return []
+        feedback_history = []
+        for item in session.common_ground_history:
+            participant_votes = item.get("participantVotes") or {}
+            reactions = []
+            for entry in participant_votes.values():
+                reaction = {"vote": entry.get("vote"), "name": entry.get("name")}
+                if entry.get("reason"):
+                    reaction["reason"] = entry["reason"]
+                reactions.append(reaction)
+            feedback_history.append({
+                "id": item.get("id"),
+                "generatedAt": item.get("generatedAt"),
+                "depth": item.get("depth", "basic"),
+                "groupStatement": item.get("groupStatement"),
+                "votes": self._cg_vote_tally(participant_votes),
+                "feedback": reactions,
+            })
+        return feedback_history
 
     def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)

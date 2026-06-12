@@ -32,24 +32,56 @@ Rules:
 - Do not duplicate any existing statement
 Respond with a JSON object: {"statements": ["single overall claim"]}"""
 
-COMMON_GROUND_PROMPT = """You are an impartial deliberation mediator, inspired by the "group-aware consensus" used in Pol.is and the AI-mediator approach studied by DeepMind.
+COMMON_GROUND_BASE = """You are an impartial deliberation mediator, inspired by the "group-aware consensus" used in Pol.is and the AI-mediator approach studied by DeepMind.
 
 You receive, for a live room discussion: the topic, how opinion groups voted, statements that found broad agreement, and statements that divided people.
 
-Write a short "group statement" that the whole room could endorse. It must:
-- Capture genuine common ground first, in plain language
-- Fairly acknowledge the main tension, respecting minority views without erasing the majority
-- Propose one concrete bridging statement that people across groups might accept
-- Never invent positions that are not supported by the data
-- Be neutral, concise, and non-partisan
+Never invent positions that are not supported by the data. Be neutral, concise, and non-partisan."""
+
+COMMON_GROUND_PROMPTS = {
+    "basic": COMMON_GROUND_BASE + """
+
+Write a short "group statement" the whole room could endorse. Capture genuine common ground first, acknowledge the main tension, and propose one bridging statement.
 
 Respond ONLY with JSON:
 {
   "groupStatement": "2-3 sentence statement the group could collectively endorse",
-  "commonGround": ["short bullet of shared agreement", "..."],
-  "divides": ["short bullet describing a key disagreement", "..."],
+  "commonGround": ["exactly 2 short bullets of shared agreement"],
+  "divides": ["exactly 2 short bullets describing key disagreements"],
   "bridgingProposal": "one sentence proposal likely to gain cross-group support"
-}"""
+}""",
+    "extended": COMMON_GROUND_BASE + """
+
+Produce a richer mediation summary. Surface more nuance across opinion groups while staying grounded in the vote data.
+
+Respond ONLY with JSON:
+{
+  "groupStatement": "3-4 sentence statement balancing shared values and main tensions",
+  "commonGround": ["3-5 short bullets of shared agreement, ordered from strongest to weaker"],
+  "divides": ["3-5 short bullets describing open tensions, ordered by importance"],
+  "bridgingProposal": "one concrete bridging sentence",
+  "insights": ["2-3 short observations about how groups align or diverge"]
+}""",
+    "comprehensive": COMMON_GROUND_BASE + """
+
+Produce the deepest analysis available from the data. Map multiple layers of agreement, disagreement, trade-offs, and group-specific perspectives.
+
+Respond ONLY with JSON:
+{
+  "groupStatement": "3-5 sentence synthesis the room could discuss collectively",
+  "commonGround": ["4-6 bullets of shared agreement across groups"],
+  "divides": ["4-6 bullets of open tensions and unresolved disagreements"],
+  "bridgingProposal": "primary bridging sentence most likely to gain cross-group support",
+  "bridgingAlternatives": ["1-2 alternative bridging approaches"],
+  "insights": ["3-4 observations about group dynamics and voting patterns"],
+  "tradeoffs": ["2-3 bullets on what each side gains or risks in compromise"],
+  "groupNotes": [{"group": "A", "note": "one sentence on this group's core concern"}]
+}
+
+Include groupNotes only when opinion-group data is provided. Use the group letters from the input."""
+}
+
+COMMON_GROUND_DEPTHS = frozenset(COMMON_GROUND_PROMPTS)
 
 TENSION_PROMPT = """You are a deliberation facilitator. Given live vote results from a group discussion, write crisp votable statements that surface the key open tensions — unresolved disagreements worth testing with the room.
 
@@ -71,16 +103,75 @@ MOCK_TENSIONS = [
 ]
 
 MOCK_COMMON_GROUND = {
-    "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden.",
-    "commonGround": [
-        "AI oversight and public trust are widely seen as essential.",
-        "Heavy-handed rules that crush startups should be avoided.",
-    ],
-    "divides": [
-        "Horizontal AI law vs. sector-specific regulation.",
-        "Whether data localization is practical for smaller firms.",
-    ],
-    "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
+    "basic": {
+        "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle.",
+        "commonGround": [
+            "AI oversight and public trust are widely seen as essential.",
+            "Heavy-handed rules that crush startups should be avoided.",
+        ],
+        "divides": [
+            "Horizontal AI law vs. sector-specific regulation.",
+            "Whether data localization is practical for smaller firms.",
+        ],
+        "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
+    },
+    "extended": {
+        "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden, yet disagreement on how far federal harmonization should go.",
+        "commonGround": [
+            "AI oversight and public trust are widely seen as essential.",
+            "Heavy-handed rules that crush startups should be avoided.",
+            "Sector-specific expertise should inform high-risk domains like health.",
+            "Transparency obligations should be proportionate to risk.",
+        ],
+        "divides": [
+            "Horizontal AI law vs. sector-specific regulation.",
+            "Whether data localization is practical for smaller firms.",
+            "How strictly training-data rules should apply beyond FADP.",
+            "Whether EU alignment should drive Swiss AI policy.",
+        ],
+        "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
+        "insights": [
+            "Groups that favor sector rules still support baseline transparency.",
+            "Data-sovereignty advocates and pragmatists split mainly on cost, not principle.",
+        ],
+    },
+    "comprehensive": {
+        "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden. The room also shares skepticism toward one-size-fits-all rules that ignore domain risk.",
+        "commonGround": [
+            "AI oversight and public trust are widely seen as essential.",
+            "Heavy-handed rules that crush startups should be avoided.",
+            "Sector-specific expertise should inform high-risk domains like health.",
+            "Transparency obligations should be proportionate to risk.",
+            "Existing FADP protections are a floor, not a complete AI answer.",
+        ],
+        "divides": [
+            "Horizontal AI law vs. sector-specific regulation.",
+            "Whether data localization is practical for smaller firms.",
+            "How strictly training-data rules should apply beyond FADP.",
+            "Whether EU alignment should drive Swiss AI policy.",
+            "Mandatory audits vs. voluntary industry standards.",
+        ],
+        "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
+        "bridgingAlternatives": [
+            "Pilot federal rules in health and finance first, then evaluate expansion.",
+            "Create an independent AI oversight body with sector advisory panels.",
+        ],
+        "insights": [
+            "Groups that favor sector rules still support baseline transparency.",
+            "Data-sovereignty advocates and pragmatists split mainly on cost, not principle.",
+            "Startup-protection language appears across otherwise opposing clusters.",
+            "EU-alignment divides are sharper among groups skeptical of horizontal law.",
+        ],
+        "tradeoffs": [
+            "Horizontal law trades flexibility for predictability across sectors.",
+            "Strict localization improves sovereignty but raises compliance cost for SMEs.",
+            "Risk-based transparency may leave gaps that universal rules would close.",
+        ],
+        "groupNotes": [
+            {"group": "A", "note": "Prioritizes federal coherence and EU-compatible guardrails."},
+            {"group": "B", "note": "Wants sector nuance and minimal burden on innovators."},
+        ],
+    },
 }
 
 def _language_rule(language: Optional[str] = None) -> str:
@@ -176,11 +267,45 @@ class AnalysisService:
         analysis: dict,
         topic: Optional[str] = None,
         language: Optional[str] = None,
+        depth: str = "basic",
     ) -> Optional[dict]:
+        depth = depth if depth in COMMON_GROUND_DEPTHS else "basic"
         if self._mock:
-            return MOCK_COMMON_GROUND
+            return {**MOCK_COMMON_GROUND[depth], "depth": depth}
 
-        return await self._live_common_ground(analysis, topic, language)
+        return await self._live_common_ground(analysis, topic, language, depth)
+
+    def _normalize_common_ground(self, data: dict, depth: str) -> Optional[dict]:
+        statement = (data.get("groupStatement") or "").strip()
+        if not statement:
+            return None
+        group_notes = []
+        for item in data.get("groupNotes") or []:
+            if not isinstance(item, dict):
+                continue
+            group = (item.get("group") or "").strip()
+            note = (item.get("note") or "").strip()
+            if group and note:
+                group_notes.append({"group": group, "note": note})
+        result = {
+            "depth": depth,
+            "groupStatement": statement,
+            "commonGround": [s for s in (data.get("commonGround") or []) if isinstance(s, str) and s.strip()],
+            "divides": [s for s in (data.get("divides") or []) if isinstance(s, str) and s.strip()],
+            "bridgingProposal": (data.get("bridgingProposal") or "").strip(),
+        }
+        insights = [s for s in (data.get("insights") or []) if isinstance(s, str) and s.strip()]
+        if insights:
+            result["insights"] = insights
+        tradeoffs = [s for s in (data.get("tradeoffs") or []) if isinstance(s, str) and s.strip()]
+        if tradeoffs:
+            result["tradeoffs"] = tradeoffs
+        alternatives = [s for s in (data.get("bridgingAlternatives") or []) if isinstance(s, str) and s.strip()]
+        if alternatives:
+            result["bridgingAlternatives"] = alternatives
+        if group_notes:
+            result["groupNotes"] = group_notes
+        return result
 
     async def _live_tension_statements(
         self,
@@ -252,6 +377,7 @@ class AnalysisService:
         analysis: dict,
         topic: Optional[str] = None,
         language: Optional[str] = None,
+        depth: str = "basic",
     ) -> Optional[dict]:
         parts = []
         parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
@@ -274,12 +400,34 @@ class AnalysisService:
             parts.append("\nOpinion groups:")
             for g in groups:
                 parts.append(f"Group {g.get('letter', '?')} ({g.get('size', 0)} people):")
+                for t in (g.get("stronglyAgree") or []):
+                    parts.append(f"  strongly agrees: \"{t}\"")
                 for t in (g.get("agree") or []):
                     parts.append(f"  tends to agree: \"{t}\"")
+                for t in (g.get("stronglyDisagree") or []):
+                    parts.append(f"  strongly disagrees: \"{t}\"")
                 for t in (g.get("disagree") or []):
                     parts.append(f"  tends to disagree: \"{t}\"")
 
+        previous = analysis.get("previousFeedback") or []
+        if previous:
+            parts.append("\nPrevious common ground proposals and participant reactions (refine — do not repeat rejected framings):")
+            for idx, prev in enumerate(previous, start=1):
+                votes = prev.get("votes") or {}
+                parts.append(
+                    f"\nVersion {idx} ({prev.get('depth', 'basic')}): \"{prev.get('groupStatement', '')}\""
+                    f" — {votes.get('agree', 0)} agree / {votes.get('disagree', 0)} disagree"
+                )
+                for reaction in prev.get("feedback") or []:
+                    line = f"  - {reaction.get('name', 'Participant')} {reaction.get('vote', '')}"
+                    if reaction.get("reason"):
+                        line += f": \"{reaction['reason']}\""
+                    parts.append(line)
+
+        parts.append(f"\nAnalysis depth requested: {depth}")
         user_message = "\n".join(parts)
+        prompt = COMMON_GROUND_PROMPTS.get(depth, COMMON_GROUND_PROMPTS["basic"])
+        temperature = {"basic": 0.4, "extended": 0.45, "comprehensive": 0.5}.get(depth, 0.4)
 
         try:
             loop = asyncio.get_event_loop()
@@ -288,24 +436,16 @@ class AnalysisService:
                 partial(
                     self.client.chat.completions.create,
                     model="gpt-4o-mini",
-                    temperature=0.4,
+                    temperature=temperature,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": COMMON_GROUND_PROMPT + _language_rule(language)},
+                        {"role": "system", "content": prompt + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            statement = (data.get("groupStatement") or "").strip()
-            if not statement:
-                return None
-            return {
-                "groupStatement": statement,
-                "commonGround": [s for s in (data.get("commonGround") or []) if isinstance(s, str) and s.strip()],
-                "divides": [s for s in (data.get("divides") or []) if isinstance(s, str) and s.strip()],
-                "bridgingProposal": (data.get("bridgingProposal") or "").strip(),
-            }
+            return self._normalize_common_ground(data, depth)
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Common ground parse error: {e}")
             return None
