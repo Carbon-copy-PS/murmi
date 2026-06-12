@@ -516,7 +516,15 @@ body {
 
 .mock-circle.disagree { color: var(--ls-red); }
 .mock-circle.agree { color: var(--ls-green); }
-.mock-circle.pass { width: 34px; height: 34px; color: var(--ds-text-muted); font-size: 0.85rem; }
+.mock-circle.pass {
+  width: 34px;
+  height: 34px;
+  color: var(--ds-text-muted);
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .mock-controls.likert .mock-circle.disagree { color: #fb7185; }
 .mock-controls.likert .mock-circle.agree { color: #2bbf80; }
@@ -3696,6 +3704,12 @@ html.room-record-view #root {
   font-size: 1.25rem;
   color: #98a2b3;
 }
+
+.swipe-circle.pass .swipe-circle-glyph svg,
+.mock-circle.pass svg,
+.revote-chip.pass svg {
+  display: block;
+}
 .swipe-circle.pass:hover { border-color: #98a2b3; background: var(--ds-surface-3); box-shadow: 0 10px 24px rgba(152, 162, 179, 0.24); }
 
 /* Likert: inset border + light tint for agree/disagree, darker for strongly */
@@ -4537,18 +4551,34 @@ html.room-record-view #root {
 .meta-likert.sa .meta-likert-dot { background: #045a3c; }
 
 /* Common ground hotbar */
+.cg-hotbar-portal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  padding: 0.55rem 0.75rem;
+  pointer-events: none;
+}
+
+.cg-hotbar-portal .cg-hotbar {
+  pointer-events: auto;
+  margin: 0 auto;
+  max-width: min(920px, 100%);
+}
+
 .cg-hotbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: 0 0 0.65rem;
   padding: 0.65rem 0.85rem;
   border: 1px solid rgba(42, 157, 78, 0.45);
   border-radius: 12px;
   background: linear-gradient(90deg, rgba(42, 157, 78, 0.14) 0%, rgba(42, 157, 78, 0.06) 100%);
-  box-shadow: 0 4px 18px rgba(42, 157, 78, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
   animation: cg-hotbar-in 0.28s ease;
+  backdrop-filter: blur(8px);
 }
 
 @keyframes cg-hotbar-in {

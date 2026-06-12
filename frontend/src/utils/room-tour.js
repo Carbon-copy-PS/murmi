@@ -127,7 +127,7 @@ function buildSteps({ isHost, isRecorder, baseView }) {
     element: '.swipe-area',
     popover: {
       title: 'Cast your vote',
-      description: 'Your turn — swipe right to agree, left to disagree, down to pass. Try it now! Buttons and arrow keys work too.',
+      description: 'Your turn — swipe right to agree, left to disagree, down for neutral. Try it now! Buttons and arrow keys work too.',
     },
   })
 

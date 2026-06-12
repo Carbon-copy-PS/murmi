@@ -4,6 +4,7 @@ import { LANGUAGE_SHOWCASE, SPOKEN_LANGUAGES } from '../constants/languages'
 import { getSavedName, saveName } from '../identity'
 import LanguageSelect from './language-select'
 import ThemeToggle from './ThemeToggle'
+import NeutralIcon from './neutral-icon'
 
 function LanguageShowcase() {
   return (
@@ -64,7 +65,7 @@ const STEPS = [
     num: '03',
     icon: '👆',
     title: 'Everyone votes',
-    text: 'Swipe to agree, disagree, or pass. Votes are anonymous and update live as the conversation rolls on.',
+    text: 'Swipe to agree, disagree, or mark neutral. Votes are anonymous and update live as the conversation rolls on.',
   },
   {
     num: '04',
@@ -247,14 +248,14 @@ function PhoneDeck() {
             <>
               <span className="mock-circle disagree strong" aria-hidden="true">⇤</span>
               <span className="mock-circle disagree" aria-hidden="true">✕</span>
-              <span className="mock-circle pass" aria-hidden="true">↓</span>
+              <span className="mock-circle pass" aria-hidden="true"><NeutralIcon size={16} /></span>
               <span className="mock-circle agree" aria-hidden="true">✓</span>
               <span className="mock-circle agree strong" aria-hidden="true">⇥</span>
             </>
           ) : (
             <>
               <span className="mock-circle disagree" aria-hidden="true">✕</span>
-              <span className="mock-circle pass" aria-hidden="true">↓</span>
+              <span className="mock-circle pass" aria-hidden="true"><NeutralIcon size={16} /></span>
               <span className="mock-circle agree" aria-hidden="true">✓</span>
             </>
           )}

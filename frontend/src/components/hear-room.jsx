@@ -749,16 +749,6 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
 
-  useEffect(() => {
-    if (!cgHotbar) return undefined
-    const timer = setTimeout(() => setCgHotbar(null), 15000)
-    return () => clearTimeout(timer)
-  }, [cgHotbar])
-
-  useEffect(() => {
-    if (view === 'results' && cgHotbar) setCgHotbar(null)
-  }, [view, cgHotbar])
-
   function openCommonGroundResults() {
     setView('results')
     setCgHotbar(null)

@@ -1,3 +1,5 @@
+import NeutralIcon from './neutral-icon'
+
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max) + '...' : text
 }
@@ -5,7 +7,7 @@ function truncate(text, max) {
 const VOTE_LABEL = {
   strongly_agree: 'Strongly agree',
   agree: 'Agree',
-  neutral: 'Pass',
+  neutral: 'Neutral',
   disagree: 'Disagree',
   strongly_disagree: 'Strongly disagree',
 }
@@ -13,7 +15,7 @@ const VOTE_LABEL = {
 const LIKERT_CHIPS = [
   { vote: 'strongly_disagree', cls: 'disagree strong', glyph: '⇤', label: 'Strongly disagree' },
   { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
-  { vote: 'pass', cls: 'pass', glyph: '↓', label: 'Pass', match: 'neutral' },
+  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, label: 'Neutral', match: 'neutral' },
   { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
   { vote: 'strongly_agree', cls: 'agree strong', glyph: '⇥', label: 'Strongly agree' },
 ]
@@ -21,7 +23,7 @@ const LIKERT_CHIPS = [
 const BINARY_CHIPS = [
   { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
   { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
-  { vote: 'pass', cls: 'pass', glyph: '↓', label: 'Pass', match: 'neutral' },
+  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, label: 'Neutral', match: 'neutral' },
 ]
 
 export default function DivergingBarChart({ statements, justVotedId, onAnimationDone, onChangeVote, voteType = 'binary' }) {

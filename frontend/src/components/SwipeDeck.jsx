@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'motion/react'
 import { StatementTags } from './statement-tags'
+import NeutralIcon from './neutral-icon'
 
 const SWIPE_DISTANCE = 110
 const SWIPE_VELOCITY = 500
@@ -213,8 +214,8 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
   const behind = statements.slice(1, VISIBLE)
 
   const hintText = isLikert
-    ? 'Swipe right to agree, further for strongly. ↓ to pass'
-    : 'Drag, tap, or use arrow keys'
+    ? 'Right = agree · Left = disagree · Down = neutral'
+    : 'Right = agree · Left = disagree · Down = neutral'
 
   const body = (
     <>
@@ -298,7 +299,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           )}
           <motion.span className="swipe-stamp agree" style={{ opacity: agreeBase, scale: agreeStampScale }}>AGREE</motion.span>
           <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeBase, scale: disagreeStampScale }}>DISAGREE</motion.span>
-          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>PASS</motion.span>
+          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>NEUTRAL</motion.span>
           {isLikert && (
             <>
               <motion.span className="swipe-stamp agree strong" style={{ opacity: agreeStrongStep }}>STRONGLY AGREE</motion.span>
@@ -341,8 +342,8 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           lit={passOpacity}
           btnScale={passBtnScale}
           onClick={() => flyOut('pass')}
-          glyph="↓"
-          label="Pass"
+          glyph={<NeutralIcon />}
+          label="Neutral"
           testId="swipe-pass"
         />
         <SwipeAction

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { CG_DEPTH_LABELS } from '../../constants/common-ground-depth'
 
 export default function CommonGroundHotbar({
@@ -9,8 +10,9 @@ export default function CommonGroundHotbar({
 }) {
   const depthLabel = CG_DEPTH_LABELS[depth] || depth
 
-  return (
-    <div className="cg-hotbar" role="status" data-testid="cg-hotbar">
+  return createPortal(
+    <div className="cg-hotbar-portal" data-testid="cg-hotbar-portal">
+      <div className="cg-hotbar" role="status" data-testid="cg-hotbar">
       <div className="cg-hotbar-body">
         <span className="cg-hotbar-icon" aria-hidden="true">✦</span>
         <div className="cg-hotbar-copy">
@@ -42,5 +44,7 @@ export default function CommonGroundHotbar({
         </button>
       </div>
     </div>
+    </div>,
+    document.body,
   )
 }
