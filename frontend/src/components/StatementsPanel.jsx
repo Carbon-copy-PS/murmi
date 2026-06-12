@@ -1,25 +1,90 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
 import TensionGenerator from './tension-generator'
+import { isAiStatement, StatementTags } from './statement-tags'
 
-function PendingStatementCard({ statement, counting, onApprove, onHold, onReject }) {
+function PendingStatementCard({ statement, counting, onApprove, onHold, onReject, onEdit, canEdit }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(statement.text)
+  const showEdit = canEdit && isAiStatement(statement)
+
+  useEffect(() => {
+    setDraft(statement.text)
+    setEditing(false)
+  }, [statement.id, statement.text])
+
+  function saveEdit() {
+    const text = draft.trim()
+    if (!text) return
+    if (text !== statement.text) onEdit(statement.id, text)
+    setEditing(false)
+  }
+
+  function cancelEdit() {
+    setDraft(statement.text)
+    setEditing(false)
+  }
+
   return (
-    <div className="flash-card statement-card pending-card" data-testid={`pending-${statement.id}`}>
-      {statement.tension && <span className="card-tag tension">Tension</span>}
-      {statement.custom && !statement.tension && <span className="card-tag">Custom</span>}
-      <button
-        className="pending-reject"
-        onClick={() => onReject(statement.id)}
-        title="Reject statement"
-        aria-label="Reject statement"
-        data-testid={`reject-${statement.id}`}
-      >
-        ×
-      </button>
-      <p className="flash-card-text">{statement.text}</p>
+    <div className={`flash-card statement-card pending-card${editing ? ' is-editing' : ''}`} data-testid={`pending-${statement.id}`}>
+      <StatementTags statement={statement} />
+      <div className="pending-card-tools">
+        {showEdit && !editing && (
+          <button
+            type="button"
+            className="pending-edit"
+            onClick={() => setEditing(true)}
+            title="Edit statement"
+            aria-label="Edit statement"
+            data-testid={`edit-${statement.id}`}
+          >
+            ✎
+          </button>
+        )}
+        <button
+          type="button"
+          className="pending-reject"
+          onClick={() => onReject(statement.id)}
+          title="Reject statement"
+          aria-label="Reject statement"
+          data-testid={`reject-${statement.id}`}
+        >
+          ×
+        </button>
+      </div>
 
-      {counting && (
+      {editing ? (
+        <div className="pending-edit-body">
+          <textarea
+            className="pending-edit-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            maxLength={240}
+            autoFocus
+            data-testid={`edit-input-${statement.id}`}
+          />
+          <div className="pending-edit-actions">
+            <button type="button" className="btn ghost sm" onClick={cancelEdit} data-testid={`edit-cancel-${statement.id}`}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn primary sm"
+              onClick={saveEdit}
+              disabled={!draft.trim()}
+              data-testid={`edit-save-${statement.id}`}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="flash-card-text">{statement.text}</p>
+      )}
+
+      {counting && !editing && (
         <div className="countdown" data-testid={`countdown-${statement.id}`}>
           <div className="countdown-track">
             <div className="countdown-fill" />
@@ -28,25 +93,29 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
         </div>
       )}
 
-      <div className="flash-card-actions">
-        {counting ? (
-          <button
-            className="vote-btn"
-            onClick={() => onHold(statement.id)}
-            data-testid={`hold-${statement.id}`}
-          >
-            Hold for review
-          </button>
-        ) : (
-          <button
-            className="vote-btn agree"
-            onClick={() => onApprove(statement.id)}
-            data-testid={`approve-${statement.id}`}
-          >
-            Approve
-          </button>
-        )}
-      </div>
+      {!editing && (
+        <div className="flash-card-actions">
+          {counting ? (
+            <button
+              type="button"
+              className="vote-btn"
+              onClick={() => onHold(statement.id)}
+              data-testid={`hold-${statement.id}`}
+            >
+              Hold for review
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="vote-btn agree"
+              onClick={() => onApprove(statement.id)}
+              data-testid={`approve-${statement.id}`}
+            >
+              Approve
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -58,6 +127,7 @@ export default function StatementsPanel({
   isRecorder = false,
   onApprove,
   onReject,
+  onEditStatement,
   onAddStatement,
   autoApprove = false,
   onToggleAutoApprove,
@@ -233,6 +303,8 @@ export default function StatementsPanel({
                 onApprove={onApprove}
                 onHold={onHold}
                 onReject={onReject}
+                onEdit={onEditStatement}
+                canEdit={isHost}
               />
             ))}
           </div>

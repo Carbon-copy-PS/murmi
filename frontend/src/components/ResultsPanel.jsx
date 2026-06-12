@@ -62,6 +62,7 @@ function StatementRow({ s, voteType = 'binary' }) {
   return (
     <li className="result-statement" data-testid={`result-statement-${s.id}`}>
       <p className="result-statement-text">
+        {s.edited && <span className="card-tag inline edited">Edited</span>}
         {s.custom && <span className="card-tag inline">Custom</span>}
         {s.text}
       </p>

@@ -73,6 +73,7 @@ class StatementRow(Base):
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
     custom: Mapped[bool] = mapped_column(Boolean, default=False)
     tension: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    edited: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[float] = mapped_column(Float, default=0.0)
 
 
@@ -152,6 +153,10 @@ class Database:
                 "ALTER TABLE statements "
                 "ADD COLUMN IF NOT EXISTS tension boolean NOT NULL DEFAULT false"
             ))
+            await conn.execute(text(
+                "ALTER TABLE statements "
+                "ADD COLUMN IF NOT EXISTS edited boolean NOT NULL DEFAULT false"
+            ))
         return True
 
     async def disconnect(self):
@@ -165,8 +170,8 @@ class Database:
         return {
             "id": session.id,
             "topic": session.topic,
-            "current_round": session.current_round,
-            "threshold": session.threshold,
+            "current_round": 1,
+            "threshold": 5,
             "vote_type": getattr(session, "vote_type", "binary"),
             "created_at": created,
             "expires_at": datetime.fromtimestamp(expires_epoch, timezone.utc),
@@ -190,11 +195,12 @@ class Database:
                 approved=s.approved,
                 custom=s.custom,
                 tension=getattr(s, "tension", False),
+                edited=getattr(s, "edited", False),
                 created_at=float(s.created_at),
             )
             .on_conflict_do_update(
                 index_elements=["id"],
-                set_={"approved": s.approved, "text": s.text},
+                set_={"approved": s.approved, "text": s.text, "edited": getattr(s, "edited", False)},
             )
         )
 
@@ -398,6 +404,7 @@ class Database:
                     "approved": s.approved,
                     "custom": s.custom,
                     "tension": getattr(s, "tension", False),
+                    "edited": getattr(s, "edited", False),
                     "created_at": s.created_at,
                     "votes": votes_by_statement.get(s.id, {}),
                 }

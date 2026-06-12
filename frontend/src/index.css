@@ -1565,7 +1565,66 @@ select:focus { border-color: var(--ds-text); }
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   padding: 1.5rem;
+}
+
+html.room-record-view {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.room-record-view body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.room-record-view #root {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.room.room-record {
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.room.room-record .room-top {
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+}
+
+.room.room-record .tabs {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  background: var(--ds-bg);
+}
+
+.room-record .record-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.room-record .record-view .transcript,
+.room-record .record-view .transcript.empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .room-top {
@@ -2378,6 +2437,11 @@ select:focus { border-color: var(--ds-text); }
   margin-bottom: 2rem;
 }
 
+.room-record .record-btn {
+  flex-shrink: 0;
+  margin: 0.85rem 0 0.75rem;
+}
+
 .record-btn:hover:not(:disabled) { border-color: var(--ds-text); }
 
 .record-btn.active {
@@ -2852,6 +2916,149 @@ select:focus { border-color: var(--ds-text); }
 .card-tag.tension {
   background: #e0a400;
   color: #3d2e00;
+}
+
+.card-tag.edited {
+  background: #7a5af8;
+  color: #fff;
+}
+
+.statement-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.statement-tags .card-tag {
+  margin-bottom: 0;
+}
+
+.pending-card-tools {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pending-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.pending-edit:hover {
+  border-color: #7a5af8;
+  background: rgba(122, 90, 248, 0.1);
+  color: #7a5af8;
+}
+
+.pending-reject {
+  position: static;
+}
+
+.pending-edit-body {
+  margin-bottom: 0.85rem;
+}
+
+.pending-edit-input {
+  width: 100%;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 4.5rem;
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+
+.pending-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.btn.sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.swipe-edit-btn {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ds-border);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ds-text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+}
+
+[data-theme="dark"] .swipe-edit-btn {
+  background: rgba(26, 26, 29, 0.92);
+}
+
+.swipe-edit-btn:hover {
+  border-color: #7a5af8;
+  color: #7a5af8;
+}
+
+.swipe-card.top.is-editing {
+  cursor: default;
+}
+
+.swipe-edit-body {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  padding-top: 0.25rem;
+}
+
+.swipe-edit-input {
+  width: 100%;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 5.5rem;
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+
+.swipe-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 /* Countdown */

@@ -99,8 +99,6 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [isRecorder, setIsRecorder] = useState(false)
   const [view, setView] = useState('record')
   const [statements, setStatements] = useState([])
-  const [currentRoundCount, setCurrentRoundCount] = useState(0)
-  const [threshold, setThreshold] = useState(5)
   const [topic, setTopic] = useState(null)
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
@@ -146,6 +144,13 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const pendingCount = statements.filter((s) => !s.approved).length
 
   useEffect(() => { requestPermission() }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (view === 'record') root.classList.add('room-record-view')
+    else root.classList.remove('room-record-view')
+    return () => root.classList.remove('room-record-view')
+  }, [view])
 
   useEffect(() => {
     if (!connected || tourStartedRef.current || hasOnboarded()) return undefined
@@ -254,8 +259,6 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setView(recorder ? 'record' : 'statements')
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
-          setCurrentRoundCount(msg.currentRoundCount || 0)
-          setThreshold(msg.threshold || 5)
           setTopic(msg.topic || null)
           setRoomLanguage(msg.recorderLanguage || 'auto')
           setVoteType(msg.voteType || 'binary')
@@ -362,19 +365,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           break
         case 'statements_updated':
           setStatements(msg.statements)
-          setCurrentRoundCount(msg.currentRoundCount)
-          setThreshold(msg.threshold)
           if (msg.voteType) setVoteType(msg.voteType)
           break
         case 'vote_type_updated':
           setVoteType(msg.voteType || 'binary')
-          break
-        case 'threshold_reached':
-          setView('statements')
-          notify(APP_NAME, `Round ${msg.round} complete — vote on the statements!`, {
-            tag: 'threshold',
-            force: true,
-          })
           break
         case 'vote_updated':
           setStatements((prev) =>
@@ -684,6 +678,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'add_statement', text }))
   }
 
+  function handleEditStatement(statementId, text) {
+    wsRef.current?.send(JSON.stringify({ type: 'edit_statement', statementId, text }))
+  }
+
   function requestTensions(count, analysis) {
     if (!analysis) return
     if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
@@ -719,7 +717,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
 
   return (
-    <div className="room">
+    <div className={`room${view === 'record' ? ' room-record' : ''}`}>
       <div className="room-top">
         <div className="room-bar">
           <div className="room-status">
@@ -891,7 +889,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       </div>
 
       {view === 'record' && (
-        <>
+        <div className="record-view" data-testid="record-view">
           <button
             className={`record-btn ${recording ? 'active' : ''}`}
             onClick={toggleRecording}
@@ -902,17 +900,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           </button>
 
           <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} />
-
-          <div className="progress-container">
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{ width: `${Math.min((currentRoundCount / threshold) * 100, 100)}%` }}
-              />
-            </div>
-            <span className="progress-label">{currentRoundCount} / {threshold} statements</span>
-          </div>
-        </>
+        </div>
       )}
       {view === 'statements' && (
         <StatementsPanel
@@ -922,6 +910,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           isRecorder={isRecorder}
           onApprove={tourActive ? noop : handleApprove}
           onReject={tourActive ? noop : handleReject}
+          onEditStatement={tourActive ? noop : handleEditStatement}
           onAddStatement={tourActive ? noop : handleAddStatement}
           autoApprove={autoApprove}
           onToggleAutoApprove={tourActive ? noop : handleToggleAutoApprove}

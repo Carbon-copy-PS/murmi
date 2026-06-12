@@ -34,6 +34,7 @@ class Statement:
     approved: bool = False
     custom: bool = False
     tension: bool = False
+    edited: bool = False
     created_at: float = field(default_factory=time.time)
     votes: Dict[str, str] = field(default_factory=dict)
 
@@ -49,10 +50,8 @@ class Session:
     active_mic_id: Optional[str] = None
     recording: bool = False
     statements: list[Statement] = field(default_factory=list)
-    current_round: int = 1
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
-    threshold: int = 5
     vote_type: str = "binary"
     started: bool = False
     created_at: float = field(default_factory=time.time)
@@ -99,8 +98,6 @@ class SessionManager:
         session = Session(
             id=data["id"],
             topic=data.get("topic"),
-            current_round=data.get("current_round", 1),
-            threshold=data.get("threshold", 5),
             vote_type=data.get("vote_type", "binary"),
             created_at=data.get("created_at", time.time()),
             expires_at=data.get("expires_at"),
@@ -123,6 +120,7 @@ class SessionManager:
                 approved=s.get("approved", False),
                 custom=s.get("custom", False),
                 tension=s.get("tension", False),
+                edited=s.get("edited", False),
                 created_at=s.get("created_at", time.time()),
                 votes=dict(s.get("votes", {})),
             ))
@@ -193,8 +191,6 @@ class SessionManager:
                 session_id, participant_id,
                 include_pending=self._is_host(session, participant_id),
             ),
-            "currentRoundCount": self.get_current_round_count(session_id),
-            "threshold": session.threshold,
             "voteType": session.vote_type,
             "voteTypeLocked": session.started,
             "participantsStatus": self.participants_status(session_id),
@@ -354,7 +350,7 @@ class SessionManager:
             stmt = Statement(
                 id=uuid.uuid4().hex[:8],
                 text=text,
-                round=session.current_round,
+                round=1,
             )
             session.statements.append(stmt)
             added.append(stmt)
@@ -367,7 +363,7 @@ class SessionManager:
         stmt = Statement(
             id=uuid.uuid4().hex[:8],
             text=text,
-            round=session.current_round,
+            round=1,
             approved=True,
             custom=True,
         )
@@ -391,7 +387,7 @@ class SessionManager:
             stmt = Statement(
                 id=uuid.uuid4().hex[:8],
                 text=text,
-                round=session.current_round,
+                round=1,
                 approved=True,
                 custom=True,
                 tension=True,
@@ -410,6 +406,21 @@ class SessionManager:
                 stmt.approved = True
                 approved.append(stmt)
         return approved
+
+    def edit_statement(self, session_id: str, statement_id: str, text: str) -> Optional[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        stmt = next((s for s in session.statements if s.id == statement_id), None)
+        if not stmt or stmt.approved:
+            return None
+        new_text = (text or "").strip()[:240]
+        if not new_text:
+            return None
+        if new_text != stmt.text:
+            stmt.text = new_text
+            stmt.edited = True
+        return stmt
 
     def reject_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
         session = self.sessions.get(session_id)
@@ -431,22 +442,6 @@ class SessionManager:
         if not session:
             return False
         return session.host_participant_id in session.participants
-
-    def get_current_round_count(self, session_id: str) -> int:
-        session = self.sessions.get(session_id)
-        if not session:
-            return 0
-        return sum(1 for s in session.statements if s.round == session.current_round)
-
-    def check_and_advance_round(self, session_id: str) -> int | None:
-        session = self.sessions.get(session_id)
-        if not session:
-            return None
-        if self.get_current_round_count(session_id) >= session.threshold:
-            completed = session.current_round
-            session.current_round += 1
-            return completed
-        return None
 
     def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
         session = self.sessions.get(session_id)
@@ -478,6 +473,7 @@ class SessionManager:
             "approved": stmt.approved,
             "custom": stmt.custom,
             "tension": stmt.tension,
+            "edited": stmt.edited,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
@@ -594,7 +590,6 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return
-        round_count = self.get_current_round_count(session_id)
         disconnected = []
         for pid, participant in session.participants.items():
             try:
@@ -604,8 +599,6 @@ class SessionManager:
                         session_id, pid,
                         include_pending=self._is_host(session, pid),
                     ),
-                    "currentRoundCount": round_count,
-                    "threshold": session.threshold,
                     "voteType": session.vote_type,
                 })
             except Exception:

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'motion/react'
+import { StatementTags } from './statement-tags'
 
 const SWIPE_DISTANCE = 110
 const SWIPE_VELOCITY = 500
@@ -304,8 +305,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
               <motion.span className="swipe-stamp disagree strong" style={{ opacity: disagreeStrongStep }}>STRONGLY DISAGREE</motion.span>
             </>
           )}
-          {top.tension && <span className="card-tag tension">Tension</span>}
-          {top.custom && !top.tension && <span className="card-tag">Custom</span>}
+          <StatementTags statement={top} />
           <p className="swipe-text">{top.text}</p>
           <span className="swipe-hint-row" aria-hidden="true">
             <span className="swipe-grip"><span /><span /><span /></span>

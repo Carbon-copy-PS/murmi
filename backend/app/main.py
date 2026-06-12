@@ -320,15 +320,7 @@ async def run_analysis(session_id: str):
         added = sessions.add_statements(session_id, new_texts)
         auto_approve_if_no_host(session_id, added)
         await _safe_db(db.save_statements(session, added))
-        completed_round = sessions.check_and_advance_round(session_id)
         await sessions.broadcast_statements(session_id)
-
-        if completed_round is not None:
-            await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
-            await sessions.broadcast(session_id, {
-                "type": "threshold_reached",
-                "round": completed_round,
-            })
     except Exception as e:
         print(f"Analysis task error: {e}")
     finally:
@@ -440,15 +432,7 @@ async def run_turn_analysis(session_id: str, entry_id: str):
     added = sessions.add_statements(session_id, new_texts)
     auto_approve_if_no_host(session_id, added)
     await _safe_db(db.save_statements(session, added))
-    completed_round = sessions.check_and_advance_round(session_id)
     await sessions.broadcast_statements(session_id)
-
-    if completed_round is not None:
-        await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
-        await sessions.broadcast(session_id, {
-            "type": "threshold_reached",
-            "round": completed_round,
-        })
 
 
 def schedule_turn_analysis(session_id: str, entry: dict):
@@ -790,14 +774,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     continue
                 session = sessions.get(session_id)
                 await _safe_db(db.save_statements(session, added))
-                completed_round = sessions.check_and_advance_round(session_id)
                 await sessions.broadcast_statements(session_id)
-                if completed_round is not None:
-                    await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
-                    await sessions.broadcast(session_id, {
-                        "type": "threshold_reached",
-                        "round": completed_round,
-                    })
 
             elif msg_type == "get_common_ground":
                 if not sessions.is_host(session_id, participant_id):
@@ -881,14 +858,20 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 stmt = sessions.add_custom_statement(session_id, text)
                 if stmt:
                     await _safe_db(db.save_statements(sessions.get(session_id), [stmt]))
-                    completed_round = sessions.check_and_advance_round(session_id)
                     await sessions.broadcast_statements(session_id)
-                    if completed_round is not None:
-                        await _safe_db(db.update_round(session_id, sessions.get(session_id).current_round))
-                        await sessions.broadcast(session_id, {
-                            "type": "threshold_reached",
-                            "round": completed_round,
-                        })
+
+            elif msg_type == "edit_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                statement_id = data.get("statementId")
+                text = data.get("text")
+                if not statement_id or not isinstance(text, str):
+                    continue
+                stmt = sessions.edit_statement(session_id, statement_id, text)
+                if stmt:
+                    session = sessions.get(session_id)
+                    await _safe_db(db.save_statements(session, [stmt]))
+                    await sessions.broadcast_statements(session_id)
 
             elif msg_type == "set_host":
                 if not sessions.is_host(session_id, participant_id):
