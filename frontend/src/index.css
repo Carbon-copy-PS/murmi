@@ -1678,6 +1678,11 @@ html.room-record-view #root {
 
 .status-dot.offline { background: #e0a400; }
 
+.status-dot.reconnecting {
+  background: #e0a400;
+  animation: pulse 1s infinite;
+}
+
 .status-text {
   font-size: 0.75rem;
   font-weight: 700;
@@ -4568,8 +4573,51 @@ html.room-record-view #root {
   font-weight: 600;
 }
 
+.cg-table-wrap {
+  margin-top: 0.9rem;
+  overflow-x: auto;
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  background: var(--ds-surface);
+}
+
+.cg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.cg-table th,
+.cg-table td {
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.cg-table tr:last-child td {
+  border-bottom: none;
+}
+
+.cg-table th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--ds-surface-2);
+}
+
+.cg-th.agree { color: #2a9d4e; }
+.cg-th.disagree { color: #f04438; }
+
+.cg-table td {
+  color: var(--ds-text);
+  width: 50%;
+}
+
 .cg-bridge {
-  margin-top: 0.85rem;
+  margin-top: 0.9rem;
   padding: 0.7rem 0.85rem;
   border-left: 3px solid #2a9d4e;
   background: rgba(18, 183, 106, 0.08);

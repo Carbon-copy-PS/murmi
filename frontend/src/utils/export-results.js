@@ -399,11 +399,8 @@ export function buildPrintableHTML(ctx) {
     sections.push(`<section class="pdf-section pdf-cg">
       <h2><span class="pdf-kicker">AI Common Ground</span></h2>
       <p class="pdf-cg-statement">${esc(cg.statement)}</p>
+      ${(cg.sharedGround.length || cg.openTensions.length) ? `<table class="pdf-cg-table"><thead><tr><th class="a">Shared ground</th><th class="d">Open tensions</th></tr></thead><tbody>${Array.from({ length: Math.max(cg.sharedGround.length, cg.openTensions.length) }).map((_, i) => `<tr><td>${esc(cg.sharedGround[i] || '—')}</td><td>${esc(cg.openTensions[i] || '—')}</td></tr>`).join('')}</tbody></table>` : ''}
       ${cg.bridgingProposal ? `<div class="pdf-bridge"><span class="pdf-bridge-label">Bridging proposal</span><p>${esc(cg.bridgingProposal)}</p></div>` : ''}
-      ${(cg.sharedGround.length || cg.openTensions.length) ? `<div class="pdf-cols">
-        ${cg.sharedGround.length ? `<div><span class="pdf-col-label a">Shared ground</span><ul>${cg.sharedGround.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-        ${cg.openTensions.length ? `<div><span class="pdf-col-label d">Open tensions</span><ul>${cg.openTensions.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : ''}
-      </div>` : ''}
       <div class="pdf-cg-vote"><span class="pdf-vote-q">Do participants agree with this common ground?</span>${voteHtml}</div>
     </section>`)
   }
@@ -466,7 +463,12 @@ export function buildPrintableHTML(ctx) {
     .pdf-muted { color: #9ca3af; font-style: italic; }
     .pdf-cg { background: #f9fafb; border: 1px solid #e5e7eb; border-left: 4px solid #12b76a; border-radius: 10px; padding: 16px; }
     .pdf-cg-statement { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
-    .pdf-bridge { padding: 8px 12px; border-left: 3px solid #12b76a; background: rgba(18,183,106,0.08); border-radius: 0 8px 8px 0; margin-bottom: 10px; }
+    .pdf-cg-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+    .pdf-cg-table th, .pdf-cg-table td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: top; }
+    .pdf-cg-table th { background: #f3f4f6; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    .pdf-cg-table th.a { color: #0a7a55; }
+    .pdf-cg-table th.d { color: #b42318; }
+    .pdf-bridge { padding: 8px 12px; border-left: 3px solid #12b76a; background: rgba(18,183,106,0.08); border-radius: 0 8px 8px 0; margin-top: 10px; }
     .pdf-bridge-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #0a7a55; }
     .pdf-bridge p { margin: 2px 0 0; }
     .pdf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 10px; }

@@ -10,7 +10,7 @@ import ShareModal from './ShareModal'
 import ConfirmDialog from './ConfirmDialog'
 import ThemeToggle from './ThemeToggle'
 import { requestPermission, notify } from '../notifications'
-import { getClientId, saveName, saveSession, hasOnboarded, setOnboarded } from '../identity'
+import { saveName, saveSession, hasOnboarded, setOnboarded } from '../identity'
 import {
   startRoomTour,
   TOUR_TRANSCRIPT,
@@ -19,6 +19,7 @@ import {
   TOUR_COMMON_GROUND,
   TOUR_PARTICIPANTS,
 } from '../utils/room-tour'
+import { createRoomSocket } from '../utils/room-socket'
 
 const noop = () => {}
 
@@ -90,7 +91,8 @@ function EditIcon() {
 }
 
 export default function HearRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
-  const [connected, setConnected] = useState(false)
+  const [connStatus, setConnStatus] = useState('connecting')
+  const connected = connStatus === 'live'
   const [transcript, setTranscript] = useState([])
   const [partialCaption, setPartialCaption] = useState(null)
   const [captionError, setCaptionError] = useState('')
@@ -131,6 +133,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const tensionsTimeoutRef = useRef(null)
 
   const wsRef = useRef(null)
+  const socketRef = useRef(null)
+  const onLeaveRef = useRef(onLeave)
+  onLeaveRef.current = onLeave
   const streamRef = useRef(null)
   const audioContextRef = useRef(null)
   const recordingRef = useRef(false)
@@ -228,25 +233,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     }
   }, [])
 
-  useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${protocol}//${window.location.host}/ws/${sessionId}`)
-    wsRef.current = ws
+  const joinPayloadRef = useRef({})
+  joinPayloadRef.current = {
+    name: displayName,
+    language: roomLanguage,
+    wantsHost: Boolean(wantsHost),
+  }
 
-    ws.onopen = () => {
-      setConnected(true)
-      ws.send(JSON.stringify({
-        type: 'join',
-        name: userName,
-        language: userLanguage,
-        wantsHost: Boolean(wantsHost),
-        clientId: getClientId(),
-      }))
-    }
-    ws.onclose = () => setConnected(false)
+  const handleWsMessageRef = useRef(() => {})
 
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
+  handleWsMessageRef.current = (msg) => {
       switch (msg.type) {
         case 'joined': {
           participantIdRef.current = msg.participantId
@@ -256,7 +252,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           isHostRef.current = host
           setIsRecorder(recorder)
           isRecorderRef.current = recorder
-          setView(recorder ? 'record' : 'statements')
+          if (!msg.returning) {
+            setView(recorder ? 'record' : 'statements')
+          }
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setTopic(msg.topic || null)
@@ -304,8 +302,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         case 'active_mic':
           break
         case 'session_expired':
+          socketRef.current?.close()
           notify(APP_NAME, 'This session has expired', { tag: 'expired', force: true })
-          onLeave()
+          onLeaveRef.current()
           break
         case 'participant_joined':
         case 'participant_left':
@@ -419,10 +418,23 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setTensionsError(msg.message || 'Could not generate tensions.')
           break
       }
-    }
+  }
 
-    return () => ws.close()
-  }, [sessionId, userName, userLanguage, wantsHost])
+  useEffect(() => {
+    const socket = createRoomSocket({
+      sessionId,
+      getJoinPayload: () => joinPayloadRef.current,
+      onStatus: setConnStatus,
+      onSocket: (ws) => { wsRef.current = ws },
+      onMessage: (msg) => handleWsMessageRef.current(msg),
+    })
+    socketRef.current = socket
+    return () => {
+      socket.close()
+      socketRef.current = null
+      wsRef.current = null
+    }
+  }, [sessionId])
 
   useEffect(() => {
     let cleanup = null
@@ -721,8 +733,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       <div className="room-top">
         <div className="room-bar">
           <div className="room-status">
-            <span className={`status-dot ${connected ? 'online' : 'offline'}`} aria-hidden="true" />
-            <span className="status-text">{connected ? 'Live' : 'Connecting…'}</span>
+            <span
+              className={`status-dot ${connStatus === 'live' ? 'online' : connStatus === 'reconnecting' ? 'reconnecting' : 'offline'}`}
+              aria-hidden="true"
+            />
+            <span className="status-text" data-testid="conn-status">
+              {connStatus === 'live' && 'Live'}
+              {connStatus === 'connecting' && 'Connecting…'}
+              {connStatus === 'reconnecting' && 'Reconnecting…'}
+              {connStatus === 'offline' && 'Disconnected'}
+            </span>
             {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
           </div>
           <div className="room-actions">

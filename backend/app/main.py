@@ -667,7 +667,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             data = await websocket.receive_json()
             msg_type = data.get("type")
 
-            if msg_type == "audio_level":
+            if msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+
+            elif msg_type == "audio_level":
                 if not sessions.is_host(session_id, participant_id):
                     continue
                 new_active = sessions.update_level(
@@ -965,8 +968,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         name = sessions.get_participant_name(session_id, participant_id)
+        leave_result = sessions.leave(session_id, participant_id, websocket)
+        if not leave_result.get("removed"):
+            return
         await close_realtime_sessions(session_id, participant_id)
-        leave_result = sessions.leave(session_id, participant_id)
         session = sessions.get(session_id)
         if session:
             await sessions.broadcast(session_id, {

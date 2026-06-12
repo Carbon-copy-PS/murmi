@@ -389,27 +389,35 @@ function CommonGroundSection({ data, myVote, pending, error, isHost, payload, on
         <div className="cg-card" data-testid="cg-card">
           <p className="cg-statement">{data.groupStatement}</p>
 
+          {(data.commonGround?.length > 0 || data.divides?.length > 0) && (
+            <div className="cg-table-wrap">
+              <table className="cg-table" data-testid="cg-table">
+                <thead>
+                  <tr>
+                    <th className="cg-th agree">Shared ground</th>
+                    <th className="cg-th disagree">Open tensions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({
+                    length: Math.max(data.commonGround?.length || 0, data.divides?.length || 0),
+                  }).map((_, i) => (
+                    <tr key={`cg-row-${i}`}>
+                      <td data-testid={`cg-shared-${i}`}>{data.commonGround?.[i] || '—'}</td>
+                      <td data-testid={`cg-tension-${i}`}>{data.divides?.[i] || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {data.bridgingProposal && (
             <div className="cg-bridge">
               <span className="cg-bridge-label">Bridging proposal</span>
               <p>{data.bridgingProposal}</p>
             </div>
           )}
-
-          <div className="cg-cols">
-            {data.commonGround?.length > 0 && (
-              <div className="cg-col">
-                <span className="cg-col-label agree">Shared ground</span>
-                <ul>{data.commonGround.map((t, i) => <li key={`cg-a-${i}`}>{t}</li>)}</ul>
-              </div>
-            )}
-            {data.divides?.length > 0 && (
-              <div className="cg-col">
-                <span className="cg-col-label disagree">Open tensions</span>
-                <ul>{data.divides.map((t, i) => <li key={`cg-d-${i}`}>{t}</li>)}</ul>
-              </div>
-            )}
-          </div>
 
           <CommonGroundVote votes={data.votes} myVote={myVote} onVote={onVote} />
         </div>

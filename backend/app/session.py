@@ -200,14 +200,15 @@ class SessionManager:
             "recorderLanguage": self.get_recorder_language(session_id),
         })
 
-        await self.broadcast(session_id, {
-            "type": "participant_joined",
-            "participantId": participant_id,
-            "name": name,
-            "hostIds": self._host_pids(session),
-            "recorderId": session.host_participant_id,
-            "participants": self._participant_list(session),
-        }, exclude=participant_id)
+        if not returning:
+            await self.broadcast(session_id, {
+                "type": "participant_joined",
+                "participantId": participant_id,
+                "name": name,
+                "hostIds": self._host_pids(session),
+                "recorderId": session.host_participant_id,
+                "participants": self._participant_list(session),
+            }, exclude=participant_id)
 
         return participant_id
 
@@ -704,8 +705,9 @@ class SessionManager:
         session.participants[participant_id].name = name.strip()[:120]
         return True
 
-    def leave(self, session_id: str, participant_id: str) -> dict:
+    def leave(self, session_id: str, participant_id: str, websocket: WebSocket | None = None) -> dict:
         result = {
+            "removed": False,
             "session_removed": False,
             "host_changed": False,
             "hostParticipantId": None,
@@ -714,8 +716,13 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return result
-        if participant_id in session.participants:
-            del session.participants[participant_id]
+        participant = session.participants.get(participant_id)
+        if not participant:
+            return result
+        if websocket is not None and participant.websocket is not websocket:
+            return result
+        del session.participants[participant_id]
+        result["removed"] = True
         if not session.participants:
             del self.sessions[session_id]
             result["session_removed"] = True
