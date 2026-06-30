@@ -549,7 +549,7 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   )
 }
 
-function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null }) {
+export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null }) {
   const depthLabel = data.depth ? CG_DEPTH_LABELS[data.depth] : null
 
   return (

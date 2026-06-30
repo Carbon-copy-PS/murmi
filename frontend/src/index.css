@@ -4888,6 +4888,167 @@ html.room-record-view #root {
   margin-bottom: 0.75rem;
 }
 
+/* Participant common-ground popup */
+.cg-popup-backdrop {
+  z-index: 200;
+  padding: 1.25rem;
+}
+
+.cg-popup {
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  max-height: 88dvh;
+  padding: 1.5rem 1.25rem 1.1rem;
+}
+
+.cg-popup-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0 1.75rem 1rem 0.25rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.cg-popup-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.25rem;
+  margin: 0 -0.25rem;
+}
+
+.cg-popup-scroll .cg-card {
+  margin: 0;
+}
+
+.cg-popup-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(42, 157, 78, 0.12);
+  color: #2a9d4e;
+}
+
+.cg-popup-head-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.cg-popup-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #2a9d4e;
+}
+
+.cg-popup-title {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ds-text);
+}
+
+.cg-popup-head .cg-depth-badge {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.cg-popup-note {
+  margin: 0.9rem 0 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+}
+
+.cg-popup-note strong {
+  color: var(--ds-text);
+  font-weight: 700;
+}
+
+.cg-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--ds-border);
+}
+
+@media (max-width: 560px) {
+  .cg-popup-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .cg-popup {
+    width: 100%;
+    max-width: none;
+    max-height: 90dvh;
+    padding: 0.85rem 0.9rem calc(0.9rem + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+  }
+  .cg-popup::before {
+    content: '';
+    position: absolute;
+    top: 0.45rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--ds-border);
+  }
+  .cg-popup .modal-close {
+    top: 0.6rem;
+    right: 0.7rem;
+  }
+  .cg-popup-head {
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 2rem 0.7rem 0;
+    margin-bottom: 0.7rem;
+  }
+  .cg-popup-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+  .cg-popup-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+  .cg-popup-eyebrow {
+    display: none;
+  }
+  .cg-popup-title {
+    font-size: 0.98rem;
+  }
+  .cg-popup-head .cg-depth-badge {
+    display: none;
+  }
+  .cg-popup-note {
+    font-size: 0.76rem;
+  }
+  .cg-popup-actions {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+    padding-top: 0.85rem;
+  }
+  .cg-popup-actions .btn {
+    width: 100%;
+  }
+}
+
 .cg-close-btn {
   border: 1px solid var(--ds-border);
   background: var(--ds-surface);
@@ -5313,6 +5474,55 @@ html.room-record-view #root {
   font-size: 0.78rem;
   color: var(--ds-text-muted);
   text-align: center;
+}
+
+@media (max-width: 560px) {
+  .cg-card-toolbar {
+    padding: 0.5rem 0.6rem;
+  }
+  .cg-card-toolbar-meta {
+    font-size: 0.68rem;
+    gap: 0.2rem 0.35rem;
+  }
+  .cg-card-toolbar .cg-meta-time,
+  .cg-meta-snapshot {
+    display: none;
+  }
+  .cg-card .cg-vote-summary,
+  .cg-statement,
+  .cg-split,
+  .cg-bridge,
+  .cg-vote-panel,
+  .cg-extras-toggle {
+    margin-left: 0.6rem;
+    margin-right: 0.6rem;
+  }
+  .cg-statement {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    padding: 0.7rem 0.8rem;
+  }
+  .cg-vote-panel {
+    padding: 0.7rem;
+  }
+  .cg-vote-actions {
+    gap: 0.45rem;
+  }
+  .cg-vote-btn {
+    padding: 0.55rem 0.35rem;
+    font-size: 0.85rem;
+    gap: 0.3rem;
+  }
+  .cg-vote-count {
+    min-width: 18px;
+    height: 18px;
+  }
+  .cg-split {
+    gap: 0.5rem;
+  }
+  .cg-split-col {
+    padding: 0.55rem 0.6rem;
+  }
 }
 
 .tension-gen {
@@ -6102,6 +6312,18 @@ html.room-record-view #root {
   max-width: 7.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 560px) {
+  .room-bar .room-actions {
+    gap: 0.4rem;
+  }
+  .room-lang-pill {
+    padding: 0 0.5rem;
+  }
+  .room-lang-text {
+    display: none;
+  }
 }
 
 .lang-select.inline {

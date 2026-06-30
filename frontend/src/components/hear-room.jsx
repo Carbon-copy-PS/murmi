@@ -20,8 +20,8 @@ import {
   TOUR_PARTICIPANTS,
 } from '../utils/room-tour'
 import { createRoomSocket } from '../utils/room-socket'
-import CommonGroundHotbar from './common-ground-hotbar'
-import { CG_DEPTH_LABELS, DEFAULT_CG_DEPTH } from '../constants/common-ground-depth'
+import CommonGroundPopup from './common-ground-popup'
+import { DEFAULT_CG_DEPTH } from '../constants/common-ground-depth'
 
 const noop = () => {}
 
@@ -116,7 +116,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [cgPending, setCgPending] = useState(false)
   const [cgPendingDepth, setCgPendingDepth] = useState(null)
   const [cgError, setCgError] = useState(null)
-  const [cgHotbar, setCgHotbar] = useState(null)
+  const [cgPopup, setCgPopup] = useState(null)
   const cgSeenIdsRef = useRef(new Set())
   const [tensionsPending, setTensionsPending] = useState(false)
   const [tensionsError, setTensionsError] = useState(null)
@@ -407,17 +407,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           if (msg.addedId && !cgSeenIdsRef.current.has(msg.addedId)) {
             cgSeenIdsRef.current.add(msg.addedId)
             const added = history.find((item) => item.id === msg.addedId)
-            setCgHotbar({
-              id: msg.addedId,
-              depth: added?.depth || 'basic',
-              versionNum: history.length,
-              generatedByName: added?.generatedByName || null,
-            })
-            const depthLabel = CG_DEPTH_LABELS[added?.depth || 'basic'] || 'New'
-            notify(APP_NAME, `${depthLabel} common ground is ready — open Results to review`, {
-              tag: 'common-ground',
-              duration: 8000,
-            })
+            if (!isHostRef.current && added) {
+              setCgPopup(msg.addedId)
+            }
           }
           setCommonGroundHistory(history)
           setCgPending(false)
@@ -759,10 +751,11 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   }
 
   const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
+  const cgPopupItem = cgPopup ? commonGroundHistory.find((item) => item.id === cgPopup) : null
 
   function openCommonGroundResults() {
     setView('results')
-    setCgHotbar(null)
+    setCgPopup(null)
   }
 
   return (
@@ -897,13 +890,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
       )}
 
-      {cgHotbar && (
-        <CommonGroundHotbar
-          depth={cgHotbar.depth}
-          versionNum={cgHotbar.versionNum}
-          generatedByName={cgHotbar.generatedByName}
+      {cgPopupItem && !isHost && (
+        <CommonGroundPopup
+          item={cgPopupItem}
           onView={openCommonGroundResults}
-          onDismiss={() => setCgHotbar(null)}
+          onClose={() => setCgPopup(null)}
+          onVote={voteCommonGround}
         />
       )}
 
