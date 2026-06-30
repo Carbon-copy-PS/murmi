@@ -358,13 +358,13 @@ class AnalysisService:
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            tensions = [
-                s.strip()
-                for s in (data.get("tensions") or [])
-                if isinstance(s, str) and s.strip()
-            ]
+            raw = data.get("tensions")
+            if not isinstance(raw, list):
+                raw = next((v for v in data.values() if isinstance(v, list)), [])
+            tensions = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
             existing_set = set(existing)
-            return [t for t in tensions if t not in existing_set][:count]
+            filtered = [t for t in tensions if t not in existing_set]
+            return (filtered or tensions)[:count]
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Tension parse error: {e}")
             return []

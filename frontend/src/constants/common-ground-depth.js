@@ -24,4 +24,6 @@ export const CG_DEPTH_LABELS = Object.fromEntries(
   CG_DEPTH_OPTIONS.map((o) => [o.id, o.label]),
 )
 
+export const DEFAULT_CG_DEPTH = 'extended'
+
 export const CG_VOTE_REASON_MAX = 280

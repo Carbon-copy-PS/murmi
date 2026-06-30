@@ -53,6 +53,7 @@ class Session:
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
     vote_type: str = "binary"
+    common_ground_depth: str = "extended"
     started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
@@ -67,6 +68,8 @@ ANALYSIS_BATCH_SIZE = 3
 COMMON_GROUND_REASON_MAX = 280
 
 VOTE_TYPES = ("binary", "likert")
+COMMON_GROUND_DEPTHS = ("basic", "extended", "comprehensive")
+DEFAULT_COMMON_GROUND_DEPTH = "extended"
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
 VALID_LIKERT_VOTES = ("strongly_agree", "agree", "neutral", "disagree", "strongly_disagree")
 AGREE_VOTES = ("agree", "strongly_agree")
@@ -103,6 +106,7 @@ class SessionManager:
             expires_at=data.get("expires_at"),
         )
         session.transcript = list(data.get("transcript", []))
+        session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -193,6 +197,7 @@ class SessionManager:
             ),
             "voteType": session.vote_type,
             "voteTypeLocked": session.started,
+            "commonGroundDepth": session.common_ground_depth,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
@@ -507,6 +512,7 @@ class SessionManager:
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
             "commonGroundHistory": history,
+            "commonGroundDepth": session.common_ground_depth,
         }
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
@@ -783,6 +789,13 @@ class SessionManager:
             return None
         session.topic = (topic or "").strip()[:200] or None
         return session.topic
+
+    def set_common_ground_depth(self, session_id: str, depth: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session or depth not in COMMON_GROUND_DEPTHS:
+            return None
+        session.common_ground_depth = depth
+        return depth
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)

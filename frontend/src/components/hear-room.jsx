@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { APP_NAME } from '../constants/app'
 import { getLanguage } from '../constants/languages'
-import LanguageSelect from './language-select'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
 import ParticipantsPanel from './ParticipantsPanel'
+import SettingsPanel from './settings-panel'
 import ShareModal from './ShareModal'
 import ConfirmDialog from './ConfirmDialog'
 import ThemeToggle from './ThemeToggle'
@@ -21,7 +21,7 @@ import {
 } from '../utils/room-tour'
 import { createRoomSocket } from '../utils/room-socket'
 import CommonGroundHotbar from './common-ground-hotbar'
-import { CG_DEPTH_LABELS } from '../constants/common-ground-depth'
+import { CG_DEPTH_LABELS, DEFAULT_CG_DEPTH } from '../constants/common-ground-depth'
 
 const noop = () => {}
 
@@ -106,6 +106,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [topic, setTopic] = useState(null)
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
+  const [cgDepth, setCgDepth] = useState(DEFAULT_CG_DEPTH)
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
@@ -265,6 +266,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setRoomLanguage(msg.recorderLanguage || 'auto')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
+          if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
           if (msg.commonGroundHistory) {
             msg.commonGroundHistory.forEach((item) => cgSeenIdsRef.current.add(item.id))
             setCommonGroundHistory(msg.commonGroundHistory)
@@ -293,7 +295,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setIsRecorder(recorder)
           isRecorderRef.current = recorder
           if (!host) {
-            setView((prev) => (prev === 'record' || prev === 'participants' ? 'statements' : prev))
+            setView((prev) => (prev === 'record' || prev === 'participants' || prev === 'settings' ? 'statements' : prev))
           } else if (!recorder) {
             setView((prev) => (prev === 'record' ? 'statements' : prev))
           }
@@ -389,6 +391,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         case 'results':
           setResults({ statements: msg.statements, voters: msg.voters })
           if (msg.commonGroundHistory) setCommonGroundHistory(msg.commonGroundHistory)
+          if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
+          break
+        case 'common_ground_depth_updated':
+          setCgDepth(msg.depth || DEFAULT_CG_DEPTH)
           break
         case 'common_ground_pending':
           setCgPending(true)
@@ -564,6 +570,11 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'set_auto_approve', autoApprove: value }))
   }
 
+  function handleSetCgDepth(depth) {
+    setCgDepth(depth)
+    wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_depth', depth }))
+  }
+
   function handleToggleHost(targetId, makeHost) {
     wsRef.current?.send(JSON.stringify({ type: 'set_host', participantId: targetId, host: makeHost }))
   }
@@ -669,7 +680,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'get_results' }))
   }
 
-  function requestCommonGround(analysis, depth = 'basic') {
+  function requestCommonGround(analysis, depth = cgDepth) {
     if (!analysis) return
     if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
     setCgPending(true)
@@ -772,19 +783,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
           </div>
           <div className="room-actions">
-            {isHost ? (
-              <LanguageSelect
-                value={roomLanguage}
-                onChange={handleLanguageChange}
-                data-testid="room-language"
-                inline
-              />
-            ) : (
-              <span className="room-lang-pill" data-testid="room-language" title={activeLanguage.label}>
-                <span className="room-lang-flag" aria-hidden="true">{activeLanguage.flag}</span>
-                <span className="room-lang-text">{activeLanguage.label}</span>
-              </span>
-            )}
+            <span className="room-lang-pill" data-testid="room-language" title={activeLanguage.label}>
+              <span className="room-lang-flag" aria-hidden="true">{activeLanguage.flag}</span>
+              <span className="room-lang-text">{activeLanguage.label}</span>
+            </span>
             <ThemeToggle />
             <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
               Share
@@ -942,6 +944,15 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             {participants.length > 0 && <span className="badge">{participants.length}</span>}
           </button>
         )}
+        {isHost && (
+          <button
+            className={`tab ${view === 'settings' ? 'active' : ''}`}
+            onClick={() => setView('settings')}
+            data-testid="tab-settings"
+          >
+            Settings
+          </button>
+        )}
       </div>
 
       {view === 'record' && (
@@ -969,17 +980,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onEditStatement={tourActive ? noop : handleEditStatement}
           onAddStatement={tourActive ? noop : handleAddStatement}
           autoApprove={autoApprove}
-          onToggleAutoApprove={tourActive ? noop : handleToggleAutoApprove}
           heldIds={heldIds}
           onHold={tourActive ? noop : handleHold}
           voteType={voteType}
-          voteTypeLocked={voteTypeLocked}
-          tensionsPending={tourActive ? false : tensionsPending}
-          tensionsError={tourActive ? null : tensionsError}
-          tensionDrafts={tourActive ? null : tensionDrafts}
-          onGenerateTensions={tourActive ? noop : requestTensions}
-          onPublishTensions={tourActive ? noop : publishTensions}
-          onClearTensionDrafts={tourActive ? noop : clearTensionDrafts}
         />
       )}
       {view === 'results' && (
@@ -994,9 +997,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           cgPending={tourActive ? false : cgPending}
           cgPendingDepth={tourActive ? null : cgPendingDepth}
           cgError={tourActive ? null : cgError}
+          defaultDepth={cgDepth}
           onGenerateCommonGround={tourActive ? noop : requestCommonGround}
           onDismissCommonGround={tourActive ? noop : dismissCommonGround}
           onVoteCommonGround={tourActive ? noop : voteCommonGround}
+          tensionsPending={tourActive ? false : tensionsPending}
+          tensionsError={tourActive ? null : tensionsError}
+          tensionDrafts={tourActive ? null : tensionDrafts}
+          onGenerateTensions={tourActive ? noop : requestTensions}
+          onPublishTensions={tourActive ? noop : publishTensions}
+          onClearTensionDrafts={tourActive ? noop : clearTensionDrafts}
         />
       )}
       {view === 'participants' && isHost && (
@@ -1006,6 +1016,18 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           canManageHosts={isHost}
           onToggleHost={requestToggleHost}
           onSetRecorder={requestSetRecorder}
+        />
+      )}
+      {view === 'settings' && isHost && (
+        <SettingsPanel
+          roomLanguage={roomLanguage}
+          onLanguageChange={handleLanguageChange}
+          cgDepth={cgDepth}
+          onCgDepthChange={handleSetCgDepth}
+          autoApprove={autoApprove}
+          onToggleAutoApprove={handleToggleAutoApprove}
+          voteType={voteType}
+          voteTypeLocked={voteTypeLocked}
         />
       )}
 

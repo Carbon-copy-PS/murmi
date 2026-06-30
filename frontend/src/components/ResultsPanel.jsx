@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CG_DEPTH_OPTIONS, CG_DEPTH_LABELS, CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
+import { CG_DEPTH_LABELS, CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
+import TensionGenerator from './tension-generator'
+import { canGenerateTensions } from '../utils/tension-stats'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
 import {
   buildCSV,
@@ -634,47 +636,6 @@ function CgExtraList({ title, items, testId }) {
   )
 }
 
-function CgDepthPicker({ sorted, canGenerate, pending, payload, onGenerate, onClose, popover = false }) {
-  return (
-    <div
-      className={`cg-depth-picker ${popover ? 'popover' : ''}`}
-      data-testid="cg-depth-picker"
-      role={popover ? 'dialog' : undefined}
-      aria-label={popover ? 'Choose analysis depth' : undefined}
-    >
-      <span className="cg-depth-picker-label">
-        {sorted.length ? 'Choose depth for the next version' : 'Choose analysis depth'}
-      </span>
-      <div className="cg-depth-options">
-        {CG_DEPTH_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            className={`cg-depth-btn depth-${opt.id}`}
-            data-testid={`cg-generate-${opt.id}`}
-            disabled={!canGenerate || pending}
-            onClick={() => {
-              onGenerate(payload, opt.id)
-              onClose?.()
-            }}
-            title={opt.hint}
-          >
-            <span className="cg-depth-btn-tier">Level {opt.tier}</span>
-            <span className="cg-depth-btn-label">
-              {opt.label}
-              {opt.recommended && <span className="cg-depth-rec">Recommended</span>}
-            </span>
-            <span className="cg-depth-btn-hint">{opt.hint}</span>
-          </button>
-        ))}
-      </div>
-      {!canGenerate && (
-        <p className="cg-hint">Needs votes on at least one statement before generating.</p>
-      )}
-    </div>
-  )
-}
-
 function CommonGroundSection({
   history,
   pending,
@@ -682,19 +643,27 @@ function CommonGroundSection({
   error,
   isHost,
   payload,
+  defaultDepth = 'extended',
   onGenerate,
   onDismiss,
   onVote,
+  statements = [],
+  tensionsPending = false,
+  tensionsError = null,
+  tensionDrafts = null,
+  onGenerateTensions,
+  onPublishTensions,
+  onClearTensionDrafts,
 }) {
   const canGenerate =
     isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
   const depthLabel = pending && pendingDepth ? CG_DEPTH_LABELS[pendingDepth] : null
+  const defaultDepthLabel = CG_DEPTH_LABELS[defaultDepth] || 'Extended'
   const sorted = useMemo(
     () => [...(history || [])].sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0)),
     [history],
   )
   const [selectedId, setSelectedId] = useState(null)
-  const [generateOpen, setGenerateOpen] = useState(false)
   const selected = sorted.find((item) => item.id === selectedId) || sorted[0] || null
   const multiVersion = sorted.length > 1
 
@@ -710,8 +679,6 @@ function CommonGroundSection({
 
   if (!isHost && !sorted.length && !pending) return null
 
-  const showGeneratePanel = isHost && (generateOpen || !sorted.length)
-
   return (
     <section className="result-section common-ground" data-testid="common-ground">
       <div className="result-section-head cg-section-head">
@@ -724,30 +691,16 @@ function CommonGroundSection({
           </span>
         </div>
         {isHost && sorted.length > 0 && (
-          <div className="cg-generate-anchor">
-            <button
-              type="button"
-              className={`cg-new-version-btn ${generateOpen ? 'open' : ''}`}
-              data-testid="cg-toggle-generate"
-              disabled={pending}
-              aria-expanded={generateOpen}
-              aria-haspopup="dialog"
-              onClick={() => setGenerateOpen((o) => !o)}
-            >
-              {generateOpen ? 'Cancel' : '+ New version'}
-            </button>
-            {generateOpen && !pending && (
-              <CgDepthPicker
-                sorted={sorted}
-                canGenerate={canGenerate}
-                pending={pending}
-                payload={payload}
-                onGenerate={onGenerate}
-                onClose={() => setGenerateOpen(false)}
-                popover
-              />
-            )}
-          </div>
+          <button
+            type="button"
+            className="cg-new-version-btn"
+            data-testid="cg-generate"
+            disabled={!canGenerate || pending}
+            onClick={() => onGenerate(payload, defaultDepth)}
+            title={`Generate a ${defaultDepthLabel} version — change depth in Settings`}
+          >
+            + New version
+          </button>
         )}
       </div>
 
@@ -768,9 +721,34 @@ function CommonGroundSection({
 
       {!pending && error && <p className="cg-error" data-testid="cg-error">{error}</p>}
 
-      {!pending && !sorted.length && isHost && !showGeneratePanel && (
+      {!pending && !sorted.length && isHost && (
         <div className="cg-empty" data-testid="cg-empty">
-          <p>No common ground yet. Generate one when the room has voted on a few statements.</p>
+          <span className="cg-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+              <circle cx="12" cy="12" r="3.2" />
+            </svg>
+          </span>
+          <div className="cg-empty-copy">
+            <p className="cg-empty-title">No common ground yet</p>
+            <p className="cg-empty-sub">Generate a synthesis once the room has voted on a few statements.</p>
+          </div>
+          <button
+            type="button"
+            className="cg-generate-cta"
+            data-testid="cg-generate"
+            disabled={!canGenerate || pending}
+            onClick={() => onGenerate(payload, defaultDepth)}
+            title={`Generate a ${defaultDepthLabel} version — change depth in Settings`}
+          >
+            Generate common ground
+          </button>
+          <span className="cg-depth-note" data-testid="cg-depth-note">
+            {defaultDepthLabel} depth · <span className="cg-depth-note-link">change in Settings</span>
+          </span>
+          {!canGenerate && (
+            <p className="cg-hint">Needs votes on at least one statement before generating.</p>
+          )}
         </div>
       )}
 
@@ -787,14 +765,19 @@ function CommonGroundSection({
         />
       )}
 
-      {isHost && showGeneratePanel && !sorted.length && (
-        <CgDepthPicker
-          sorted={sorted}
-          canGenerate={canGenerate}
-          pending={pending}
-          payload={payload}
-          onGenerate={onGenerate}
-        />
+      {isHost && onGenerateTensions && canGenerateTensions(statements) && (
+        <div className="cg-tensions" data-testid="cg-tensions">
+          <div className="section-divider"><span>Surface open tensions</span></div>
+          <TensionGenerator
+            statements={statements}
+            pending={tensionsPending}
+            error={tensionsError}
+            drafts={tensionDrafts}
+            onGenerate={onGenerateTensions}
+            onPublish={onPublishTensions}
+            onClearDrafts={onClearTensionDrafts}
+          />
+        </div>
       )}
     </section>
   )
@@ -811,9 +794,16 @@ export default function ResultsPanel({
   cgPending = false,
   cgPendingDepth = null,
   cgError = null,
+  defaultDepth = 'extended',
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
   onVoteCommonGround = () => {},
+  tensionsPending = false,
+  tensionsError = null,
+  tensionDrafts = null,
+  onGenerateTensions,
+  onPublishTensions,
+  onClearTensionDrafts,
 }) {
   const cluster = useMemo(
     () => (results ? computeOpinionClusters({ ...results, voteType }) : null),
@@ -856,9 +846,17 @@ export default function ResultsPanel({
       error={cgError}
       isHost={isHost}
       payload={cgPayload}
+      defaultDepth={defaultDepth}
       onGenerate={onGenerateCommonGround}
       onDismiss={onDismissCommonGround}
       onVote={onVoteCommonGround}
+      statements={statements}
+      tensionsPending={tensionsPending}
+      tensionsError={tensionsError}
+      tensionDrafts={tensionDrafts}
+      onGenerateTensions={onGenerateTensions}
+      onPublishTensions={onPublishTensions}
+      onClearTensionDrafts={onClearTensionDrafts}
     />
   )
 

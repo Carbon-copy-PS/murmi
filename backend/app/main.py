@@ -433,6 +433,22 @@ async def run_common_ground(
         })
 
 
+def pending_turn_text(entry: dict) -> str:
+    full = (entry.get("text") or "").strip()
+    analyzed = (entry.get("analyzedText") or "").strip()
+    if not analyzed:
+        pending = full
+    elif full == analyzed:
+        pending = ""
+    elif full.startswith(analyzed):
+        pending = full[len(analyzed):].strip()
+    else:
+        pending = full
+    if is_low_information_transcript(pending):
+        return ""
+    return pending
+
+
 async def run_turn_analysis(session_id: str, entry_id: str):
     await asyncio.sleep(SPEAKER_TURN_IDLE_SECONDS)
 
@@ -440,15 +456,21 @@ async def run_turn_analysis(session_id: str, entry_id: str):
     if not session:
         return
     entry = next((e for e in session.transcript if e.get("id") == entry_id), None)
-    if not entry or entry.get("argumentAnalyzed"):
+    if not entry:
+        return
+
+    pending_text = pending_turn_text(entry)
+    if not pending_text:
+        entry["argumentAnalyzed"] = True
         return
     if time.time() - entry.get("updatedAt", entry.get("timestamp", 0)) < SPEAKER_TURN_IDLE_SECONDS:
         schedule_turn_analysis(session_id, entry)
         return
 
     entry["argumentAnalyzed"] = True
+    entry["analyzedText"] = entry.get("text", "")
     new_texts = await analysis.extract_turn_statement(
-        turn_entry=entry,
+        turn_entry={**entry, "text": pending_text},
         existing_statements=[s.text for s in session.statements],
         topic=session.topic,
         language=session_statement_language(session_id),
@@ -537,7 +559,6 @@ async def add_transcript_text(
     if should_merge_transcript(last_entry, speaker, now):
         last_entry["text"] = merge_transcript_text(last_entry.get("text", ""), text)
         last_entry["updatedAt"] = now
-        last_entry["argumentAnalyzed"] = False
         last_entry.setdefault("itemIds", [])
         if item_id:
             last_entry["itemIds"].append(item_id)
@@ -558,6 +579,7 @@ async def add_transcript_text(
         "timestamp": now,
         "updatedAt": now,
         "argumentAnalyzed": False,
+        "analyzedText": "",
     }
     if item_id:
         entry["itemId"] = item_id
@@ -812,12 +834,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 payload = data.get("analysis")
                 if not isinstance(payload, dict):
                     continue
-                depth = data.get("depth") or "basic"
+                session = sessions.get(session_id)
+                depth = data.get("depth") or (session.common_ground_depth if session else "extended")
                 if depth not in ("basic", "extended", "comprehensive"):
-                    depth = "basic"
+                    depth = "extended"
                 payload = dict(payload)
                 payload["previousFeedback"] = sessions.collect_common_ground_feedback(session_id)
-                session = sessions.get(session_id)
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
                 await sessions.broadcast(session_id, {"type": "common_ground_pending", "depth": depth})
@@ -938,6 +960,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await sessions.broadcast(session_id, {
                         "type": "vote_type_updated",
                         "voteType": vote_type,
+                    })
+
+            elif msg_type == "set_common_ground_depth":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                depth = sessions.set_common_ground_depth(session_id, data.get("depth"))
+                if depth:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_depth_updated",
+                        "depth": depth,
                     })
 
             elif msg_type == "set_topic":

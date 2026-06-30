@@ -2564,7 +2564,12 @@ html.room-record-view #root {
 
 .tab {
   flex: 1;
-  padding: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  white-space: nowrap;
+  padding: 0.6rem 0.4rem;
   background: none;
   border: none;
   font-size: 0.9rem;
@@ -2584,18 +2589,88 @@ html.room-record-view #root {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 17px;
+  height: 17px;
   padding: 0 5px;
   margin-left: 6px;
-  border-radius: 9px;
-  background: #e00;
-  color: white;
-  font-size: 0.7rem;
+  border-radius: 999px;
+  background: var(--ds-surface-2);
+  color: var(--ds-text-muted);
+  font-size: 0.66rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-shadow: inset 0 0 0 1px var(--ds-border);
 }
 
-.badge.pending { background: #e0a400; }
+.tab.active .badge {
+  background: rgba(42, 157, 78, 0.14);
+  color: #248443;
+  box-shadow: inset 0 0 0 1px rgba(42, 157, 78, 0.3);
+}
+
+.badge.pending {
+  background: rgba(224, 164, 0, 0.16);
+  color: #9a6f00;
+  box-shadow: inset 0 0 0 1px rgba(224, 164, 0, 0.35);
+}
+
+/* Settings panel */
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 14px;
+  background: var(--ds-surface);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+.settings-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.settings-section-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.settings-section-hint {
+  font-size: 0.74rem;
+  color: var(--ds-text-muted);
+  line-height: 1.35;
+}
+
+.settings-depth-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+@media (max-width: 640px) {
+  .settings-depth-options { grid-template-columns: 1fr; }
+}
+
+.cg-depth-btn.is-active {
+  border-color: #2a9d4e;
+  background: rgba(42, 157, 78, 0.1);
+  box-shadow: inset 0 0 0 1px #2a9d4e;
+}
+
+.cg-depth-note {
+  font-size: 0.72rem;
+  color: var(--ds-text-muted);
+}
 
 /* Host toolbar — compact vote scale + auto-approve */
 .host-toolbar {
@@ -4723,18 +4798,94 @@ html.room-record-view #root {
 }
 
 .cg-empty {
-  padding: 0.85rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.55rem;
+  padding: 1.6rem 1.25rem;
   border: 1px dashed var(--ds-border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--ds-surface);
   margin-bottom: 0.75rem;
 }
 
 .cg-empty p {
   margin: 0;
-  font-size: 0.84rem;
+}
+
+.cg-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(42, 157, 78, 0.12);
+  color: #2a9d4e;
+  margin-bottom: 0.1rem;
+}
+
+.cg-empty-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 30rem;
+}
+
+.cg-empty-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.cg-empty-sub {
+  font-size: 0.82rem;
   color: var(--ds-text-muted);
   line-height: 1.45;
+}
+
+.cg-generate-cta {
+  margin-top: 0.35rem;
+  padding: 0.6rem 1.4rem;
+  border: none;
+  border-radius: 999px;
+  background: #2a9d4e;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12), 0 4px 12px rgba(42, 157, 78, 0.22);
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.cg-generate-cta:hover:not(:disabled) {
+  background: #238442;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12), 0 6px 16px rgba(42, 157, 78, 0.3);
+}
+
+.cg-generate-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.cg-generate-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.cg-depth-note-link {
+  color: #2a9d4e;
+  font-weight: 600;
+}
+
+.cg-tensions {
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+}
+
+.cg-tensions .section-divider {
+  margin-bottom: 0.75rem;
 }
 
 .cg-close-btn {

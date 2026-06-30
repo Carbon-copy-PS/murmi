@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
-import TensionGenerator from './tension-generator'
 import { isAiStatement, StatementTags } from './statement-tags'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold, onReject, onEdit, canEdit }) {
@@ -130,17 +129,9 @@ export default function StatementsPanel({
   onEditStatement,
   onAddStatement,
   autoApprove = false,
-  onToggleAutoApprove,
   heldIds,
   onHold,
   voteType = 'binary',
-  voteTypeLocked = false,
-  tensionsPending = false,
-  tensionsError = null,
-  tensionDrafts = null,
-  onGenerateTensions,
-  onPublishTensions,
-  onClearTensionDrafts,
 }) {
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
@@ -185,41 +176,6 @@ export default function StatementsPanel({
 
   return (
     <div className="statements-panel">
-      {isHost && (
-        <div className="host-toolbar" data-testid="host-toolbar">
-          <div className="host-toolbar-group">
-            <span className="host-toolbar-label">Vote scale</span>
-            <span
-              className="vote-type-locked"
-              data-testid="vote-type-display"
-              title={voteTypeLocked ? 'Vote scale is locked for this session.' : undefined}
-            >
-              {voteType === 'likert' ? 'Likert (5-point)' : 'Agree / Disagree'}
-              {voteTypeLocked && <span className="vote-type-lock" aria-label="Locked">🔒</span>}
-            </span>
-          </div>
-          <div className="host-toolbar-group">
-            <span
-              className="host-toolbar-label"
-              title={isRecorder
-                ? 'Statements from your mic go live after 5s unless you hold them for review.'
-                : 'Your preference — applies to statements captured while you hold the mic.'}
-            >
-              Auto-approve
-            </span>
-            <label className="switch" data-testid="auto-approve-switch">
-              <input
-                type="checkbox"
-                checked={autoApprove}
-                onChange={(e) => onToggleAutoApprove(e.target.checked)}
-                data-testid="auto-approve-input"
-              />
-              <span className="switch-slider" />
-            </label>
-          </div>
-        </div>
-      )}
-
       {isHost && (
         <div className="host-composer" data-testid="host-composer">
           <button
@@ -274,18 +230,6 @@ export default function StatementsPanel({
             </div>
           )}
         </div>
-      )}
-
-      {isHost && (
-        <TensionGenerator
-          statements={statements}
-          pending={tensionsPending}
-          error={tensionsError}
-          drafts={tensionDrafts}
-          onGenerate={onGenerateTensions}
-          onPublish={onPublishTensions}
-          onClearDrafts={onClearTensionDrafts}
-        />
       )}
 
       {isHost && pending.length > 0 && (
