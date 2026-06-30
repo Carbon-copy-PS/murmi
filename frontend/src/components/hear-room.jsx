@@ -107,9 +107,13 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [cgDepth, setCgDepth] = useState(DEFAULT_CG_DEPTH)
+  const [expiresAt, setExpiresAt] = useState(null)
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
+  const [canAddStatement, setCanAddStatement] = useState(true)
+  const [defaultCanAddStatement, setDefaultCanAddStatement] = useState(true)
+  const [statementSubmitted, setStatementSubmitted] = useState(false)
   const [heldIds, setHeldIds] = useState(() => new Set())
   const [results, setResults] = useState(null)
   const [commonGroundHistory, setCommonGroundHistory] = useState([])
@@ -136,6 +140,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const approveTimersRef = useRef(new Map())
   const cgTimeoutRef = useRef(null)
   const tensionsTimeoutRef = useRef(null)
+
+  const tabsWrapRef = useRef(null)
+  const tabsScrollRef = useRef(null)
 
   const wsRef = useRef(null)
   const socketRef = useRef(null)
@@ -267,6 +274,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
           if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
+          if (typeof msg.expiresAt === 'number') setExpiresAt(msg.expiresAt)
           if (msg.commonGroundHistory) {
             msg.commonGroundHistory.forEach((item) => cgSeenIdsRef.current.add(item.id))
             setCommonGroundHistory(msg.commonGroundHistory)
@@ -274,6 +282,8 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setParticipants(msg.participantsStatus || [])
           if (msg.presence) setPresence(msg.presence)
           if (typeof msg.autoApprove === 'boolean') setAutoApprove(msg.autoApprove)
+          if (typeof msg.canAddStatement === 'boolean') setCanAddStatement(msg.canAddStatement)
+          if (typeof msg.defaultCanAddStatement === 'boolean') setDefaultCanAddStatement(msg.defaultCanAddStatement)
           if (msg.recording) {
             setRecording(true)
             recordingRef.current = true
@@ -282,6 +292,15 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         }
         case 'participants_status':
           setParticipants(msg.participants || [])
+          break
+        case 'permissions_updated':
+          if (typeof msg.canAddStatement === 'boolean') setCanAddStatement(msg.canAddStatement)
+          break
+        case 'default_statement_permission_updated':
+          if (typeof msg.allowed === 'boolean') setDefaultCanAddStatement(msg.allowed)
+          break
+        case 'statement_submitted':
+          setStatementSubmitted(true)
           break
         case 'presence':
           setPresence({ here: msg.here || 0, votingNow: msg.votingNow || 0 })
@@ -567,6 +586,15 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_depth', depth }))
   }
 
+  function handleToggleStatementPermission(targetId, allowed) {
+    wsRef.current?.send(JSON.stringify({ type: 'set_statement_permission', participantId: targetId, allowed }))
+  }
+
+  function handleSetDefaultStatementPermission(allowed) {
+    setDefaultCanAddStatement(allowed)
+    wsRef.current?.send(JSON.stringify({ type: 'set_default_statement_permission', allowed }))
+  }
+
   function handleToggleHost(targetId, makeHost) {
     wsRef.current?.send(JSON.stringify({ type: 'set_host', participantId: targetId, host: makeHost }))
   }
@@ -711,6 +739,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   }
 
   function handleAddStatement(text) {
+    setStatementSubmitted(false)
     wsRef.current?.send(JSON.stringify({ type: 'add_statement', text }))
   }
 
@@ -757,6 +786,21 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     setView('results')
     setCgPopup(null)
   }
+
+  function updateTabsScrollHint() {
+    const el = tabsScrollRef.current
+    const wrap = tabsWrapRef.current
+    if (!el || !wrap) return
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
+    const overflowing = el.scrollWidth > el.clientWidth + 4
+    wrap.classList.toggle('scroll-end', atEnd || !overflowing)
+  }
+
+  useEffect(() => {
+    updateTabsScrollHint()
+    window.addEventListener('resize', updateTabsScrollHint)
+    return () => window.removeEventListener('resize', updateTabsScrollHint)
+  }, [isHost, isRecorder])
 
   return (
     <div className={`room${view === 'record' ? ' room-record' : ''}`}>
@@ -899,7 +943,8 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         />
       )}
 
-      <div className="tabs">
+      <div className="tabs-wrap" ref={tabsWrapRef} data-testid="tabs-wrap">
+      <div className="tabs" ref={tabsScrollRef} onScroll={updateTabsScrollHint}>
         {isRecorder && (
           <button
             className={`tab ${view === 'record' ? 'active' : ''}`}
@@ -946,6 +991,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           </button>
         )}
       </div>
+        <span className="tabs-scroll-hint" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
+      </div>
 
       {view === 'record' && (
         <div className="record-view" data-testid="record-view">
@@ -971,6 +1022,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onReject={tourActive ? noop : handleReject}
           onEditStatement={tourActive ? noop : handleEditStatement}
           onAddStatement={tourActive ? noop : handleAddStatement}
+          canAddStatement={canAddStatement}
+          statementSubmitted={statementSubmitted}
+          onClearStatementSubmitted={() => setStatementSubmitted(false)}
           autoApprove={autoApprove}
           heldIds={heldIds}
           onHold={tourActive ? noop : handleHold}
@@ -1008,6 +1062,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           canManageHosts={isHost}
           onToggleHost={requestToggleHost}
           onSetRecorder={requestSetRecorder}
+          onToggleStatementPermission={handleToggleStatementPermission}
         />
       )}
       {view === 'settings' && isHost && (
@@ -1020,6 +1075,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onToggleAutoApprove={handleToggleAutoApprove}
           voteType={voteType}
           voteTypeLocked={voteTypeLocked}
+          defaultCanAddStatement={defaultCanAddStatement}
+          onToggleDefaultStatementPermission={handleSetDefaultStatementPermission}
+          expiresAt={expiresAt}
         />
       )}
 

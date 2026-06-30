@@ -1,5 +1,48 @@
+import { useEffect, useState } from 'react'
 import LanguageSelect from '../language-select'
 import { CG_DEPTH_OPTIONS } from '../../constants/common-ground-depth'
+
+function formatTimeLeft(ms) {
+  if (ms <= 0) return 'Expired'
+  const totalMinutes = Math.floor(ms / 60000)
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+  if (days > 0) return `${days}d ${hours}h left`
+  if (hours > 0) return `${hours}h ${minutes}m left`
+  if (minutes > 0) return `${minutes}m left`
+  return 'Less than a minute left'
+}
+
+function SessionLifetime({ expiresAt }) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(t)
+  }, [])
+
+  if (!expiresAt) return null
+  const msLeft = expiresAt * 1000 - now
+  const expired = msLeft <= 0
+
+  return (
+    <section className="settings-section" data-testid="settings-lifetime">
+      <div className="settings-section-head">
+        <span className="settings-section-title">Session lifetime</span>
+        <span className="settings-section-hint">
+          When the timer runs out, this session and all of its transcript, statements, votes and
+          common ground are permanently deleted and cannot be recovered. Export a copy from the
+          {' '}<strong>Results</strong> tab before then to keep it.
+        </span>
+      </div>
+      <span className={`session-lifetime-pill ${expired ? 'expired' : ''}`} data-testid="settings-time-left">
+        <span className="session-lifetime-dot" aria-hidden="true" />
+        {formatTimeLeft(msLeft)}
+      </span>
+    </section>
+  )
+}
 
 export default function SettingsPanel({
   roomLanguage = 'auto',
@@ -10,9 +53,14 @@ export default function SettingsPanel({
   onToggleAutoApprove,
   voteType = 'binary',
   voteTypeLocked = false,
+  defaultCanAddStatement = true,
+  onToggleDefaultStatementPermission,
+  expiresAt = null,
 }) {
   return (
     <div className="settings-panel" data-testid="settings-panel">
+      <SessionLifetime expiresAt={expiresAt} />
+
       <section className="settings-section" data-testid="settings-language">
         <div className="settings-section-head">
           <span className="settings-section-title">Spoken language</span>
@@ -46,6 +94,22 @@ export default function SettingsPanel({
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-section" data-testid="settings-participant-arguments">
+        <div className="settings-section-head">
+          <span className="settings-section-title">Let participants add arguments</span>
+          <span className="settings-section-hint">Default for people who join from now on. Existing participants keep their current access (manage them in Participants).</span>
+        </div>
+        <label className="switch" data-testid="settings-default-add">
+          <input
+            type="checkbox"
+            checked={defaultCanAddStatement}
+            onChange={(e) => onToggleDefaultStatementPermission(e.target.checked)}
+            data-testid="settings-default-add-input"
+          />
+          <span className="switch-slider" />
+        </label>
       </section>
 
       <section className="settings-section" data-testid="settings-moderation">

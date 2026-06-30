@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'motion/react'
-import { StatementTags } from './statement-tags'
+import { StatementTags, StatementByline } from './statement-tags'
 import NeutralIcon from './neutral-icon'
 
 const SWIPE_DISTANCE = 110
@@ -307,6 +307,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
             </>
           )}
           <StatementTags statement={top} />
+          <StatementByline statement={top} />
           <p className="swipe-text">{top.text}</p>
           <span className="swipe-hint-row" aria-hidden="true">
             <span className="swipe-grip"><span /><span /><span /></span>

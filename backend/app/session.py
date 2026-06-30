@@ -36,6 +36,8 @@ class Statement:
     tension: bool = False
     edited: bool = False
     created_at: float = field(default_factory=time.time)
+    author: Optional[str] = None
+    snapshot: Optional[dict] = None
     votes: Dict[str, str] = field(default_factory=dict)
 
 
@@ -60,6 +62,8 @@ class Session:
     known_participants: Dict[str, str] = field(default_factory=dict)
     common_ground_history: list = field(default_factory=list)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
+    statement_perms: Dict[str, bool] = field(default_factory=dict)
+    default_can_add_statement: bool = True
 
 
 SILENCE_THRESHOLD = 0.01
@@ -107,6 +111,8 @@ class SessionManager:
         )
         session.transcript = list(data.get("transcript", []))
         session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
+        if "default_can_add_statement" in data:
+            session.default_can_add_statement = bool(data["default_can_add_statement"])
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -116,6 +122,8 @@ class SessionManager:
                 session.host_client_ids.add(client_id)
             if client_id and "auto_approve" in member:
                 session.auto_approve_prefs[client_id] = bool(member["auto_approve"])
+            if client_id and "can_add_statement" in member:
+                session.statement_perms[client_id] = bool(member["can_add_statement"])
         for s in data.get("statements", []):
             session.statements.append(Statement(
                 id=s["id"],
@@ -165,6 +173,10 @@ class SessionManager:
         if client_id:
             session.known_participants[client_id] = participant_id
 
+        perm_key = client_id or participant_id
+        if perm_key not in session.statement_perms:
+            session.statement_perms[perm_key] = session.default_can_add_statement
+
         already_host = self._is_host(session, participant_id)
         if not already_host and wants_host and not session.host_client_ids:
             if client_id:
@@ -197,10 +209,13 @@ class SessionManager:
             ),
             "voteType": session.vote_type,
             "voteTypeLocked": session.started,
+            "expiresAt": session.expires_at,
             "commonGroundDepth": session.common_ground_depth,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
+            "canAddStatement": self.can_add_statement(session_id, participant_id),
+            "defaultCanAddStatement": session.default_can_add_statement,
             "language": language,
             "recorderLanguage": self.get_recorder_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
@@ -481,6 +496,9 @@ class SessionManager:
             "custom": stmt.custom,
             "tension": stmt.tension,
             "edited": stmt.edited,
+            "author": stmt.author,
+            "createdAt": stmt.created_at,
+            "snapshot": stmt.snapshot,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
@@ -535,6 +553,65 @@ class SessionManager:
             return None
         session.auto_approve_prefs[client_id] = value
         return client_id
+
+    def can_add_statement(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        if self._is_host(session, participant_id):
+            return True
+        participant = session.participants.get(participant_id)
+        client_id = participant.client_id if participant else None
+        if not client_id:
+            return session.statement_perms.get(participant_id, True)
+        return session.statement_perms.get(client_id, True)
+
+    def set_default_can_add_statement(self, session_id: str, allowed: bool) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        session.default_can_add_statement = allowed
+        return True
+
+    def set_statement_permission(
+        self, session_id: str, participant_id: str, allowed: bool
+    ) -> Optional[str]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        participant = session.participants.get(participant_id)
+        if not participant:
+            return None
+        key = participant.client_id or participant_id
+        session.statement_perms[key] = allowed
+        return key
+
+    def add_participant_statement(
+        self, session_id: str, text: str, author: str | None = None
+    ) -> Optional[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        clean = (text or "").strip()[:240]
+        if not clean:
+            return None
+        if normalize_statement(clean) in {normalize_statement(s.text) for s in session.statements}:
+            return None
+        snapshot = {
+            "participantCount": len(session.participants),
+            "statementCount": sum(1 for s in session.statements if s.approved),
+        }
+        stmt = Statement(
+            id=uuid.uuid4().hex[:8],
+            text=clean,
+            round=1,
+            approved=False,
+            custom=True,
+            author=author,
+            snapshot=snapshot,
+        )
+        session.statements.append(stmt)
+        return stmt
 
     def _cg_vote_tally(self, participant_votes: dict) -> dict:
         agree = sum(1 for v in participant_votes.values() if v.get("vote") == "agree")
@@ -744,6 +821,7 @@ class SessionManager:
                 "language": p.language,
                 "isHost": self._is_host(session, p.id),
                 "isRecorder": p.id == session.host_participant_id,
+                "canAddStatement": self.can_add_statement(session_id, p.id),
                 "votesCast": sum(1 for s in approved if p.id in s.votes),
                 "votesRequired": required,
             }

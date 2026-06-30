@@ -21,7 +21,8 @@ function initials(name) {
     .join('')
 }
 
-function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder }) {
+function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onToggleStatementPermission }) {
+  const canAdd = p.canAddStatement !== false
   const required = p.votesRequired || 0
   const cast = p.votesCast || 0
   const remaining = Math.max(required - cast, 0)
@@ -41,6 +42,9 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder }) {
             {isYou && <span className="you-chip">You</span>}
             {p.isHost && <span className="host-badge inline" data-testid={`participant-host-${p.id}`}>Host</span>}
             {p.isRecorder && <span className="recorder-chip" title="Recording mic">Mic</span>}
+            {!p.isHost && !canAdd && (
+              <span className="mute-chip" data-testid={`participant-muted-${p.id}`} title="Can't add arguments">Add off</span>
+            )}
           </span>
           {p.language && (
             <span className="participant-lang" title={getLanguageLabel(p.language)}>
@@ -72,6 +76,24 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder }) {
 
       {canManage && (
         <div className="participant-actions">
+          {!p.isHost && (
+            <button
+              className={`host-toggle-btn ${canAdd ? 'revoke' : 'promote'}`}
+              onClick={() => onToggleStatementPermission(p.id, !canAdd)}
+              title={canAdd ? 'Revoke permission to add arguments' : 'Allow adding arguments'}
+              data-testid={`toggle-add-${p.id}`}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                {canAdd ? (
+                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M5 12h14" />
+                ) : (
+                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 5v14M5 12h14" />
+                )}
+              </svg>
+              <span>{canAdd ? 'Block adding' : 'Allow adding'}</span>
+            </button>
+          )}
+
           {p.isHost && !p.isRecorder && (
             <button
               className="host-toggle-btn mic"
@@ -117,7 +139,7 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder }) {
   )
 }
 
-export default function ParticipantsPanel({ participants = [], currentId, canManageHosts = false, onToggleHost = () => {}, onSetRecorder = () => {} }) {
+export default function ParticipantsPanel({ participants = [], currentId, canManageHosts = false, onToggleHost = () => {}, onSetRecorder = () => {}, onToggleStatementPermission = () => {} }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('name')
@@ -249,6 +271,7 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
               canManage={canManageHosts}
               onToggleHost={onToggleHost}
               onSetRecorder={onSetRecorder}
+              onToggleStatementPermission={onToggleStatementPermission}
             />
           ))}
         </ul>

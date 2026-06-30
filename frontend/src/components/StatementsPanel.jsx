@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
-import { isAiStatement, StatementTags } from './statement-tags'
+import { isAiStatement, StatementTags, StatementByline } from './statement-tags'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold, onReject, onEdit, canEdit }) {
   const [editing, setEditing] = useState(false)
@@ -28,6 +28,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
   return (
     <div className={`flash-card statement-card pending-card${editing ? ' is-editing' : ''}`} data-testid={`pending-${statement.id}`}>
       <StatementTags statement={statement} />
+      <StatementByline statement={statement} />
       <div className="pending-card-tools">
         {showEdit && !editing && (
           <button
@@ -128,6 +129,9 @@ export default function StatementsPanel({
   onReject,
   onEditStatement,
   onAddStatement,
+  canAddStatement = false,
+  statementSubmitted = false,
+  onClearStatementSubmitted,
   autoApprove = false,
   heldIds,
   onHold,
@@ -138,6 +142,13 @@ export default function StatementsPanel({
   const [votesOpen, setVotesOpen] = useState(false)
   const [composerOpen, setComposerOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  const showComposer = isHost || canAddStatement
+
+  useEffect(() => {
+    if (!statementSubmitted) return undefined
+    const t = setTimeout(() => onClearStatementSubmitted?.(), 4000)
+    return () => clearTimeout(t)
+  }, [statementSubmitted, onClearStatementSubmitted])
 
   const held = heldIds || new Set()
   const pending = isHost ? statements.filter((s) => !s.approved) : []
@@ -176,7 +187,7 @@ export default function StatementsPanel({
 
   return (
     <div className="statements-panel">
-      {isHost && (
+      {showComposer && (
         <div className="host-composer" data-testid="host-composer">
           <button
             type="button"
@@ -192,7 +203,7 @@ export default function StatementsPanel({
           >
             <span className="host-composer-toggle-label">
               <span className="composer-icon-sm" aria-hidden="true">＋</span>
-              Add statement
+              {isHost ? 'Add statement' : 'Add an argument'}
               {draft.trim() && !composerOpen && <span className="composer-draft-dot" aria-label="Draft in progress" />}
             </span>
             <span className={`votes-recap-chevron ${composerOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
@@ -216,7 +227,7 @@ export default function StatementsPanel({
               <div className="composer-footer">
                 <span className="composer-hint">
                   <span className="composer-dot" aria-hidden="true" />
-                  Shared instantly
+                  {isHost ? 'Shared instantly' : 'Sent to the host for review'}
                 </span>
                 <button
                   className="btn primary"
@@ -224,9 +235,14 @@ export default function StatementsPanel({
                   disabled={!draft.trim()}
                   data-testid="composer-add"
                 >
-                  Add
+                  {isHost ? 'Add' : 'Submit'}
                 </button>
               </div>
+              {!isHost && statementSubmitted && (
+                <p className="composer-submitted" data-testid="composer-submitted">
+                  <span aria-hidden="true">✓</span> Sent to the host for review.
+                </p>
+              )}
             </div>
           )}
         </div>

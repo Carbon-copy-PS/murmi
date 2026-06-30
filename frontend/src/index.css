@@ -2585,6 +2585,72 @@ html.room-record-view #root {
   border-bottom-color: var(--ds-text);
 }
 
+.tabs-scroll-hint {
+  display: none;
+}
+
+@media (max-width: 560px) {
+  .tabs-wrap {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding-right: 1.6rem;
+    margin-bottom: 0;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tab {
+    flex: 0 0 auto;
+    padding: 0.6rem 0.85rem;
+  }
+  .tabs-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 1.5px;
+    width: 2.6rem;
+    z-index: 1;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    background: linear-gradient(to right, transparent, var(--ds-bg) 70%);
+  }
+  .tabs-wrap.scroll-end::after,
+  .tabs-wrap.scroll-end .tabs-scroll-hint {
+    opacity: 0;
+  }
+  .tabs-scroll-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    right: 0.15rem;
+    z-index: 2;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ds-surface);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    color: var(--ds-text);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    animation: tabs-hint-nudge 1.3s ease-in-out infinite;
+  }
+}
+
+@keyframes tabs-hint-nudge {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(3px); }
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -2670,6 +2736,38 @@ html.room-record-view #root {
 .cg-depth-note {
   font-size: 0.72rem;
   color: var(--ds-text-muted);
+}
+
+.session-lifetime-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text);
+}
+
+.session-lifetime-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2a9d4e;
+}
+
+.session-lifetime-pill.expired {
+  color: #d92d20;
+  border-color: rgba(240, 68, 56, 0.4);
+  background: rgba(240, 68, 56, 0.08);
+}
+
+.session-lifetime-pill.expired .session-lifetime-dot {
+  background: #f04438;
 }
 
 /* Host toolbar — compact vote scale + auto-approve */
@@ -2857,6 +2955,46 @@ html.room-record-view #root {
   font-size: 0.72rem;
   font-weight: 500;
   color: #98a2b3;
+}
+
+.composer-submitted {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #248443;
+  animation: cg-fade-in 0.18s ease;
+}
+
+.statement-byline {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.1rem 0 0.6rem;
+}
+
+.statement-byline-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(42, 157, 78, 0.14);
+  color: #248443;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.statement-byline-text {
+  font-size: 0.78rem;
+  color: var(--ds-text);
+  line-height: 1.3;
+}
+
+.statement-byline-meta {
+  color: var(--ds-text-muted);
+  font-weight: 500;
 }
 
 .composer-dot {
@@ -6758,6 +6896,19 @@ html.room-record-view #root {
   vertical-align: middle;
 }
 
+.mute-chip {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(240, 68, 56, 0.12);
+  color: #d92d20;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+
 .participant-actions {
   display: flex;
   align-items: center;
@@ -6806,6 +6957,30 @@ html.room-record-view #root {
   border-color: #f04438;
   color: #f04438;
   background: rgba(240, 68, 56, 0.08);
+}
+
+@media (max-width: 560px) {
+  .participant-row {
+    flex-wrap: wrap;
+    padding: 0.7rem;
+    gap: 0.6rem;
+  }
+  .participant-head {
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+  }
+  .participant-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: stretch;
+    gap: 0.5rem;
+  }
+  .participant-actions .host-toggle-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    padding: 0.5rem 0.5rem;
+  }
 }
 
 /* Confirm dialog */

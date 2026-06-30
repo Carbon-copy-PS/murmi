@@ -855,6 +855,37 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 if client_id:
                     await _safe_db(db.save_auto_approve(session_id, client_id, value))
 
+            elif msg_type == "set_default_statement_permission":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                allowed = bool(data.get("allowed", True))
+                if sessions.set_default_can_add_statement(session_id, allowed):
+                    await sessions.broadcast(session_id, {
+                        "type": "default_statement_permission_updated",
+                        "allowed": allowed,
+                    })
+
+            elif msg_type == "set_statement_permission":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                target = data.get("participantId")
+                allowed = bool(data.get("allowed", True))
+                if not target:
+                    continue
+                if sessions.set_statement_permission(session_id, target, allowed) is None:
+                    continue
+                await sessions.broadcast_participants(session_id)
+                session = sessions.get(session_id)
+                target_p = session.participants.get(target) if session else None
+                if target_p:
+                    try:
+                        await target_p.websocket.send_json({
+                            "type": "permissions_updated",
+                            "canAddStatement": allowed,
+                        })
+                    except Exception:
+                        pass
+
             elif msg_type == "vote_common_ground":
                 cg_id = data.get("id") or ""
                 vote_value = data.get("vote", "")
@@ -906,15 +937,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await _safe_db(db.delete_statements(removed))
 
             elif msg_type == "add_statement":
-                if not sessions.is_host(session_id, participant_id):
-                    continue
                 text = (data.get("text") or "").strip()
                 if not text:
                     continue
-                stmt = sessions.add_custom_statement(session_id, text)
+                is_host = sessions.is_host(session_id, participant_id)
+                if is_host:
+                    stmt = sessions.add_custom_statement(session_id, text)
+                elif sessions.can_add_statement(session_id, participant_id):
+                    stmt = sessions.add_participant_statement(
+                        session_id, text, sessions.get_participant_name(session_id, participant_id)
+                    )
+                else:
+                    continue
                 if stmt:
                     await _safe_db(db.save_statements(sessions.get(session_id), [stmt]))
                     await sessions.broadcast_statements(session_id)
+                    if not is_host:
+                        await websocket.send_json({"type": "statement_submitted"})
 
             elif msg_type == "edit_statement":
                 if not sessions.is_host(session_id, participant_id):
