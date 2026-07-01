@@ -59,23 +59,27 @@ export const TOUR_PARTICIPANTS = [
 
 function buildSteps({ isHost, isRecorder, baseView, t }) {
   const steps = []
+  const roleKey = isHost ? 'host' : 'guest'
 
-  steps.push({
-    view: baseView,
-    element: '[data-testid="code-pill"]',
-    popover: {
-      title: t('tour.codeTitle'),
-      description: t('tour.codeDesc'),
-    },
+  const push = (step) => steps.push(step)
+  const pop = (title, description, extra = {}) => ({
+    title,
+    description,
+    ...extra,
   })
 
-  steps.push({
+  push({
+    view: baseView,
+    popover: pop(
+      t('tour.welcomeTitle'),
+      t(`tour.welcomeDesc_${roleKey}`),
+    ),
+  })
+
+  push({
     view: baseView,
     element: '[data-testid="share-btn"]',
-    popover: {
-      title: t('tour.inviteTitle'),
-      description: t('tour.inviteDesc'),
-    },
+    popover: pop(t('tour.inviteTitle'), t('tour.inviteDesc')),
   })
 
   const tabNames = [
@@ -83,87 +87,69 @@ function buildSteps({ isHost, isRecorder, baseView, t }) {
     t('tabs.vote'),
     t('tabs.results'),
     isHost && t('tabs.participants'),
+    isHost && t('tabs.settings'),
   ].filter(Boolean)
   const tabList =
     tabNames.length > 1
       ? `${tabNames.slice(0, -1).join(', ')} ${t('tour.and')} ${tabNames[tabNames.length - 1]}`
       : tabNames[0]
-  steps.push({
+  push({
     view: baseView,
     element: '.tabs',
-    popover: {
-      title: t('tour.moveTitle'),
-      description: t('tour.moveDesc', { tabs: tabList }),
-    },
+    popover: pop(t('tour.moveTitle'), t('tour.moveDesc', { tabs: tabList })),
   })
 
   if (isRecorder) {
-    steps.push({
+    push({
       view: 'record',
       element: '.record-btn',
-      popover: {
-        title: t('tour.captureTitle'),
-        description: t('tour.captureDesc'),
-      },
+      popover: pop(t('tour.captureTitle'), t('tour.captureDesc')),
     })
-    steps.push({
+    push({
       view: 'record',
       element: '.transcript',
-      popover: {
-        title: t('tour.transcriptTitle'),
-        description: t('tour.transcriptDesc'),
-      },
+      popover: pop(t('tour.transcriptTitle'), t('tour.transcriptDesc')),
     })
   }
 
-  if (isHost) {
-    steps.push({
-      view: 'statements',
-      element: '[data-testid="host-composer"]',
-      popover: {
-        title: t('tour.curateTitle'),
-        description: t('tour.curateDesc'),
-      },
-    })
-  }
+  push({
+    view: 'statements',
+    element: '[data-testid="host-composer"]',
+    popover: isHost
+      ? pop(t('tour.curateTitle'), t('tour.curateDesc'))
+      : pop(t('tour.addGuestTitle'), t('tour.addGuestDesc')),
+  })
 
-  steps.push({
+  push({
     view: 'statements',
     element: '.swipe-area',
-    popover: {
-      title: t('tour.voteTitle'),
-      description: t('tour.voteDesc'),
-    },
+    popover: pop(t('tour.voteTitle'), t('tour.voteDesc')),
   })
 
-  steps.push({
+  push({
     view: 'results',
     element: '.results-panel',
-    popover: {
-      title: t('tour.standsTitle'),
-      description: t('tour.standsDesc'),
-    },
+    popover: pop(t('tour.standsTitle'), t('tour.standsDesc')),
   })
 
-  steps.push({
+  push({
     view: 'results',
     element: '[data-testid="common-ground"]',
-    popover: {
-      title: t('tour.cgTitle'),
-      description: t('tour.cgDesc'),
-    },
+    popover: pop(t('tour.cgTitle'), t('tour.cgDesc')),
   })
 
   if (isHost) {
-    steps.push({
+    push({
       view: 'participants',
       element: '.participants-panel',
-      popover: {
-        title: t('tour.manageTitle'),
-        description: t('tour.manageDesc'),
-      },
+      popover: pop(t('tour.manageTitle'), t('tour.manageDesc')),
     })
   }
+
+  push({
+    view: baseView,
+    popover: pop(t('tour.finishTitle'), t(`tour.finishDesc_${roleKey}`)),
+  })
 
   return steps
 }
@@ -183,9 +169,12 @@ export function startRoomTour({ isHost = false, isRecorder = false, setView, onD
   const driverObj = driver({
     showProgress: true,
     allowClose: true,
-    overlayOpacity: 0.65,
-    stagePadding: 6,
-    stageRadius: 12,
+    smoothScroll: true,
+    overlayColor: '#0b1220',
+    overlayOpacity: 0.72,
+    stagePadding: 8,
+    stageRadius: 14,
+    popoverClass: 'ds-tour-popover',
     nextBtnText: t('tour.next'),
     prevBtnText: t('tour.back'),
     doneBtnText: t('tour.done'),
