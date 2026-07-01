@@ -373,6 +373,7 @@ async def run_tensions(
         await participant.websocket.send_json({
             "type": "tensions_error",
             "message": "Could not generate tension statements. Try again.",
+            "code": "tensionsFailed",
         })
 
 
@@ -430,6 +431,7 @@ async def run_common_ground(
         await sessions.broadcast(session_id, {
             "type": "common_ground_error",
             "message": "Could not generate common ground. Please try again.",
+            "code": "cgFailed",
         })
 
 
@@ -622,7 +624,7 @@ async def finalize_caption(
         })
 
 
-async def broadcast_caption_error(session_id: str, message: str):
+async def broadcast_caption_error(session_id: str, message: str, code: str | None = None):
     key = (session_id, message)
     if key in realtime_errors_seen:
         return
@@ -630,6 +632,7 @@ async def broadcast_caption_error(session_id: str, message: str):
     await sessions.broadcast(session_id, {
         "type": "caption_error",
         "message": message,
+        "code": code,
     })
 
 
@@ -642,8 +645,12 @@ async def get_realtime_session(
         return None
 
     existing = realtime_sessions.get(key)
-    if existing and existing.is_open:
+    if existing and existing.is_open and not existing.expired:
         return existing
+
+    if existing:
+        realtime_sessions.pop(key, None)
+        asyncio.create_task(existing.close())
 
     speaker = sessions.get_participant_name(session_id, participant_id)
     language = sessions.get_participant_language(session_id, participant_id)
@@ -662,7 +669,8 @@ async def get_realtime_session(
         return bridge
 
     realtime_sessions.pop(key, None)
-    realtime_unavailable.add(key)
+    if not bridge.available:
+        realtime_unavailable.add(key)
     return None
 
 

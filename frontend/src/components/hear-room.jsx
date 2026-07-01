@@ -377,7 +377,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           })
           break
         case 'caption_error':
-          setCaptionError(msg.message || t('errors.captionsUnavailable'))
+          setCaptionError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.captionsUnavailable')))
           break
         case 'caption_rejected':
           setPartialCaption((prev) => (
@@ -447,7 +447,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
           setCgPendingDepth(null)
-          setCgError(msg.message || t('errors.cgFailed'))
+          setCgError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.cgFailed')))
           break
         case 'tensions_pending':
           setTensionsPending(true)
@@ -461,7 +461,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         case 'tensions_error':
           if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
           setTensionsPending(false)
-          setTensionsError(msg.message || t('errors.tensionsFailed'))
+          setTensionsError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.tensionsFailed')))
           break
       }
   }

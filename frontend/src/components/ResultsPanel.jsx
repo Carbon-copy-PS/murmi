@@ -819,7 +819,7 @@ export default function ResultsPanel({
   onPublishTensions,
   onClearTensionDrafts,
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const cluster = useMemo(
     () => (results ? computeOpinionClusters({ ...results, voteType }) : null),
     [results, voteType],
@@ -833,6 +833,8 @@ export default function ResultsPanel({
     cluster,
     commonGroundHistory,
     voteType,
+    t,
+    lang: i18n.language,
   }
 
   const cgPayload = useMemo(() => {
