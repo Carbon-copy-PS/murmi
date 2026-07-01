@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
 import { isAiStatement, StatementTags, StatementByline } from './statement-tags'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold, onReject, onEdit, canEdit }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(statement.text)
   const showEdit = canEdit && isAiStatement(statement)
@@ -35,8 +37,8 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
             type="button"
             className="pending-edit"
             onClick={() => setEditing(true)}
-            title="Edit statement"
-            aria-label="Edit statement"
+            title={t('statements.editStatement')}
+            aria-label={t('statements.editStatement')}
             data-testid={`edit-${statement.id}`}
           >
             ✎
@@ -46,8 +48,8 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
           type="button"
           className="pending-reject"
           onClick={() => onReject(statement.id)}
-          title="Reject statement"
-          aria-label="Reject statement"
+          title={t('statements.rejectStatement')}
+          aria-label={t('statements.rejectStatement')}
           data-testid={`reject-${statement.id}`}
         >
           ×
@@ -67,7 +69,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
           />
           <div className="pending-edit-actions">
             <button type="button" className="btn ghost sm" onClick={cancelEdit} data-testid={`edit-cancel-${statement.id}`}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -76,7 +78,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
               disabled={!draft.trim()}
               data-testid={`edit-save-${statement.id}`}
             >
-              Save
+              {t('common.save')}
             </button>
           </div>
         </div>
@@ -89,7 +91,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
           <div className="countdown-track">
             <div className="countdown-fill" />
           </div>
-          <span className="countdown-label">Auto-approving…</span>
+          <span className="countdown-label">{t('statements.autoApproving')}</span>
         </div>
       )}
 
@@ -102,7 +104,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
               onClick={() => onHold(statement.id)}
               data-testid={`hold-${statement.id}`}
             >
-              Hold for review
+              {t('statements.holdForReview')}
             </button>
           ) : (
             <button
@@ -111,7 +113,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
               onClick={() => onApprove(statement.id)}
               data-testid={`approve-${statement.id}`}
             >
-              Approve
+              {t('statements.approve')}
             </button>
           )}
         </div>
@@ -137,6 +139,7 @@ export default function StatementsPanel({
   onHold,
   voteType = 'binary',
 }) {
+  const { t } = useTranslation()
   const [justVotedId, setJustVotedId] = useState(null)
   const [localVoted, setLocalVoted] = useState(new Set())
   const [votesOpen, setVotesOpen] = useState(false)
@@ -203,8 +206,8 @@ export default function StatementsPanel({
           >
             <span className="host-composer-toggle-label">
               <span className="composer-icon-sm" aria-hidden="true">＋</span>
-              {isHost ? 'Add statement' : 'Add an argument'}
-              {draft.trim() && !composerOpen && <span className="composer-draft-dot" aria-label="Draft in progress" />}
+              {isHost ? t('statements.addStatement') : t('statements.addArgument')}
+              {draft.trim() && !composerOpen && <span className="composer-draft-dot" aria-label={t('statements.draftInProgress')} />}
             </span>
             <span className={`votes-recap-chevron ${composerOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
           </button>
@@ -217,7 +220,7 @@ export default function StatementsPanel({
                   className="composer-input"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="e.g. Switzerland should regulate AI by sector, not with one broad law."
+                  placeholder={t('statements.composerPlaceholder')}
                   rows={2}
                   maxLength={240}
                   data-testid="composer-input"
@@ -227,7 +230,7 @@ export default function StatementsPanel({
               <div className="composer-footer">
                 <span className="composer-hint">
                   <span className="composer-dot" aria-hidden="true" />
-                  {isHost ? 'Shared instantly' : 'Sent to the host for review'}
+                  {isHost ? t('statements.sharedInstantly') : t('statements.sentForReview')}
                 </span>
                 <button
                   className="btn primary"
@@ -235,12 +238,12 @@ export default function StatementsPanel({
                   disabled={!draft.trim()}
                   data-testid="composer-add"
                 >
-                  {isHost ? 'Add' : 'Submit'}
+                  {isHost ? t('statements.add') : t('statements.submit')}
                 </button>
               </div>
               {!isHost && statementSubmitted && (
                 <p className="composer-submitted" data-testid="composer-submitted">
-                  <span aria-hidden="true">✓</span> Sent to the host for review.
+                  <span aria-hidden="true">✓</span> {t('statements.submitted')}
                 </p>
               )}
             </div>
@@ -251,8 +254,8 @@ export default function StatementsPanel({
       {isHost && pending.length > 0 && (
         <>
           <div className="pending-header">
-            <span className="pending-title">Pending approval</span>
-            <span className="pending-count-text">{pending.length} waiting</span>
+            <span className="pending-title">{t('statements.pendingApproval')}</span>
+            <span className="pending-count-text">{t('statements.waiting', { count: pending.length })}</span>
           </div>
           <div className="statement-list" data-testid="pending-list">
             {pending.map((statement) => (
@@ -272,19 +275,19 @@ export default function StatementsPanel({
       )}
 
       {approved.length === 0 && pending.length === 0 ? (
-        <div className="flash-card-empty">Statements will appear as the discussion progresses</div>
+        <div className="flash-card-empty">{t('statements.emptyList')}</div>
       ) : (
         <>
           {unvoted.length > 0 ? (
             <>
               {isHost && pending.length > 0 && (
-                <div className="section-divider"><span>Live</span></div>
+                <div className="section-divider"><span>{t('statements.live')}</span></div>
               )}
               <SwipeDeck statements={unvoted} onVote={handleVote} votedCount={voted.length} voteType={voteType} />
             </>
           ) : (
             approved.length > 0 && (
-              <div className="flash-card-empty">All caught up — waiting for more statements</div>
+              <div className="flash-card-empty">{t('statements.allCaughtUp')}</div>
             )
           )}
 
@@ -298,7 +301,7 @@ export default function StatementsPanel({
                 data-testid="votes-recap-toggle"
               >
                 <span className="votes-recap-title">
-                  Your votes
+                  {t('statements.yourVotes')}
                   <span className="votes-recap-count">{voted.length}</span>
                 </span>
                 <span className={`votes-recap-chevron ${votesOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>

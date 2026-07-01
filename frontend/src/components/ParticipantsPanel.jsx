@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getLanguage, getLanguageLabel } from '../constants/languages'
 
 const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'pending', label: 'Not done' },
-  { id: 'done', label: 'Completed' },
+  { id: 'all', labelKey: 'participants.all' },
+  { id: 'pending', labelKey: 'participants.notDone' },
+  { id: 'done', labelKey: 'participants.completed' },
 ]
 
 const SORTS = [
-  { id: 'name', label: 'Name' },
-  { id: 'progress', label: 'Progress' },
+  { id: 'name', labelKey: 'participants.sortName' },
+  { id: 'progress', labelKey: 'participants.sortProgress' },
 ]
 
 function initials(name) {
@@ -22,6 +23,7 @@ function initials(name) {
 }
 
 function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onToggleStatementPermission }) {
+  const { t } = useTranslation()
   const canAdd = p.canAddStatement !== false
   const required = p.votesRequired || 0
   const cast = p.votesCast || 0
@@ -39,11 +41,11 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
         <div className="participant-head">
           <span className="participant-name" data-testid={`participant-name-${p.id}`}>
             {p.name}
-            {isYou && <span className="you-chip">You</span>}
-            {p.isHost && <span className="host-badge inline" data-testid={`participant-host-${p.id}`}>Host</span>}
-            {p.isRecorder && <span className="recorder-chip" title="Recording mic">Mic</span>}
+            {isYou && <span className="you-chip">{t('common.you')}</span>}
+            {p.isHost && <span className="host-badge inline" data-testid={`participant-host-${p.id}`}>{t('common.host')}</span>}
+            {p.isRecorder && <span className="recorder-chip" title={t('participants.recordingMic')}>{t('participants.mic')}</span>}
             {!p.isHost && !canAdd && (
-              <span className="mute-chip" data-testid={`participant-muted-${p.id}`} title="Can't add arguments">Add off</span>
+              <span className="mute-chip" data-testid={`participant-muted-${p.id}`} title={t('participants.cantAdd')}>{t('participants.addOff')}</span>
             )}
           </span>
           {p.language && (
@@ -66,10 +68,10 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
           <span className="participant-vote-meta" data-testid={`participant-votes-${p.id}`}>
             {cast} / {required}
             {required === 0
-              ? ' — no votes yet'
+              ? t('participants.noVotesYet')
               : done
-                ? ' · done'
-                : <span className="participant-vote-remaining"> · {remaining} left</span>}
+                ? t('participants.done')
+                : <span className="participant-vote-remaining">{t('participants.leftCount', { count: remaining })}</span>}
           </span>
         </div>
       </div>
@@ -80,7 +82,7 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
             <button
               className={`host-toggle-btn ${canAdd ? 'revoke' : 'promote'}`}
               onClick={() => onToggleStatementPermission(p.id, !canAdd)}
-              title={canAdd ? 'Revoke permission to add arguments' : 'Allow adding arguments'}
+              title={canAdd ? t('participants.revokeAddTitle') : t('participants.allowAddTitle')}
               data-testid={`toggle-add-${p.id}`}
             >
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
@@ -90,7 +92,7 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
                   <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 5v14M5 12h14" />
                 )}
               </svg>
-              <span>{canAdd ? 'Block adding' : 'Allow adding'}</span>
+              <span>{canAdd ? t('participants.blockAdding') : t('participants.allowAdding')}</span>
             </button>
           )}
 
@@ -98,14 +100,14 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
             <button
               className="host-toggle-btn mic"
               onClick={() => onSetRecorder(p)}
-              title={isYou ? 'Take the mic' : 'Give the mic'}
+              title={isYou ? t('participants.takeMicTitle') : t('participants.giveMicTitle')}
               data-testid={`give-mic-${p.id}`}
             >
               <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                 <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
                 <path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              <span>{isYou ? 'Take mic' : 'Give mic'}</span>
+              <span>{isYou ? t('participants.takeMic') : t('participants.giveMic')}</span>
             </button>
           )}
 
@@ -113,7 +115,7 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
             <button
               className={`host-toggle-btn ${p.isHost ? 'revoke' : 'promote'}`}
               onClick={() => onToggleHost(p)}
-              title={p.isHost ? 'Revoke host access' : 'Make host'}
+              title={p.isHost ? t('participants.revokeHostTitle') : t('participants.makeHostTitle')}
               data-testid={`toggle-host-${p.id}`}
             >
               {p.isHost ? (
@@ -121,14 +123,14 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
                   <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                     <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M6 6l12 12M6 18L18 6" />
                   </svg>
-                  <span>Revoke</span>
+                  <span>{t('participants.revoke')}</span>
                 </>
               ) : (
                 <>
                   <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
                     <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" d="M4 18l3-9 5 5 5-8 3 12z" />
                   </svg>
-                  <span>Make host</span>
+                  <span>{t('participants.makeHost')}</span>
                 </>
               )}
             </button>
@@ -140,6 +142,7 @@ function ParticipantRow({ p, isYou, canManage, onToggleHost, onSetRecorder, onTo
 }
 
 export default function ParticipantsPanel({ participants = [], currentId, canManageHosts = false, onToggleHost = () => {}, onSetRecorder = () => {}, onToggleStatementPermission = () => {} }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [sort, setSort] = useState('name')
@@ -187,15 +190,15 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
       <div className="participants-summary">
         <div className="participants-stat">
           <span className="participants-stat-value">{stats.total}</span>
-          <span className="participants-stat-label">Participants</span>
+          <span className="participants-stat-label">{t('participants.summaryParticipants')}</span>
         </div>
         <div className="participants-stat">
           <span className="participants-stat-value done">{stats.completed}</span>
-          <span className="participants-stat-label">Completed</span>
+          <span className="participants-stat-label">{t('participants.summaryCompleted')}</span>
         </div>
         <div className="participants-stat">
           <span className="participants-stat-value pending">{stats.pending}</span>
-          <span className="participants-stat-label">Not done</span>
+          <span className="participants-stat-label">{t('participants.summaryNotDone')}</span>
         </div>
       </div>
 
@@ -208,17 +211,17 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
           <input
             type="search"
             className="participants-search-input"
-            placeholder="Search by name…"
+            placeholder={t('participants.searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search participants"
+            aria-label={t('participants.searchAria')}
             data-testid="participants-search"
           />
           {query && (
             <button
               className="participants-search-clear"
               onClick={() => setQuery('')}
-              aria-label="Clear search"
+              aria-label={t('participants.clearSearch')}
               data-testid="participants-search-clear"
             >
               ×
@@ -227,7 +230,7 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
         </div>
 
         <div className="participants-sort">
-          <label className="participants-sort-label" htmlFor="participants-sort-select">Sort</label>
+          <label className="participants-sort-label" htmlFor="participants-sort-select">{t('participants.sort')}</label>
           <select
             id="participants-sort-select"
             className="participants-sort-select"
@@ -236,7 +239,7 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
             data-testid="participants-sort"
           >
             {SORTS.map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
+              <option key={s.id} value={s.id}>{t(s.labelKey)}</option>
             ))}
           </select>
         </div>
@@ -252,14 +255,14 @@ export default function ParticipantsPanel({ participants = [], currentId, canMan
             onClick={() => setFilter(f.id)}
             data-testid={`participants-filter-${f.id}`}
           >
-            {f.label}
+            {t(f.labelKey)}
           </button>
         ))}
       </div>
 
       {visible.length === 0 ? (
         <p className="participants-empty" data-testid="participants-empty">
-          {participants.length === 0 ? 'No participants yet.' : 'No participants match your filters.'}
+          {participants.length === 0 ? t('participants.emptyNone') : t('participants.emptyFiltered')}
         </p>
       ) : (
         <ul className="participant-list" data-testid="participant-list">

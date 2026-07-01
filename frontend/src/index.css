@@ -2560,6 +2560,13 @@ html.room-record-view #root {
   gap: 0;
   margin-bottom: 1.5rem;
   border-bottom: 1.5px solid var(--ds-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
@@ -3681,6 +3688,7 @@ html.room-record-view #root {
   position: absolute;
   top: 1.5rem;
   z-index: 2;
+  max-width: 90%;
   padding: 0.35rem 0.85rem;
   border-radius: 10px;
   border: 3px solid currentColor;
@@ -3688,6 +3696,7 @@ html.room-record-view #root {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: center;
   white-space: nowrap;
   max-width: calc(100% - 1.5rem);
   background: rgba(255, 255, 255, 0.78);
@@ -3880,6 +3889,7 @@ html.room-record-view #root {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-align: center;
 }
 
 .swipe-action-label.disagree { color: #f04438; }
@@ -3978,7 +3988,9 @@ html.room-record-view #root {
   font-size: 0.62rem;
   text-align: center;
   line-height: 1.15;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .swipe-action-label.two-line {
@@ -3988,7 +4000,8 @@ html.room-record-view #root {
 }
 
 .swipe-action-label.two-line span {
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .swipe-controls.likert .swipe-circle {
@@ -6450,6 +6463,7 @@ html.room-record-view #root {
   max-width: 7.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 560px) {

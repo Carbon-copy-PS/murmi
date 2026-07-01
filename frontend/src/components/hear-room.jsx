@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../constants/app'
 import { getLanguage } from '../constants/languages'
+import { resolveUiLanguage } from '../i18n'
 import TranscriptPanel from './TranscriptPanel'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
@@ -93,6 +95,7 @@ function EditIcon() {
 }
 
 export default function HearRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
+  const { t, i18n } = useTranslation()
   const [connStatus, setConnStatus] = useState('connecting')
   const connected = connStatus === 'live'
   const [transcript, setTranscript] = useState([])
@@ -132,7 +135,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [nameDraft, setNameDraft] = useState(userName)
   const [editingTopic, setEditingTopic] = useState(false)
   const [topicDraft, setTopicDraft] = useState('')
-  const [roomLanguage, setRoomLanguage] = useState(userLanguage || 'auto')
+  const [roomLanguage, setRoomLanguage] = useState(userLanguage || 'en')
   const [tourActive, setTourActive] = useState(false)
   const tourRef = useRef(null)
   const tourStartedRef = useRef(false)
@@ -163,6 +166,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   useEffect(() => { requestPermission() }, [])
 
   useEffect(() => {
+    i18n.changeLanguage(resolveUiLanguage(roomLanguage))
+  }, [roomLanguage, i18n])
+
+  useEffect(() => {
     const root = document.documentElement
     if (view === 'record') root.classList.add('room-record-view')
     else root.classList.remove('room-record-view')
@@ -178,6 +185,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         isHost: isHostRef.current,
         isRecorder: isRecorderRef.current,
         setView,
+        t,
         onDone: () => {
           setOnboarded()
           setTourActive(false)
@@ -270,7 +278,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setTopic(msg.topic || null)
-          setRoomLanguage(msg.recorderLanguage || 'auto')
+          setRoomLanguage(msg.recorderLanguage || 'en')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
           if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
@@ -324,7 +332,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setTopic(msg.topic || null)
           break
         case 'language_updated':
-          setRoomLanguage(msg.language || 'auto')
+          setRoomLanguage(msg.language || 'en')
           break
         case 'participant_renamed':
           break
@@ -332,7 +340,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           break
         case 'session_expired':
           socketRef.current?.close()
-          notify(APP_NAME, 'This session has expired', { tag: 'expired', force: true })
+          notify(APP_NAME, t('notify.expired'), { tag: 'expired', force: true })
           onLeaveRef.current()
           break
         case 'participant_joined':
@@ -345,7 +353,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           speechStartedRef.current = false
           silenceFramesRef.current = 0
           setCaptionError('')
-          notify(APP_NAME, 'Recording started', { tag: 'recording', duration: 4000 })
+          notify(APP_NAME, t('notify.recordingStarted'), { tag: 'recording', duration: 4000 })
           break
         case 'recording_stopped':
           setRecording(false)
@@ -353,7 +361,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           speechStartedRef.current = false
           silenceFramesRef.current = 0
           setPartialCaption(null)
-          notify(APP_NAME, 'Recording stopped', { tag: 'recording', duration: 4000 })
+          notify(APP_NAME, t('notify.recordingStopped'), { tag: 'recording', duration: 4000 })
           break
         case 'caption_delta':
           setPartialCaption((prev) => {
@@ -369,7 +377,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           })
           break
         case 'caption_error':
-          setCaptionError(msg.message || 'Realtime captions unavailable')
+          setCaptionError(msg.message || t('errors.captionsUnavailable'))
           break
         case 'caption_rejected':
           setPartialCaption((prev) => (
@@ -439,7 +447,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
           setCgPendingDepth(null)
-          setCgError(msg.message || 'Could not generate common ground.')
+          setCgError(msg.message || t('errors.cgFailed'))
           break
         case 'tensions_pending':
           setTensionsPending(true)
@@ -453,7 +461,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         case 'tensions_error':
           if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
           setTensionsPending(false)
-          setTensionsError(msg.message || 'Could not generate tensions.')
+          setTensionsError(msg.message || t('errors.tensionsFailed'))
           break
       }
   }
@@ -553,7 +561,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
         }
       } catch (err) {
         console.error('Mic access denied:', err)
-        setCaptionError('Microphone access is blocked for the host recorder.')
+        setCaptionError(t('errors.micBlocked'))
       }
     }
     if (!isRecorder || !recording) return undefined
@@ -601,11 +609,11 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   function requestToggleHost(p) {
     setConfirm({
-      title: p.isHost ? 'Revoke host access?' : `Make ${p.name} a host?`,
+      title: p.isHost ? t('confirm.revokeHostTitle') : t('confirm.makeHostTitle', { name: p.name }),
       message: p.isHost
-        ? `${p.name} will lose host controls for this session.`
-        : `${p.name} will be able to manage statements, recording and other participants.`,
-      confirmLabel: p.isHost ? 'Revoke host' : 'Make host',
+        ? t('confirm.revokeHostMessage', { name: p.name })
+        : t('confirm.makeHostMessage', { name: p.name }),
+      confirmLabel: p.isHost ? t('confirm.revokeHost') : t('confirm.makeHost'),
       danger: p.isHost,
       onConfirm: () => handleToggleHost(p.id, !p.isHost),
     })
@@ -618,11 +626,11 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   function requestSetRecorder(p) {
     const isYou = p.id === participantIdRef.current
     setConfirm({
-      title: isYou ? 'Take the mic?' : `Give the mic to ${p.name}?`,
+      title: isYou ? t('confirm.takeMicTitle') : t('confirm.giveMicTitle', { name: p.name }),
       message: isYou
-        ? 'You become the recorder — recording will capture your microphone.'
-        : `${p.name} becomes the recorder. Their microphone will capture the room audio.`,
-      confirmLabel: isYou ? 'Take mic' : 'Give mic',
+        ? t('confirm.takeMicMessage')
+        : t('confirm.giveMicMessage', { name: p.name }),
+      confirmLabel: isYou ? t('confirm.takeMic') : t('confirm.giveMic'),
       danger: false,
       onConfirm: () => handleSetRecorder(p.id),
     })
@@ -630,9 +638,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   function requestLeave() {
     setConfirm({
-      title: 'Leave this session?',
-      message: 'You can rejoin anytime with the session code.',
-      confirmLabel: 'Leave',
+      title: t('confirm.leaveTitle'),
+      message: t('confirm.leaveMessage'),
+      confirmLabel: t('confirm.leave'),
       danger: true,
       onConfirm: onLeave,
     })
@@ -672,9 +680,8 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   function handleLanguageChange(code) {
     setRoomLanguage(code)
     wsRef.current?.send(JSON.stringify({ type: 'set_language', language: code }))
-    const lang = code === 'auto' ? null : code
     if (isRecorder) {
-      saveSession({ sessionId, userName: displayName, userLanguage: lang, wantsHost })
+      saveSession({ sessionId, userName: displayName, userLanguage: code, wantsHost })
     }
   }
 
@@ -710,7 +717,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     cgTimeoutRef.current = setTimeout(() => {
       setCgPending(false)
       setCgPendingDepth(null)
-      setCgError('Timed out generating common ground. Please try again.')
+      setCgError(t('errors.cgTimeout'))
     }, 60000)
   }
 
@@ -755,7 +762,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'generate_tensions', count, analysis }))
     tensionsTimeoutRef.current = setTimeout(() => {
       setTensionsPending(false)
-      setTensionsError('Timed out generating tensions. Please try again.')
+      setTensionsError(t('errors.tensionsTimeout'))
     }, 60000)
   }
 
@@ -779,7 +786,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     setHeldIds((prev) => new Set(prev).add(statementId))
   }
 
-  const activeLanguage = getLanguage(roomLanguage) || getLanguage('auto')
+  const activeLanguage = getLanguage(roomLanguage) || getLanguage('en')
   const cgPopupItem = cgPopup ? commonGroundHistory.find((item) => item.id === cgPopup) : null
 
   function openCommonGroundResults() {
@@ -812,12 +819,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
               aria-hidden="true"
             />
             <span className="status-text" data-testid="conn-status">
-              {connStatus === 'live' && 'Live'}
-              {connStatus === 'connecting' && 'Connecting…'}
-              {connStatus === 'reconnecting' && 'Reconnecting…'}
-              {connStatus === 'offline' && 'Disconnected'}
+              {connStatus === 'live' && t('room.status.live')}
+              {connStatus === 'connecting' && t('room.status.connecting')}
+              {connStatus === 'reconnecting' && t('room.status.reconnecting')}
+              {connStatus === 'offline' && t('room.status.disconnected')}
             </span>
-            {isHost && <span className="host-badge" data-testid="host-badge">Host</span>}
+            {isHost && <span className="host-badge" data-testid="host-badge">{t('room.hostBadge')}</span>}
           </div>
           <div className="room-actions">
             <span className="room-lang-pill" data-testid="room-language" title={activeLanguage.label}>
@@ -826,9 +833,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             </span>
             <ThemeToggle />
             <button className="icon-btn" onClick={() => setShowShare(true)} data-testid="share-btn">
-              Share
+              {t('room.share')}
             </button>
-            <button className="link-btn" onClick={requestLeave} data-testid="leave-btn">Leave</button>
+            <button className="link-btn" onClick={requestLeave} data-testid="leave-btn">{t('room.leave')}</button>
           </div>
         </div>
 
@@ -836,22 +843,22 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           <button
             className="code-pill"
             onClick={() => setShowShare(true)}
-            title="Share session"
+            title={t('room.shareSession')}
             data-testid="code-pill"
           >
-            <span className="code-pill-label">Code</span>
+            <span className="code-pill-label">{t('room.code')}</span>
             <span className="code-pill-value">{sessionId}</span>
           </button>
           {presence.here > 0 && (
             <span className="presence-pill" data-testid="presence-pill">
               <span className="presence-here">
                 <span className="presence-here-dot" aria-hidden="true" />
-                {presence.here} here
+                {t('room.here', { count: presence.here })}
               </span>
               {presence.votingNow > 0 && (
                 <span className="presence-voting" data-testid="presence-voting">
                   <span className="presence-voting-dot" aria-hidden="true" />
-                  {presence.votingNow} voting
+                  {t('room.voting', { count: presence.votingNow })}
                 </span>
               )}
             </span>
@@ -860,7 +867,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
         <div className="room-fields">
           <div className="field-block" data-testid="topic-field">
-            <span className="field-tag">Topic</span>
+            <span className="field-tag">{t('room.topic')}</span>
             {editingTopic ? (
               <div className="field-edit">
                 <input
@@ -871,35 +878,35 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
                   onKeyDown={handleTopicKeyDown}
                   autoFocus
                   maxLength={200}
-                  placeholder="What is the room discussing?"
-                  aria-label="Edit topic"
+                  placeholder={t('room.topicPlaceholder')}
+                  aria-label={t('room.editTopic')}
                   data-testid="topic-edit-input"
                 />
-                <button className="icon-btn sm" onClick={saveTopic} data-testid="topic-save-btn">Save</button>
+                <button className="icon-btn sm" onClick={saveTopic} data-testid="topic-save-btn">{t('common.save')}</button>
               </div>
             ) : isHost ? (
               <button
                 className="field-value editable"
                 onClick={startEditTopic}
-                title="Edit topic"
+                title={t('room.editTopic')}
                 data-testid="topic-edit-btn"
               >
                 <span className={`field-value-text ${topic ? '' : 'placeholder'}`}>
-                  {topic || 'Add a topic'}
+                  {topic || t('room.addTopic')}
                 </span>
                 <EditIcon />
               </button>
             ) : (
               <span className="field-value" data-testid="room-topic">
                 <span className={`field-value-text ${topic ? '' : 'placeholder'}`}>
-                  {topic || 'No topic set'}
+                  {topic || t('room.noTopic')}
                 </span>
               </span>
             )}
           </div>
 
           <div className="field-block" data-testid="room-user">
-            <span className="field-tag">Your name</span>
+            <span className="field-tag">{t('room.yourName')}</span>
             {editingName ? (
               <div className="field-edit">
                 <input
@@ -910,16 +917,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
                   onKeyDown={handleNameKeyDown}
                   autoFocus
                   maxLength={120}
-                  aria-label="Edit your name"
+                  aria-label={t('room.editName')}
                   data-testid="name-edit-input"
                 />
-                <button className="icon-btn sm" onClick={saveDisplayName} data-testid="name-save-btn">Save</button>
+                <button className="icon-btn sm" onClick={saveDisplayName} data-testid="name-save-btn">{t('common.save')}</button>
               </div>
             ) : (
               <button
                 className="field-value editable"
                 onClick={startEditName}
-                title="Edit your name"
+                title={t('room.editName')}
                 data-testid="name-edit-btn"
               >
                 <span className="field-value-text">{displayName}</span>
@@ -951,7 +958,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             onClick={() => setView('record')}
             data-testid="tab-record"
           >
-            Record
+            {t('tabs.record')}
           </button>
         )}
         <button
@@ -959,7 +966,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onClick={() => setView('statements')}
           data-testid="tab-vote"
         >
-          Vote
+          {t('tabs.vote')}
           {isHost && pendingCount > 0 && (
             <span className="badge pending" data-testid="pending-badge">{pendingCount}</span>
           )}
@@ -969,7 +976,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           className={`tab ${view === 'results' ? 'active' : ''}`}
           onClick={() => setView('results')}
         >
-          Results
+          {t('tabs.results')}
         </button>
         {isHost && (
           <button
@@ -977,7 +984,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             onClick={() => setView('participants')}
             data-testid="tab-participants"
           >
-            Participants
+            {t('tabs.participants')}
             {participants.length > 0 && <span className="badge">{participants.length}</span>}
           </button>
         )}
@@ -987,7 +994,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             onClick={() => setView('settings')}
             data-testid="tab-settings"
           >
-            Settings
+            {t('tabs.settings')}
           </button>
         )}
       </div>
@@ -1006,7 +1013,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
             disabled={!connected || !isRecorder}
           >
             <span className="record-dot" />
-            {isRecorder ? (recording ? 'Stop' : 'Record') : 'Listening'}
+            {isRecorder ? (recording ? t('room.stop') : t('room.record')) : t('room.listening')}
           </button>
 
           <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} />

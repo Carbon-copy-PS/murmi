@@ -1,14 +1,16 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   danger = false,
   onConfirm,
   onCancel,
 }) {
+  const { t } = useTranslation()
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onCancel()
     window.addEventListener('keydown', onKey)
@@ -30,7 +32,7 @@ export default function ConfirmDialog({
 
         <div className="confirm-actions">
           <button className="btn" onClick={onCancel} data-testid="confirm-cancel">
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </button>
           <button
             className={`btn ${danger ? 'danger' : 'primary'}`}
@@ -38,7 +40,7 @@ export default function ConfirmDialog({
             autoFocus
             data-testid="confirm-accept"
           >
-            {confirmLabel}
+            {confirmLabel ?? t('common.confirm')}
           </button>
         </div>
       </div>

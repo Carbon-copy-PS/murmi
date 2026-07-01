@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { CG_DEPTH_LABELS } from '../../constants/common-ground-depth'
+import { useTranslation } from 'react-i18next'
 import { CommonGroundCard } from '../ResultsPanel'
 
 const noop = () => {}
 
 export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
+  const { t } = useTranslation()
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose?.()
@@ -16,7 +17,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
 
   if (!item) return null
 
-  const depthLabel = CG_DEPTH_LABELS[item.depth] || item.depth
+  const depthLabel = item.depth ? t(`cgDepth.${item.depth}.label`) : item.depth
 
   return createPortal(
     <div className="modal-backdrop cg-popup-backdrop" onClick={onClose} data-testid="cg-popup-backdrop">
@@ -31,7 +32,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
         <button
           className="modal-close"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('share.close')}
           data-testid="cg-popup-close"
         >
           ×
@@ -45,8 +46,8 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             </svg>
           </span>
           <div className="cg-popup-head-copy">
-            <span className="cg-popup-eyebrow">New AI common ground</span>
-            <h3 className="cg-popup-title" id="cg-popup-title">The room is finding shared ground</h3>
+            <span className="cg-popup-eyebrow">{t('cgPopup.eyebrow')}</span>
+            <h3 className="cg-popup-title" id="cg-popup-title">{t('cgPopup.title')}</h3>
           </div>
           {depthLabel && <span className={`cg-depth-badge depth-${item.depth}`}>{depthLabel}</span>}
         </div>
@@ -58,10 +59,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             onDismiss={noop}
             onVote={onVote}
           />
-          <p className="cg-popup-note">
-            This summary updates as the conversation evolves. You can revisit it and change your
-            reaction anytime on the <strong>Results</strong> page.
-          </p>
+          <p className="cg-popup-note">{t('cgPopup.note')}</p>
         </div>
 
         <div className="cg-popup-actions">
@@ -71,7 +69,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             onClick={onClose}
             data-testid="cg-popup-later"
           >
-            Got it
+            {t('cgPopup.gotIt')}
           </button>
           <button
             type="button"
@@ -79,7 +77,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             onClick={onView}
             data-testid="cg-popup-view"
           >
-            View in Results
+            {t('cgPopup.viewInResults')}
           </button>
         </div>
       </div>

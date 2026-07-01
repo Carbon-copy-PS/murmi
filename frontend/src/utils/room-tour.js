@@ -57,15 +57,15 @@ export const TOUR_PARTICIPANTS = [
   { id: 'p3', name: 'Lena Meier', isHost: false, isRecorder: false, language: 'fr', votesRequired: 3, votesCast: 0 },
 ]
 
-function buildSteps({ isHost, isRecorder, baseView }) {
+function buildSteps({ isHost, isRecorder, baseView, t }) {
   const steps = []
 
   steps.push({
     view: baseView,
     element: '[data-testid="code-pill"]',
     popover: {
-      title: 'Your room code',
-      description: 'Anyone with this 6-character code can join your session. Tap it any time to share.',
+      title: t('tour.codeTitle'),
+      description: t('tour.codeDesc'),
     },
   })
 
@@ -73,22 +73,27 @@ function buildSteps({ isHost, isRecorder, baseView }) {
     view: baseView,
     element: '[data-testid="share-btn"]',
     popover: {
-      title: 'Invite the room',
-      description: 'Share a link or QR code so people can hop in from their own phone or laptop.',
+      title: t('tour.inviteTitle'),
+      description: t('tour.inviteDesc'),
     },
   })
 
-  const tabNames = [isRecorder && 'Record', 'Vote', 'Results', isHost && 'Participants'].filter(Boolean)
+  const tabNames = [
+    isRecorder && t('tabs.record'),
+    t('tabs.vote'),
+    t('tabs.results'),
+    isHost && t('tabs.participants'),
+  ].filter(Boolean)
   const tabList =
     tabNames.length > 1
-      ? `${tabNames.slice(0, -1).join(', ')} and ${tabNames[tabNames.length - 1]}`
+      ? `${tabNames.slice(0, -1).join(', ')} ${t('tour.and')} ${tabNames[tabNames.length - 1]}`
       : tabNames[0]
   steps.push({
     view: baseView,
     element: '.tabs',
     popover: {
-      title: 'Move around',
-      description: `Switch between ${tabList} here. We’ll walk through each one.`,
+      title: t('tour.moveTitle'),
+      description: t('tour.moveDesc', { tabs: tabList }),
     },
   })
 
@@ -97,16 +102,16 @@ function buildSteps({ isHost, isRecorder, baseView }) {
       view: 'record',
       element: '.record-btn',
       popover: {
-        title: 'Capture the room',
-        description: 'Press Record and only your device streams audio. Live captions show up below as people speak.',
+        title: t('tour.captureTitle'),
+        description: t('tour.captureDesc'),
       },
     })
     steps.push({
       view: 'record',
       element: '.transcript',
       popover: {
-        title: 'Live transcript',
-        description: 'Completed turns are transcribed here — and the AI turns them into claims to vote on.',
+        title: t('tour.transcriptTitle'),
+        description: t('tour.transcriptDesc'),
       },
     })
   }
@@ -116,8 +121,8 @@ function buildSteps({ isHost, isRecorder, baseView }) {
       view: 'statements',
       element: '[data-testid="host-composer"]',
       popover: {
-        title: 'Add & curate claims',
-        description: 'Write your own statements, or approve and reject the ones AI suggests before they go live.',
+        title: t('tour.curateTitle'),
+        description: t('tour.curateDesc'),
       },
     })
   }
@@ -126,8 +131,8 @@ function buildSteps({ isHost, isRecorder, baseView }) {
     view: 'statements',
     element: '.swipe-area',
     popover: {
-      title: 'Cast your vote',
-      description: 'Your turn — swipe right to agree, left to disagree, down for neutral. Try it now! Buttons and arrow keys work too.',
+      title: t('tour.voteTitle'),
+      description: t('tour.voteDesc'),
     },
   })
 
@@ -135,8 +140,8 @@ function buildSteps({ isHost, isRecorder, baseView }) {
     view: 'results',
     element: '.results-panel',
     popover: {
-      title: 'Where the room stands',
-      description: 'Opinion clusters and vote splits update live, so you can see what unites or divides the room.',
+      title: t('tour.standsTitle'),
+      description: t('tour.standsDesc'),
     },
   })
 
@@ -144,8 +149,8 @@ function buildSteps({ isHost, isRecorder, baseView }) {
     view: 'results',
     element: '[data-testid="common-ground"]',
     popover: {
-      title: 'Find common ground',
-      description: 'An AI mediator drafts a statement the whole room could share — and everyone can vote on it.',
+      title: t('tour.cgTitle'),
+      description: t('tour.cgDesc'),
     },
   })
 
@@ -154,8 +159,8 @@ function buildSteps({ isHost, isRecorder, baseView }) {
       view: 'participants',
       element: '.participants-panel',
       popover: {
-        title: 'Manage the room',
-        description: 'Track who has voted, hand over the mic, or promote a co-host.',
+        title: t('tour.manageTitle'),
+        description: t('tour.manageDesc'),
       },
     })
   }
@@ -163,9 +168,9 @@ function buildSteps({ isHost, isRecorder, baseView }) {
   return steps
 }
 
-export function startRoomTour({ isHost = false, isRecorder = false, setView, onDone }) {
+export function startRoomTour({ isHost = false, isRecorder = false, setView, onDone, t }) {
   const baseView = isRecorder ? 'record' : 'statements'
-  const steps = buildSteps({ isHost, isRecorder, baseView })
+  const steps = buildSteps({ isHost, isRecorder, baseView, t })
   const baseViewRef = { current: baseView }
   let finished = false
 
@@ -181,14 +186,14 @@ export function startRoomTour({ isHost = false, isRecorder = false, setView, onD
     overlayOpacity: 0.65,
     stagePadding: 6,
     stageRadius: 12,
-    nextBtnText: 'Next',
-    prevBtnText: 'Back',
-    doneBtnText: 'Got it!',
-    progressText: 'Step {{current}} of {{total}}',
+    nextBtnText: t('tour.next'),
+    prevBtnText: t('tour.back'),
+    doneBtnText: t('tour.done'),
+    progressText: t('tour.progress', { current: '{{current}}', total: '{{total}}' }),
     steps,
     onPopoverRender: (popover) => {
       const skip = document.createElement('button')
-      skip.innerText = 'Skip tour'
+      skip.innerText = t('tour.skip')
       skip.className = 'driver-skip-btn'
       skip.addEventListener('click', () => driverObj.destroy())
       popover.footerButtons.prepend(skip)

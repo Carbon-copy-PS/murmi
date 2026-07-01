@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { resolveTheme, toggleTheme } from '../theme'
 
 function SunIcon() {
@@ -19,6 +20,7 @@ function MoonIcon() {
 }
 
 export default function ThemeToggle() {
+  const { t } = useTranslation()
   const [theme, setThemeState] = useState(resolveTheme)
 
   function handleToggle() {
@@ -32,8 +34,8 @@ export default function ThemeToggle() {
       type="button"
       className="theme-toggle"
       onClick={handleToggle}
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? t('theme.toLight') : t('theme.toDark')}
+      aria-label={isDark ? t('theme.toLight') : t('theme.toDark')}
       data-testid="theme-toggle"
     >
       {isDark ? <SunIcon /> : <MoonIcon />}

@@ -1,10 +1,3 @@
-export const AUTO_LANGUAGE = {
-  code: 'auto',
-  flag: '🌐',
-  label: 'Detect from speech',
-  native: 'Auto-detect',
-}
-
 export const SPOKEN_LANGUAGES = [
   { code: 'bg', flag: '🇧🇬', label: 'Bulgarian', native: 'Български' },
   { code: 'hr', flag: '🇭🇷', label: 'Croatian', native: 'Hrvatski' },
@@ -44,7 +37,9 @@ export const LANGUAGE_SHOWCASE = [
   ...SPOKEN_LANGUAGES.filter((lang) => !SHOWCASE_LANGUAGE_CODES.includes(lang.code)),
 ]
 
-export const LANGUAGE_OPTIONS = [AUTO_LANGUAGE, ...LANGUAGE_SHOWCASE]
+export const LANGUAGE_OPTIONS = [...LANGUAGE_SHOWCASE]
+
+export const DEFAULT_LANGUAGE = 'en'
 
 export const LANGUAGE_CODES = SPOKEN_LANGUAGES.map((lang) => lang.code)
 
