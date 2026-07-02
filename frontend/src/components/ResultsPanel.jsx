@@ -603,6 +603,10 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
         <CgVoteSummary votes={data.votes} compact testId={`cg-header-votes-${data.id}`} />
       )}
 
+      <blockquote className="cg-statement" cite={`#cg-card-${data.id}`}>
+        {data.groupStatement}
+      </blockquote>
+
       {Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0 && (
         <div className="cg-group-analysis" data-testid={`cg-group-analysis-${data.id}`}>
           <span className="cg-group-analysis-label">{t('cg.groupAnalysis')}</span>
@@ -619,10 +623,6 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
           </ul>
         </div>
       )}
-
-      <blockquote className="cg-statement" cite={`#cg-card-${data.id}`}>
-        {data.groupStatement}
-      </blockquote>
 
       <CgSharedTensions
         id={data.id}
