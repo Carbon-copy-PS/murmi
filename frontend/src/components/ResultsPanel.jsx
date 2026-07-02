@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
 import TensionGenerator from './tension-generator'
@@ -561,7 +561,7 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   )
 }
 
-export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null }) {
+export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null, hideVote = false }) {
   const { t } = useTranslation()
   const depthLabel = data.depth ? t(`cgDepth.${data.depth}.label`) : null
 
@@ -603,6 +603,23 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
         <CgVoteSummary votes={data.votes} compact testId={`cg-header-votes-${data.id}`} />
       )}
 
+      {Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0 && (
+        <div className="cg-group-analysis" data-testid={`cg-group-analysis-${data.id}`}>
+          <span className="cg-group-analysis-label">{t('cg.groupAnalysis')}</span>
+          <ul className="cg-group-analysis-list">
+            {data.groupAnalysis.map((g, i) => (
+              <li key={`${data.id}-ga-${g.group || i}`} className="cg-group-analysis-item">
+                <span className="cg-group-analysis-title">
+                  {t('results.groupLabel', { letter: g.group })}
+                  {g.title ? ` · ${g.title}` : ''}
+                </span>
+                <p>{g.description}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <blockquote className="cg-statement" cite={`#cg-card-${data.id}`}>
         {data.groupStatement}
       </blockquote>
@@ -622,15 +639,17 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
 
       <CgExtrasCollapsible data={data} />
 
-      <div className="cg-vote-panel">
-        <CommonGroundVote
-          cgId={data.id}
-          votes={data.votes}
-          myVote={data.myVote}
-          myReason={data.myReason}
-          onVote={(vote, reason) => onVote(data.id, vote, reason)}
-        />
-      </div>
+      {!hideVote && (
+        <div className="cg-vote-panel">
+          <CommonGroundVote
+            cgId={data.id}
+            votes={data.votes}
+            myVote={data.myVote}
+            myReason={data.myReason}
+            onVote={(vote, reason) => onVote(data.id, vote, reason)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -680,16 +699,20 @@ function CommonGroundSection({
   const [selectedId, setSelectedId] = useState(null)
   const selected = sorted.find((item) => item.id === selectedId) || sorted[0] || null
   const multiVersion = sorted.length > 1
+  const latestId = sorted[0]?.id ?? null
+  const prevLatestId = useRef(latestId)
 
   useEffect(() => {
     if (!sorted.length) {
       setSelectedId(null)
+      prevLatestId.current = null
       return
     }
-    if (!selectedId || !sorted.some((item) => item.id === selectedId)) {
-      setSelectedId(sorted[0].id)
+    if (!selectedId || !sorted.some((item) => item.id === selectedId) || latestId !== prevLatestId.current) {
+      setSelectedId(latestId)
     }
-  }, [sorted, selectedId])
+    prevLatestId.current = latestId
+  }, [sorted, selectedId, latestId])
 
   if (!isHost && !sorted.length && !pending) return null
 

@@ -8,7 +8,7 @@ export const SPOKEN_LANGUAGES = [
   { code: 'et', flag: '🇪🇪', label: 'Estonian', native: 'Eesti' },
   { code: 'fi', flag: '🇫🇮', label: 'Finnish', native: 'Suomi' },
   { code: 'fr', flag: '🇫🇷', label: 'French', native: 'Français' },
-  { code: 'de', flag: '🇩🇪', label: 'German', native: 'Deutsch · Schwiizerdütsch' },
+  { code: 'de', flag: '🇩🇪', label: 'German', native: 'Deutsch' },
   { code: 'el', flag: '🇬🇷', label: 'Greek', native: 'Ελληνικά' },
   { code: 'hu', flag: '🇭🇺', label: 'Hungarian', native: 'Magyar' },
   { code: 'ga', flag: '🇮🇪', label: 'Irish', native: 'Gaeilge' },
