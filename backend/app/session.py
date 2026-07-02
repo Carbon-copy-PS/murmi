@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 import time
+import secrets
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
@@ -68,6 +69,7 @@ class Session:
     voting_lifetime_hours: float = 24.0
     voting_expires_at: Optional[float] = None
     voting_activity: list = field(default_factory=list)
+    public_id: Optional[str] = None
 
 
 SILENCE_THRESHOLD = 0.01
@@ -112,10 +114,35 @@ class SessionManager:
             voting_expires_at=now + DEFAULT_VOTING_LIFETIME_HOURS * 3600,
         )
 
+    def _gen_public_id(self) -> str:
+        existing = {s.public_id for s in self.sessions.values() if s.public_id}
+        while True:
+            token = secrets.token_urlsafe(9).replace("-", "").replace("_", "")[:12]
+            if token and token not in existing:
+                return token
+
     def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
         session_id = uuid.uuid4().hex[:6].upper()
-        self.sessions[session_id] = self._new_session(session_id, topic, vote_type)
+        session = self._new_session(session_id, topic, vote_type)
+        session.public_id = self._gen_public_id()
+        self.sessions[session_id] = session
         return session_id
+
+    def get_by_public_id(self, public_id: str) -> Optional[str]:
+        if not public_id:
+            return None
+        for s in self.sessions.values():
+            if s.public_id == public_id:
+                return s.id
+        return None
+
+    def ensure_public_id(self, session_id: str) -> Optional[str]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        if not session.public_id:
+            session.public_id = self._gen_public_id()
+        return session.public_id
 
     def hydrate(self, data: dict) -> Session:
         session = Session(
@@ -135,6 +162,7 @@ class SessionManager:
             session.voting_lifetime_hours = float(data["voting_lifetime_hours"])
         session.voting_expires_at = data.get("voting_expires_at")
         session.voting_activity = list(data.get("voting_activity") or [])
+        session.public_id = data.get("public_id")
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -180,6 +208,8 @@ class SessionManager:
             self.sessions[session_id] = self._new_session(session_id)
 
         session = self.sessions[session_id]
+        if not session.public_id:
+            session.public_id = self._gen_public_id()
 
         returning = bool(client_id and client_id in session.known_participants)
         participant_id = session.known_participants.get(client_id) if returning else uuid.uuid4().hex[:8]
@@ -245,6 +275,7 @@ class SessionManager:
             "language": language,
             "recorderLanguage": self.get_recorder_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
+            "publicId": session.public_id,
         })
 
         if not returning:
@@ -621,6 +652,21 @@ class SessionManager:
             "voters": voters,
             "commonGroundHistory": history,
             "commonGroundDepth": session.common_ground_depth,
+        }
+
+    def public_results(self, session_id: str) -> Optional[dict]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        matrix = self.vote_matrix(session_id, "")
+        return {
+            "publicId": session.public_id,
+            "topic": session.topic,
+            "voteType": session.vote_type,
+            "createdAt": session.created_at,
+            "participantCount": len(session.known_participants) or len(session.participants),
+            "votingOpen": self._voting_open(session),
+            **matrix,
         }
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:

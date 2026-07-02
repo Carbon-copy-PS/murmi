@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../constants/app'
 import { resolveTheme } from '../theme'
 
-export default function ShareModal({ sessionId, topic, onClose }) {
+export default function ShareModal({ sessionId, topic, publicId, onClose }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState('')
   const qrRef = useRef(null)
   const shareLink = `${window.location.origin}/?code=${sessionId}`
+  const resultsLink = publicId ? `${window.location.origin}/r/${publicId}` : ''
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
   const isDark = resolveTheme() === 'dark'
 
@@ -154,6 +155,31 @@ export default function ShareModal({ sessionId, topic, onClose }) {
           <button className="btn primary share-native" onClick={nativeShare} data-testid="native-share">
             {t('share.shareNative')}
           </button>
+        )}
+
+        {resultsLink && (
+          <div className="share-results-block" data-testid="share-results-block">
+            <div className="share-results-head">
+              <span className="share-results-title">{t('share.resultsTitle')}</span>
+              <span className="share-results-sub">{t('share.resultsSub')}</span>
+            </div>
+            <div className="share-link-box">
+              <input
+                className="share-link"
+                type="text"
+                value={resultsLink}
+                readOnly
+                data-testid="share-results-link"
+              />
+              <button
+                className="btn"
+                onClick={() => copy(resultsLink, 'results')}
+                data-testid="copy-results-link"
+              >
+                {copied === 'results' ? t('share.copied') : t('share.copyLink')}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

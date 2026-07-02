@@ -686,6 +686,7 @@ function CommonGroundSection({
   onGenerateTensions,
   onPublishTensions,
   onClearTensionDrafts,
+  hideVote = false,
 }) {
   const { t } = useTranslation()
   const canGenerate =
@@ -799,6 +800,7 @@ function CommonGroundSection({
           versionNum={multiVersion ? sorted.length - sorted.findIndex((i) => i.id === selected.id) : null}
           onDismiss={onDismiss}
           onVote={onVote}
+          hideVote={hideVote}
         />
       )}
 
@@ -841,6 +843,7 @@ export default function ResultsPanel({
   onGenerateTensions,
   onPublishTensions,
   onClearTensionDrafts,
+  publicView = false,
 }) {
   const { t, i18n } = useTranslation()
   const cluster = useMemo(
@@ -897,6 +900,7 @@ export default function ResultsPanel({
       onGenerateTensions={onGenerateTensions}
       onPublishTensions={onPublishTensions}
       onClearTensionDrafts={onClearTensionDrafts}
+      hideVote={publicView}
     />
   )
 
@@ -924,7 +928,7 @@ export default function ResultsPanel({
         <Placeholder title={t('results.opinionClusters')} message={message} />
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
-        <ExportBar ctx={exportCtx} />
+        {!publicView && <ExportBar ctx={exportCtx} />}
       </div>
     )
   }
@@ -968,7 +972,7 @@ export default function ResultsPanel({
 
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 
-      <ExportBar ctx={exportCtx} />
+      {!publicView && <ExportBar ctx={exportCtx} />}
     </div>
   )
 }

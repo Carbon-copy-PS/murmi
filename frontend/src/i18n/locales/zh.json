@@ -369,7 +369,32 @@
     "joinTopic": "加入我的場次：「{{topic}}」",
     "joinApp": "在 {{app}} 加入我的場次",
     "scanTopic": "掃描以加入我的場次：「{{topic}}」",
-    "scanApp": "掃描以在 {{app}} 加入我的場次"
+    "scanApp": "掃描以在 {{app}} 加入我的場次",
+    "resultsTitle": "公開結果連結",
+    "resultsSub": "擁有此連結的任何人都能查看即時結果 — 可放心分享到任何地方。"
+  },
+  "public": {
+    "title": "即時結果",
+    "loading": "正在載入結果…",
+    "live": "即時",
+    "participants": "{{count}} 位參與者",
+    "justUpdated": "剛剛更新",
+    "updatedSecs": "{{count}} 秒前更新",
+    "updatedMins": "{{count}} 分鐘前更新",
+    "updatedHours": "{{count}} 小時前更新",
+    "copyLink": "複製連結",
+    "copied": "已複製！",
+    "share": "分享",
+    "shareText": "即時結果：\"{{topic}}\"",
+    "shareTextGeneric": "查看這場對話的即時結果",
+    "noResultsTitle": "尚無結果",
+    "noResultsDesc": "一旦開始投票，結果就會顯示在這裡。請稍後再回來查看。",
+    "notFoundTitle": "找不到結果",
+    "notFoundDesc": "此連結無效，或該場次已不存在。",
+    "errorTitle": "發生錯誤",
+    "errorDesc": "無法載入這些結果，請重試。",
+    "goHome": "回首頁",
+    "poweredBy": "由 {{app}} 提供支援"
   },
   "theme": {
     "toLight": "切換至淺色模式",

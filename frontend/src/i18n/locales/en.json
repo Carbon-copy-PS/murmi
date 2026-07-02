@@ -369,7 +369,32 @@
     "joinTopic": "Join my session: \"{{topic}}\"",
     "joinApp": "Join my session on {{app}}",
     "scanTopic": "Scan to join my session: \"{{topic}}\"",
-    "scanApp": "Scan to join my session on {{app}}"
+    "scanApp": "Scan to join my session on {{app}}",
+    "resultsTitle": "Public results link",
+    "resultsSub": "Anyone with this link can view the live results — safe to post anywhere."
+  },
+  "public": {
+    "title": "Live results",
+    "loading": "Loading results…",
+    "live": "Live",
+    "participants": "{{count}} participants",
+    "justUpdated": "Updated just now",
+    "updatedSecs": "Updated {{count}}s ago",
+    "updatedMins": "Updated {{count}}m ago",
+    "updatedHours": "Updated {{count}}h ago",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "share": "Share",
+    "shareText": "Live results: \"{{topic}}\"",
+    "shareTextGeneric": "See the live results of this conversation",
+    "noResultsTitle": "No results yet",
+    "noResultsDesc": "Results appear here as soon as people start voting. Check back in a moment.",
+    "notFoundTitle": "Results not found",
+    "notFoundDesc": "This link is invalid or the session no longer exists.",
+    "errorTitle": "Something went wrong",
+    "errorDesc": "We couldn’t load these results. Please try again.",
+    "goHome": "Go home",
+    "poweredBy": "Powered by {{app}}"
   },
   "theme": {
     "toLight": "Switch to light mode",

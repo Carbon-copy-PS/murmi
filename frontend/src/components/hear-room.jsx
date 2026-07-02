@@ -107,6 +107,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [view, setView] = useState('record')
   const [statements, setStatements] = useState([])
   const [topic, setTopic] = useState(null)
+  const [publicId, setPublicId] = useState(null)
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [cgDepth, setCgDepth] = useState(DEFAULT_CG_DEPTH)
@@ -294,6 +295,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setTopic(msg.topic || null)
+          if (msg.publicId) setPublicId(msg.publicId)
           setRoomLanguage(msg.recorderLanguage || 'en')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
@@ -991,7 +993,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       </div>
 
       {showShare && (
-        <ShareModal sessionId={sessionId} topic={topic} onClose={() => setShowShare(false)} />
+        <ShareModal sessionId={sessionId} topic={topic} publicId={publicId} onClose={() => setShowShare(false)} />
       )}
 
       {cgPopupItem && !isHost && (

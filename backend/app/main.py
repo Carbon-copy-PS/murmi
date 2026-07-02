@@ -184,7 +184,12 @@ async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
     session_id = sessions.create(topic=topic, vote_type=vote_type)
     await persist_session(sessions.get(session_id))
-    return {"sessionId": session_id, "topic": topic, "voteType": vote_type}
+    return {
+        "sessionId": session_id,
+        "topic": topic,
+        "voteType": vote_type,
+        "publicId": sessions.get(session_id).public_id,
+    }
 
 
 MOCK_TRANSCRIPT = [
@@ -746,9 +751,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     wants_host = bool(init.get("wantsHost"))
     client_id = init.get("clientId") or None
 
+    restored_missing_public_id = False
     if not sessions.exists(session_id) and db.enabled:
         restored = await db.load_session(session_id)
         if restored:
+            restored_missing_public_id = not restored.get("public_id")
             sessions.hydrate(restored)
 
     existed = sessions.exists(session_id)
@@ -757,6 +764,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     )
     if not existed:
         await persist_session(sessions.get(session_id))
+    elif restored_missing_public_id:
+        _restored = sessions.get(session_id)
+        if _restored and _restored.public_id:
+            await _safe_db(db.update_public_id(session_id, _restored.public_id))
     await _safe_db(db.save_participant(
         sessions.get(session_id), participant_id, client_id, name, language,
         is_host=sessions.is_host(session_id, participant_id),
@@ -1175,8 +1186,78 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await sessions.broadcast(session_id, {"type": "recording_stopped"})
 
 
+async def _resolve_public_session(public_id: str) -> Optional[str]:
+    session_id = sessions.get_by_public_id(public_id)
+    if session_id:
+        return session_id
+    if db.enabled:
+        restored = await db.load_by_public_id(public_id)
+        if restored:
+            sessions.hydrate(restored)
+            session_id = restored["id"]
+            if not restored.get("public_id"):
+                pid = sessions.ensure_public_id(session_id)
+                await _safe_db(db.update_public_id(session_id, pid))
+            return session_id
+    return None
+
+
+@app.get("/api/public/results/{public_id}")
+async def public_results(public_id: str):
+    session_id = await _resolve_public_session(public_id)
+    if not session_id:
+        raise HTTPException(status_code=404, detail="Results not found")
+    data = sessions.public_results(session_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Results not found")
+    return data
+
+
+def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
+    import html as _html
+
+    title = _html.escape(topic) if topic else "Live results"
+    full_title = f"{title} · HearTheRoom"
+    desc = "See the live opinion map, common ground and open tensions from this conversation."
+    url = f"/r/{_html.escape(public_id, quote=True)}"
+
+    replacements = {
+        '<meta property="og:title" content="HearTheRoom" />':
+            f'<meta property="og:title" content="{full_title}" />',
+        '<meta property="og:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta property="og:description" content="{desc}" />',
+        '<meta name="twitter:title" content="HearTheRoom" />':
+            f'<meta name="twitter:title" content="{full_title}" />',
+        '<meta name="twitter:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta name="twitter:description" content="{desc}" />',
+        '<meta name="description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta name="description" content="{desc}" />',
+        "<title>HearTheRoom</title>":
+            f"<title>{full_title}</title>",
+    }
+    for old, new in replacements.items():
+        html = html.replace(old, new)
+    html = html.replace(
+        "</head>",
+        f'    <meta property="og:url" content="{url}" />\n  </head>',
+    )
+    return html
+
+
 if FRONTEND_DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    from fastapi.responses import HTMLResponse
+
+    @app.get("/r/{public_id}", response_class=HTMLResponse)
+    async def serve_public_results(public_id: str):
+        index_html = (FRONTEND_DIST / "index.html").read_text(encoding="utf-8")
+        session_id = await _resolve_public_session(public_id)
+        topic = None
+        if session_id:
+            data = sessions.public_results(session_id)
+            topic = data.get("topic") if data else None
+        return HTMLResponse(_inject_public_meta(index_html, public_id, topic))
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):

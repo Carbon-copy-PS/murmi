@@ -369,7 +369,32 @@
     "joinTopic": "Rejoignez ma session : \"{{topic}}\"",
     "joinApp": "Rejoignez ma session sur {{app}}",
     "scanTopic": "Scannez pour rejoindre ma session : \"{{topic}}\"",
-    "scanApp": "Scannez pour rejoindre ma session sur {{app}}"
+    "scanApp": "Scannez pour rejoindre ma session sur {{app}}",
+    "resultsTitle": "Lien public des résultats",
+    "resultsSub": "Toute personne disposant de ce lien peut voir les résultats en direct — partageable partout."
+  },
+  "public": {
+    "title": "Résultats en direct",
+    "loading": "Chargement des résultats…",
+    "live": "En direct",
+    "participants": "{{count}} participants",
+    "justUpdated": "Mis à jour à l’instant",
+    "updatedSecs": "Mis à jour il y a {{count}} s",
+    "updatedMins": "Mis à jour il y a {{count}} min",
+    "updatedHours": "Mis à jour il y a {{count}} h",
+    "copyLink": "Copier le lien",
+    "copied": "Copié !",
+    "share": "Partager",
+    "shareText": "Résultats en direct : \"{{topic}}\"",
+    "shareTextGeneric": "Découvrez les résultats en direct de cette conversation",
+    "noResultsTitle": "Pas encore de résultats",
+    "noResultsDesc": "Les résultats s’afficheront ici dès que les votes commenceront. Revenez dans un instant.",
+    "notFoundTitle": "Résultats introuvables",
+    "notFoundDesc": "Ce lien est invalide ou la session n’existe plus.",
+    "errorTitle": "Une erreur s’est produite",
+    "errorDesc": "Impossible de charger ces résultats. Veuillez réessayer.",
+    "goHome": "Accueil",
+    "poweredBy": "Propulsé par {{app}}"
   },
   "theme": {
     "toLight": "Passer en mode clair",

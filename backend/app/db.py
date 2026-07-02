@@ -45,6 +45,7 @@ class SessionRow(Base):
     voting_lifetime_hours: Mapped[float] = mapped_column(Float, default=24.0, server_default="24")
     voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -180,6 +181,14 @@ class Database:
                 "ALTER TABLE sessions "
                 "ADD COLUMN IF NOT EXISTS voting_activity jsonb"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS public_id varchar(24)"
+            ))
+            await conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
+                "ON sessions (public_id)"
+            ))
         return True
 
     async def disconnect(self):
@@ -205,6 +214,7 @@ class Database:
             "voting_lifetime_hours": getattr(session, "voting_lifetime_hours", 24.0),
             "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
             "voting_activity": getattr(session, "voting_activity", []),
+            "public_id": getattr(session, "public_id", None),
         }
 
     async def _ensure_session(self, db, session):
@@ -276,6 +286,27 @@ class Database:
                 )
             )
             await db.commit()
+
+    async def update_public_id(self, session_id: str, public_id: str):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(public_id=public_id)
+            )
+            await db.commit()
+
+    async def load_by_public_id(self, public_id: str) -> Optional[dict]:
+        if not self.enabled or not public_id:
+            return None
+        async with self._sessionmaker() as db:
+            result = await db.execute(
+                select(SessionRow).where(SessionRow.public_id == public_id)
+            )
+            row = result.scalar_one_or_none()
+            if not row:
+                return None
+            return await self._build_session_dict(db, row)
 
     async def update_topic(self, session_id: str, topic: str | None):
         if not self.enabled:
@@ -447,6 +478,7 @@ class Database:
             "voting_lifetime_hours": getattr(row, "voting_lifetime_hours", 24.0),
             "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
             "voting_activity": getattr(row, "voting_activity", None) or [],
+            "public_id": getattr(row, "public_id", None),
             "transcript": [t.payload for t in transcript],
             "statements": [
                 {

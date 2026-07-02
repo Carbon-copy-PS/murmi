@@ -369,7 +369,32 @@
     "joinTopic": "Unisciti alla mia sessione: \"{{topic}}\"",
     "joinApp": "Unisciti alla mia sessione su {{app}}",
     "scanTopic": "Scansiona per unirti alla mia sessione: \"{{topic}}\"",
-    "scanApp": "Scansiona per unirti alla mia sessione su {{app}}"
+    "scanApp": "Scansiona per unirti alla mia sessione su {{app}}",
+    "resultsTitle": "Link pubblico ai risultati",
+    "resultsSub": "Chiunque abbia questo link può vedere i risultati in tempo reale — condivisibile ovunque."
+  },
+  "public": {
+    "title": "Risultati in tempo reale",
+    "loading": "Caricamento dei risultati…",
+    "live": "Live",
+    "participants": "{{count}} partecipanti",
+    "justUpdated": "Aggiornato ora",
+    "updatedSecs": "Aggiornato {{count}} s fa",
+    "updatedMins": "Aggiornato {{count}} min fa",
+    "updatedHours": "Aggiornato {{count}} h fa",
+    "copyLink": "Copia link",
+    "copied": "Copiato!",
+    "share": "Condividi",
+    "shareText": "Risultati in tempo reale: \"{{topic}}\"",
+    "shareTextGeneric": "Guarda i risultati in tempo reale di questa conversazione",
+    "noResultsTitle": "Ancora nessun risultato",
+    "noResultsDesc": "I risultati compariranno qui non appena inizieranno le votazioni. Torna tra poco.",
+    "notFoundTitle": "Risultati non trovati",
+    "notFoundDesc": "Questo link non è valido o la sessione non esiste più.",
+    "errorTitle": "Qualcosa è andato storto",
+    "errorDesc": "Non è stato possibile caricare i risultati. Riprova.",
+    "goHome": "Home",
+    "poweredBy": "Realizzato con {{app}}"
   },
   "theme": {
     "toLight": "Passa alla modalità chiara",

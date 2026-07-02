@@ -369,7 +369,32 @@
     "joinTopic": "Tritt meiner Sitzung bei: \"{{topic}}\"",
     "joinApp": "Tritt meiner Sitzung auf {{app}} bei",
     "scanTopic": "Scannen, um meiner Sitzung beizutreten: \"{{topic}}\"",
-    "scanApp": "Scannen, um meiner Sitzung auf {{app}} beizutreten"
+    "scanApp": "Scannen, um meiner Sitzung auf {{app}} beizutreten",
+    "resultsTitle": "Öffentlicher Ergebnis-Link",
+    "resultsSub": "Jeder mit diesem Link kann die Live-Ergebnisse sehen – überall teilbar."
+  },
+  "public": {
+    "title": "Live-Ergebnisse",
+    "loading": "Ergebnisse werden geladen…",
+    "live": "Live",
+    "participants": "{{count}} Teilnehmende",
+    "justUpdated": "Gerade aktualisiert",
+    "updatedSecs": "Vor {{count}} Sek. aktualisiert",
+    "updatedMins": "Vor {{count}} Min. aktualisiert",
+    "updatedHours": "Vor {{count}} Std. aktualisiert",
+    "copyLink": "Link kopieren",
+    "copied": "Kopiert!",
+    "share": "Teilen",
+    "shareText": "Live-Ergebnisse: \"{{topic}}\"",
+    "shareTextGeneric": "Sieh dir die Live-Ergebnisse dieses Gesprächs an",
+    "noResultsTitle": "Noch keine Ergebnisse",
+    "noResultsDesc": "Ergebnisse erscheinen hier, sobald abgestimmt wird. Schau gleich wieder vorbei.",
+    "notFoundTitle": "Ergebnisse nicht gefunden",
+    "notFoundDesc": "Dieser Link ist ungültig oder die Sitzung existiert nicht mehr.",
+    "errorTitle": "Etwas ist schiefgelaufen",
+    "errorDesc": "Die Ergebnisse konnten nicht geladen werden. Bitte versuche es erneut.",
+    "goHome": "Zur Startseite",
+    "poweredBy": "Bereitgestellt von {{app}}"
   },
   "theme": {
     "toLight": "Zum hellen Modus wechseln",
