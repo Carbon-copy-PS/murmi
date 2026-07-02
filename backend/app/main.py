@@ -329,6 +329,31 @@ async def run_analysis(session_id: str):
 
 COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
 TENSION_TIMEOUT_SECONDS = float(os.environ.get("TENSION_TIMEOUT_SECONDS", "45"))
+TENSION_TRANSCRIPT_MAX_TURNS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_TURNS", "80"))
+TENSION_TRANSCRIPT_MAX_CHARS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_CHARS", "12000"))
+
+
+def build_transcript_excerpt(session) -> list[dict]:
+    if not session or not getattr(session, "transcript", None):
+        return []
+    turns = []
+    for entry in session.transcript:
+        text = (entry.get("text") or "").strip()
+        if not text:
+            continue
+        turns.append({"speaker": entry.get("speaker") or "Speaker", "text": text})
+
+    turns = turns[-TENSION_TRANSCRIPT_MAX_TURNS:]
+
+    total = 0
+    trimmed = []
+    for turn in reversed(turns):
+        total += len(turn["text"])
+        if total > TENSION_TRANSCRIPT_MAX_CHARS and trimmed:
+            break
+        trimmed.append(turn)
+    trimmed.reverse()
+    return trimmed
 
 
 async def run_tensions(
@@ -345,6 +370,9 @@ async def run_tensions(
         return
 
     await participant.websocket.send_json({"type": "tensions_pending"})
+
+    payload = dict(payload)
+    payload["transcript"] = build_transcript_excerpt(session)
 
     tensions: list[str] = []
     try:
