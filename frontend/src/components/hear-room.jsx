@@ -111,6 +111,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [cgDepth, setCgDepth] = useState(DEFAULT_CG_DEPTH)
   const [expiresAt, setExpiresAt] = useState(null)
+  const [votingOpen, setVotingOpen] = useState(true)
+  const [votingLifetimeHours, setVotingLifetimeHours] = useState(24)
+  const [votingExpiresAt, setVotingExpiresAt] = useState(null)
+  const [votingActivity, setVotingActivity] = useState([])
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
   const [autoApprove, setAutoApprove] = useState(true)
@@ -162,6 +166,18 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   const unvotedCount = statements.filter((s) => s.approved && !s.hasVoted).length
   const pendingCount = statements.filter((s) => !s.approved).length
+
+  const [nowTick, setNowTick] = useState(() => Date.now())
+  const votingExpired = votingExpiresAt != null && nowTick >= votingExpiresAt * 1000
+  const votingActive = votingOpen && !votingExpired
+  const votingActiveRef = useRef(votingActive)
+  votingActiveRef.current = votingActive
+
+  useEffect(() => {
+    if (!votingExpiresAt) return undefined
+    const id = setInterval(() => setNowTick(Date.now()), 30000)
+    return () => clearInterval(id)
+  }, [votingExpiresAt])
 
   useEffect(() => { requestPermission() }, [])
 
@@ -283,6 +299,10 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
           if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
           if (typeof msg.expiresAt === 'number') setExpiresAt(msg.expiresAt)
+          if (typeof msg.votingOpen === 'boolean') setVotingOpen(msg.votingOpen)
+          if (typeof msg.votingLifetimeHours === 'number') setVotingLifetimeHours(msg.votingLifetimeHours)
+          setVotingExpiresAt(typeof msg.votingExpiresAt === 'number' ? msg.votingExpiresAt : null)
+          if (Array.isArray(msg.votingActivity)) setVotingActivity(msg.votingActivity)
           if (msg.commonGroundHistory) {
             msg.commonGroundHistory.forEach((item) => cgSeenIdsRef.current.add(item.id))
             setCommonGroundHistory(msg.commonGroundHistory)
@@ -306,6 +326,15 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           break
         case 'default_statement_permission_updated':
           if (typeof msg.allowed === 'boolean') setDefaultCanAddStatement(msg.allowed)
+          break
+        case 'voting_status_updated':
+          if (typeof msg.votingOpen === 'boolean') setVotingOpen(msg.votingOpen)
+          if (typeof msg.votingLifetimeHours === 'number') setVotingLifetimeHours(msg.votingLifetimeHours)
+          setVotingExpiresAt(typeof msg.votingExpiresAt === 'number' ? msg.votingExpiresAt : null)
+          if (Array.isArray(msg.votingActivity)) setVotingActivity(msg.votingActivity)
+          break
+        case 'voting_rejected':
+          notify(APP_NAME, t('voting.closedToast'), { tag: 'voting-closed' })
           break
         case 'statement_submitted':
           setStatementSubmitted(true)
@@ -581,7 +610,31 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   }
 
   function handleVote(statementId, vote) {
+    if (!votingActiveRef.current) {
+      notify(APP_NAME, t('voting.closedToast'), { tag: 'voting-closed' })
+      return
+    }
     wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
+  }
+
+  function handleSetVotingOpen(open) {
+    setVotingOpen(open)
+    wsRef.current?.send(JSON.stringify({ type: 'set_voting_open', open }))
+  }
+
+  function requestSetVotingOpen(open) {
+    setConfirm({
+      title: open ? t('confirm.resumeVotingTitle') : t('confirm.stopVotingTitle'),
+      message: open ? t('confirm.resumeVotingMessage') : t('confirm.stopVotingMessage'),
+      confirmLabel: open ? t('confirm.resumeVoting') : t('confirm.stopVoting'),
+      danger: !open,
+      onConfirm: () => handleSetVotingOpen(open),
+    })
+  }
+
+  function handleSetVotingLifetime(hours) {
+    setVotingLifetimeHours(hours)
+    wsRef.current?.send(JSON.stringify({ type: 'set_voting_lifetime', hours }))
   }
 
   function handleToggleAutoApprove(value) {
@@ -1036,6 +1089,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           heldIds={heldIds}
           onHold={tourActive ? noop : handleHold}
           voteType={voteType}
+          votingActive={tourActive ? true : votingActive}
         />
       )}
       {view === 'results' && (
@@ -1084,7 +1138,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           voteTypeLocked={voteTypeLocked}
           defaultCanAddStatement={defaultCanAddStatement}
           onToggleDefaultStatementPermission={handleSetDefaultStatementPermission}
-          expiresAt={expiresAt}
+          votingOpen={votingOpen}
+          votingLifetimeHours={votingLifetimeHours}
+          votingExpiresAt={votingExpiresAt}
+          votingActivity={votingActivity}
+          onSetVotingOpen={requestSetVotingOpen}
+          onSetVotingLifetime={handleSetVotingLifetime}
         />
       )}
 

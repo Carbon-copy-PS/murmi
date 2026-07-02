@@ -26,7 +26,7 @@ from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 load_dotenv()
 
 db = Database()
-sessions = SessionManager(ttl_seconds=db.ttl_seconds if db.enabled else None)
+sessions = SessionManager(ttl_seconds=None)
 transcription = TranscriptionService()
 analysis = AnalysisService()
 
@@ -66,24 +66,40 @@ async def drop_session(session_id: str):
 
 
 async def purge_expired_sessions():
-    now = time.time()
-    expired = set()
-    if db.enabled:
-        try:
-            expired.update(await db.purge_expired())
-        except Exception as exc:
-            print(f"DB purge error: {exc}")
-    for sid, session in list(sessions.sessions.items()):
-        if session.expires_at and session.expires_at <= now:
-            expired.add(sid)
-    for sid in expired:
-        await drop_session(sid)
+    # Session data is retained indefinitely — nothing is ever purged.
+    return
 
 
 async def purge_loop():
     while True:
         await asyncio.sleep(SESSION_PURGE_INTERVAL_SECONDS)
         await purge_expired_sessions()
+
+
+VOTING_WATCH_INTERVAL_SECONDS = 30
+
+
+async def auto_close_expired_voting():
+    now = time.time()
+    for session_id, session in list(sessions.sessions.items()):
+        if session.voting_open and session.voting_expires_at and now >= session.voting_expires_at:
+            session.voting_open = False
+            session.voting_expires_at = None
+            sessions._log_voting_activity(session, "expired", "")
+            await _safe_db(db.update_voting(session))
+            await sessions.broadcast(session_id, {
+                "type": "voting_status_updated",
+                **sessions.voting_status(session_id),
+            })
+
+
+async def voting_watch_loop():
+    while True:
+        await asyncio.sleep(VOTING_WATCH_INTERVAL_SECONDS)
+        try:
+            await auto_close_expired_voting()
+        except Exception as exc:
+            print(f"Voting watch error: {exc}")
 
 
 @asynccontextmanager
@@ -101,14 +117,16 @@ async def lifespan(_app: FastAPI):
         db.enabled = False
         sessions.ttl_seconds = None
     purge_task = asyncio.create_task(purge_loop())
+    voting_task = asyncio.create_task(voting_watch_loop())
     try:
         yield
     finally:
-        purge_task.cancel()
-        try:
-            await purge_task
-        except asyncio.CancelledError:
-            pass
+        for task in (purge_task, voting_task):
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         await db.disconnect()
 
 
@@ -810,6 +828,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             elif msg_type == "vote":
                 statement_id = data.get("statementId", "")
                 vote_value = data.get("vote", "")
+                if not sessions.is_voting_open(session_id):
+                    await websocket.send_json({
+                        "type": "voting_rejected",
+                        "code": "votingClosed",
+                    })
+                    continue
                 ok = sessions.record_vote(
                     session_id, participant_id, statement_id, vote_value,
                 )
@@ -899,6 +923,32 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await sessions.broadcast(session_id, {
                         "type": "default_statement_permission_updated",
                         "allowed": allowed,
+                    })
+
+            elif msg_type == "set_voting_open":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                is_open = bool(data.get("open", True))
+                actor = sessions.get_participant_name(session_id, participant_id)
+                if sessions.set_voting_open(session_id, is_open, actor):
+                    session = sessions.get(session_id)
+                    await _safe_db(db.update_voting(session))
+                    await sessions.broadcast(session_id, {
+                        "type": "voting_status_updated",
+                        **sessions.voting_status(session_id),
+                    })
+
+            elif msg_type == "set_voting_lifetime":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                hours = data.get("hours")
+                actor = sessions.get_participant_name(session_id, participant_id)
+                if sessions.set_voting_lifetime(session_id, hours, actor):
+                    session = sessions.get(session_id)
+                    await _safe_db(db.update_voting(session))
+                    await sessions.broadcast(session_id, {
+                        "type": "voting_status_updated",
+                        **sessions.voting_status(session_id),
                     })
 
             elif msg_type == "set_statement_permission":

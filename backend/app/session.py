@@ -64,6 +64,10 @@ class Session:
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
     statement_perms: Dict[str, bool] = field(default_factory=dict)
     default_can_add_statement: bool = True
+    voting_open: bool = True
+    voting_lifetime_hours: float = 24.0
+    voting_expires_at: Optional[float] = None
+    voting_activity: list = field(default_factory=list)
 
 
 SILENCE_THRESHOLD = 0.01
@@ -72,6 +76,10 @@ ANALYSIS_BATCH_SIZE = 3
 COMMON_GROUND_REASON_MAX = 280
 
 VOTE_TYPES = ("binary", "likert")
+DEFAULT_VOTING_LIFETIME_HOURS = 24.0
+MIN_VOTING_LIFETIME_HOURS = 1.0
+MAX_VOTING_LIFETIME_HOURS = 720.0
+VOTING_ACTIVITY_MAX = 100
 COMMON_GROUND_DEPTHS = ("basic", "extended", "comprehensive")
 DEFAULT_COMMON_GROUND_DEPTH = "extended"
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
@@ -94,7 +102,15 @@ class SessionManager:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
         vt = vote_type if vote_type in VOTE_TYPES else "binary"
-        return Session(id=session_id, topic=topic, vote_type=vt, created_at=now, expires_at=expires_at)
+        return Session(
+            id=session_id,
+            topic=topic,
+            vote_type=vt,
+            created_at=now,
+            expires_at=expires_at,
+            voting_lifetime_hours=DEFAULT_VOTING_LIFETIME_HOURS,
+            voting_expires_at=now + DEFAULT_VOTING_LIFETIME_HOURS * 3600,
+        )
 
     def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
         session_id = uuid.uuid4().hex[:6].upper()
@@ -113,6 +129,12 @@ class SessionManager:
         session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
         if "default_can_add_statement" in data:
             session.default_can_add_statement = bool(data["default_can_add_statement"])
+        if "voting_open" in data and data["voting_open"] is not None:
+            session.voting_open = bool(data["voting_open"])
+        if data.get("voting_lifetime_hours"):
+            session.voting_lifetime_hours = float(data["voting_lifetime_hours"])
+        session.voting_expires_at = data.get("voting_expires_at")
+        session.voting_activity = list(data.get("voting_activity") or [])
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -210,6 +232,10 @@ class SessionManager:
             "voteType": session.vote_type,
             "voteTypeLocked": session.started,
             "expiresAt": session.expires_at,
+            "votingOpen": session.voting_open,
+            "votingLifetimeHours": session.voting_lifetime_hours,
+            "votingExpiresAt": session.voting_expires_at,
+            "votingActivity": session.voting_activity,
             "commonGroundDepth": session.common_ground_depth,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
@@ -465,9 +491,73 @@ class SessionManager:
             return False
         return session.host_participant_id in session.participants
 
+    def is_voting_open(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        return self._voting_open(session)
+
+    def _voting_open(self, session: Session) -> bool:
+        if not session.voting_open:
+            return False
+        if session.voting_expires_at is not None and time.time() >= session.voting_expires_at:
+            return False
+        return True
+
+    def _log_voting_activity(self, session: Session, action: str, actor: str, extra: dict | None = None) -> dict:
+        entry = {"action": action, "at": time.time(), "by": actor or ""}
+        if extra:
+            entry.update(extra)
+        session.voting_activity.append(entry)
+        if len(session.voting_activity) > VOTING_ACTIVITY_MAX:
+            session.voting_activity = session.voting_activity[-VOTING_ACTIVITY_MAX:]
+        return entry
+
+    def set_voting_open(self, session_id: str, is_open: bool, actor: str = "") -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        was_open = self._voting_open(session)
+        session.voting_open = is_open
+        if is_open:
+            session.voting_expires_at = time.time() + session.voting_lifetime_hours * 3600
+        else:
+            session.voting_expires_at = None
+        if self._voting_open(session) == was_open:
+            return True
+        self._log_voting_activity(session, "resumed" if is_open else "stopped", actor)
+        return True
+
+    def set_voting_lifetime(self, session_id: str, hours: float, actor: str = "") -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        try:
+            hours = float(hours)
+        except (TypeError, ValueError):
+            return False
+        hours = max(MIN_VOTING_LIFETIME_HOURS, min(MAX_VOTING_LIFETIME_HOURS, hours))
+        session.voting_lifetime_hours = hours
+        session.voting_expires_at = time.time() + hours * 3600
+        self._log_voting_activity(session, "lifetime", actor, {"hours": hours})
+        return True
+
+    def voting_status(self, session_id: str) -> dict:
+        session = self.sessions.get(session_id)
+        if not session:
+            return {}
+        return {
+            "votingOpen": session.voting_open,
+            "votingLifetimeHours": session.voting_lifetime_hours,
+            "votingExpiresAt": session.voting_expires_at,
+            "votingActivity": session.voting_activity,
+        }
+
     def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
         session = self.sessions.get(session_id)
         if not session:
+            return False
+        if not self._voting_open(session):
             return False
         stmt = next((s for s in session.statements if s.id == statement_id), None)
         if not stmt or not stmt.approved:

@@ -72,7 +72,13 @@
     "giveMic": "交出麥克風",
     "leaveTitle": "離開此場次？",
     "leaveMessage": "你隨時可以用場次代碼重新加入。",
-    "leave": "離開"
+    "leave": "離開",
+    "stopVotingTitle": "停止投票？",
+    "stopVotingMessage": "在你恢復之前，任何人都無法投票。你可以隨時恢復。",
+    "stopVoting": "停止投票",
+    "resumeVotingTitle": "恢復投票？",
+    "resumeVotingMessage": "參與者將可以再次投票，投票計時器將重新開始。",
+    "resumeVoting": "恢復投票"
   },
   "transcript": {
     "empty": "逐字稿將顯示在此",
@@ -279,7 +285,40 @@
     "voteScaleUnlocked": "於建立場次時設定。",
     "likert": "李克特（5 點）",
     "binary": "同意／不同意",
-    "locked": "已鎖定"
+    "locked": "已鎖定",
+    "votingTitle": "投票時長",
+    "votingHint": "投票保持開放的時間，以及手動停止或恢復投票的控制。",
+    "votingOpen": "投票開放中",
+    "votingOpenFor": "投票開放中 · {{time}}",
+    "votingStopped": "投票已停止",
+    "votingLifetimeLabel": "投票保持開放",
+    "votingLenHours": "{{count}} 小時",
+    "votingLen": {
+      "len1h": "1 小時",
+      "len6h": "6 小時",
+      "len12h": "12 小時",
+      "len1d": "1 天",
+      "len3d": "3 天",
+      "len1w": "1 週",
+      "len2w": "2 週",
+      "len1mo": "1 個月"
+    },
+    "stopVoting": "立即停止投票",
+    "resumeVoting": "恢復投票",
+    "stopVotingNote": "在你恢復之前，參與者將無法投票。你可以隨時恢復。",
+    "resumeVotingNote": "投票目前已停止。準備好後即可隨時恢復。",
+    "votingLogTitle": "活動記錄",
+    "votingLog": {
+      "stopped": "投票已停止",
+      "resumed": "投票已恢復",
+      "expired": "投票已自動關閉",
+      "lifetime": "時長設為 {{duration}}"
+    }
+  },
+  "voting": {
+    "closedTitle": "投票已關閉",
+    "closedDesc": "主持人暫時停止了投票。你仍可瀏覽觀點與結果。",
+    "closedToast": "投票目前已關閉。"
   },
   "participants": {
     "all": "全部",

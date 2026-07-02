@@ -72,7 +72,13 @@
     "giveMic": "Dai microfono",
     "leaveTitle": "Uscire da questa sessione?",
     "leaveMessage": "Puoi rientrare in qualsiasi momento con il codice della sessione.",
-    "leave": "Esci"
+    "leave": "Esci",
+    "stopVotingTitle": "Fermare la votazione?",
+    "stopVotingMessage": "Nessuno potrà votare finché non riprendi. Puoi riprendere in qualsiasi momento.",
+    "stopVoting": "Ferma la votazione",
+    "resumeVotingTitle": "Riprendere la votazione?",
+    "resumeVotingMessage": "I partecipanti potranno votare di nuovo e il timer della votazione riparte.",
+    "resumeVoting": "Riprendi la votazione"
   },
   "transcript": {
     "empty": "La trascrizione apparirà qui",
@@ -279,7 +285,40 @@
     "voteScaleUnlocked": "Impostata alla creazione della sessione.",
     "likert": "Likert (5 punti)",
     "binary": "D'accordo / Contrario",
-    "locked": "Bloccato"
+    "locked": "Bloccato",
+    "votingTitle": "Durata della votazione",
+    "votingHint": "Per quanto tempo la votazione resta aperta, più controlli manuali per fermarla o riprenderla.",
+    "votingOpen": "Votazione aperta",
+    "votingOpenFor": "Votazione aperta · {{time}}",
+    "votingStopped": "Votazione fermata",
+    "votingLifetimeLabel": "La votazione resta aperta per",
+    "votingLenHours": "{{count}} ore",
+    "votingLen": {
+      "len1h": "1 ora",
+      "len6h": "6 ore",
+      "len12h": "12 ore",
+      "len1d": "1 giorno",
+      "len3d": "3 giorni",
+      "len1w": "1 settimana",
+      "len2w": "2 settimane",
+      "len1mo": "1 mese"
+    },
+    "stopVoting": "Ferma la votazione ora",
+    "resumeVoting": "Riprendi la votazione",
+    "stopVotingNote": "I partecipanti non potranno votare finché non riprendi. Puoi riprendere in qualsiasi momento.",
+    "resumeVotingNote": "La votazione è attualmente ferma. Riprendila quando sei pronto.",
+    "votingLogTitle": "Registro attività",
+    "votingLog": {
+      "stopped": "Votazione fermata",
+      "resumed": "Votazione ripresa",
+      "expired": "Votazione chiusa automaticamente",
+      "lifetime": "Durata impostata su {{duration}}"
+    }
+  },
+  "voting": {
+    "closedTitle": "La votazione è chiusa",
+    "closedDesc": "L'host ha fermato la votazione per ora. Puoi comunque sfogliare affermazioni e risultati.",
+    "closedToast": "La votazione è attualmente chiusa."
   },
   "participants": {
     "all": "Tutti",

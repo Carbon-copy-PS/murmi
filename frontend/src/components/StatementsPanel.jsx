@@ -138,6 +138,7 @@ export default function StatementsPanel({
   heldIds,
   onHold,
   voteType = 'binary',
+  votingActive = true,
 }) {
   const { t } = useTranslation()
   const [justVotedId, setJustVotedId] = useState(null)
@@ -160,6 +161,7 @@ export default function StatementsPanel({
   const voted = approved.filter((s) => s.hasVoted || localVoted.has(s.id))
 
   function handleVote(statementId, vote) {
+    if (!votingActive) return
     const resolved = vote === 'pass' ? 'neutral' : vote
     setLocalVoted((prev) => new Set(prev).add(statementId))
     onVote(statementId, resolved)
@@ -168,6 +170,7 @@ export default function StatementsPanel({
   }
 
   function handleRevote(statementId, vote) {
+    if (!votingActive) return
     if (vote === 'undo') {
       setLocalVoted((prev) => {
         const next = new Set(prev)
@@ -190,6 +193,15 @@ export default function StatementsPanel({
 
   return (
     <div className="statements-panel">
+      {!votingActive && (
+        <div className="voting-closed-banner" data-testid="voting-closed-banner" role="status">
+          <span className="voting-closed-icon" aria-hidden="true">⏸</span>
+          <div className="voting-closed-copy">
+            <strong>{t('voting.closedTitle')}</strong>
+            <span>{t('voting.closedDesc')}</span>
+          </div>
+        </div>
+      )}
       {showComposer && (
         <div className="host-composer" data-testid="host-composer">
           <button
@@ -278,7 +290,7 @@ export default function StatementsPanel({
         <div className="flash-card-empty">{t('statements.emptyList')}</div>
       ) : (
         <>
-          {unvoted.length > 0 ? (
+          {unvoted.length > 0 && votingActive ? (
             <>
               {isHost && pending.length > 0 && (
                 <div className="section-divider"><span>{t('statements.live')}</span></div>

@@ -3,6 +3,17 @@ import { useTranslation } from 'react-i18next'
 import LanguageSelect from '../language-select'
 import { CG_DEPTH_OPTIONS } from '../../constants/common-ground-depth'
 
+const VOTING_LIFETIME_OPTIONS = [
+  { hours: 1, key: 'len1h' },
+  { hours: 6, key: 'len6h' },
+  { hours: 12, key: 'len12h' },
+  { hours: 24, key: 'len1d' },
+  { hours: 72, key: 'len3d' },
+  { hours: 168, key: 'len1w' },
+  { hours: 336, key: 'len2w' },
+  { hours: 720, key: 'len1mo' },
+]
+
 function formatTimeLeft(ms, t) {
   if (ms <= 0) return t('settings.expired')
   const totalMinutes = Math.floor(ms / 60000)
@@ -15,33 +26,132 @@ function formatTimeLeft(ms, t) {
   return t('settings.lessThanMinute')
 }
 
-function SessionLifetime({ expiresAt }) {
+function durationLabel(hours, t) {
+  const opt = VOTING_LIFETIME_OPTIONS.find((o) => o.hours === hours)
+  if (opt) return t(`settings.votingLen.${opt.key}`)
+  return t('settings.votingLenHours', { count: hours })
+}
+
+function formatLogTime(at) {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(at * 1000))
+  } catch {
+    return ''
+  }
+}
+
+function VotingControls({
+  votingOpen,
+  votingLifetimeHours,
+  votingExpiresAt,
+  votingActivity,
+  onSetVotingOpen,
+  onSetVotingLifetime,
+}) {
   const { t } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
+  const [logOpen, setLogOpen] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000)
     return () => clearInterval(timer)
   }, [])
 
-  if (!expiresAt) return null
-  const msLeft = expiresAt * 1000 - now
-  const expired = msLeft <= 0
+  const msLeft = votingExpiresAt ? votingExpiresAt * 1000 - now : null
+  const expired = msLeft != null && msLeft <= 0
+  const active = votingOpen && !expired
+  const options = VOTING_LIFETIME_OPTIONS.some((o) => o.hours === votingLifetimeHours)
+    ? VOTING_LIFETIME_OPTIONS
+    : [...VOTING_LIFETIME_OPTIONS, { hours: votingLifetimeHours, key: null }]
+  const log = [...(votingActivity || [])].reverse().slice(0, 8)
 
   return (
-    <section className="settings-section" data-testid="settings-lifetime">
+    <section className="settings-section" data-testid="settings-voting">
       <div className="settings-section-head">
-        <span className="settings-section-title">{t('settings.lifetimeTitle')}</span>
-        <span className="settings-section-hint">
-          {t('settings.lifetimeHintBefore')}
-          <strong>{t('settings.lifetimeHintResults')}</strong>
-          {t('settings.lifetimeHintAfter')}
-        </span>
+        <span className="settings-section-title">{t('settings.votingTitle')}</span>
+        <span className="settings-section-hint">{t('settings.votingHint')}</span>
       </div>
-      <span className={`session-lifetime-pill ${expired ? 'expired' : ''}`} data-testid="settings-time-left">
-        <span className="session-lifetime-dot" aria-hidden="true" />
-        {formatTimeLeft(msLeft, t)}
-      </span>
+
+      <div className="voting-control-row">
+        <span className={`voting-status-pill ${active ? 'open' : 'closed'}`} data-testid="settings-voting-status">
+          <span className="voting-status-dot" aria-hidden="true" />
+          {active
+            ? (msLeft != null
+                ? t('settings.votingOpenFor', { time: formatTimeLeft(msLeft, t) })
+                : t('settings.votingOpen'))
+            : t('settings.votingStopped')}
+        </span>
+        <button
+          type="button"
+          className={`btn sm voting-toggle-btn ${active ? 'danger' : 'primary'}`}
+          onClick={() => onSetVotingOpen(!active)}
+          data-testid="settings-voting-toggle"
+        >
+          {active ? t('settings.stopVoting') : t('settings.resumeVoting')}
+        </button>
+      </div>
+
+      {active ? (
+        <>
+          <div className="voting-lifetime-row">
+            <label className="voting-lifetime-label" htmlFor="voting-lifetime-select">
+              {t('settings.votingLifetimeLabel')}
+            </label>
+            <select
+              id="voting-lifetime-select"
+              className="voting-lifetime-select"
+              value={String(votingLifetimeHours)}
+              onChange={(e) => onSetVotingLifetime(Number(e.target.value))}
+              data-testid="settings-voting-lifetime-select"
+            >
+              {options.map((o) => (
+                <option key={o.hours} value={String(o.hours)}>
+                  {o.key ? t(`settings.votingLen.${o.key}`) : t('settings.votingLenHours', { count: o.hours })}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      ) : (
+        <span className="voting-toggle-note">{t('settings.resumeVotingNote')}</span>
+      )}
+
+      {log.length > 0 && (
+        <div className="voting-log" data-testid="settings-voting-log">
+          <button
+            type="button"
+            className="voting-log-toggle"
+            onClick={() => setLogOpen((o) => !o)}
+            aria-expanded={logOpen}
+            data-testid="settings-voting-log-toggle"
+          >
+            <span className="voting-log-title">
+              {t('settings.votingLogTitle')}
+              <span className="voting-log-count">{log.length}</span>
+            </span>
+            <span className={`votes-recap-chevron ${logOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+          </button>
+          {logOpen && (
+            <ul className="voting-log-list">
+              {log.map((entry, i) => (
+                <li key={`vlog-${entry.at}-${i}`} className="voting-log-item">
+                  <span className={`voting-log-badge ${entry.action}`}>
+                    {entry.action === 'stopped' && t('settings.votingLog.stopped')}
+                    {entry.action === 'resumed' && t('settings.votingLog.resumed')}
+                    {entry.action === 'expired' && t('settings.votingLog.expired')}
+                    {entry.action === 'lifetime' && t('settings.votingLog.lifetime', { duration: durationLabel(entry.hours, t) })}
+                  </span>
+                  <span className="voting-log-meta">
+                    {entry.by ? `${entry.by} · ` : ''}{formatLogTime(entry.at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   )
 }
@@ -57,12 +167,24 @@ export default function SettingsPanel({
   voteTypeLocked = false,
   defaultCanAddStatement = true,
   onToggleDefaultStatementPermission,
-  expiresAt = null,
+  votingOpen = true,
+  votingLifetimeHours = 24,
+  votingExpiresAt = null,
+  votingActivity = [],
+  onSetVotingOpen,
+  onSetVotingLifetime,
 }) {
   const { t } = useTranslation()
   return (
     <div className="settings-panel" data-testid="settings-panel">
-      <SessionLifetime expiresAt={expiresAt} />
+      <VotingControls
+        votingOpen={votingOpen}
+        votingLifetimeHours={votingLifetimeHours}
+        votingExpiresAt={votingExpiresAt}
+        votingActivity={votingActivity}
+        onSetVotingOpen={onSetVotingOpen}
+        onSetVotingLifetime={onSetVotingLifetime}
+      />
 
       <section className="settings-section" data-testid="settings-language">
         <div className="settings-section-head">

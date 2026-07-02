@@ -72,7 +72,13 @@
     "giveMic": "Mikrofon geben",
     "leaveTitle": "Diese Sitzung verlassen?",
     "leaveMessage": "Du kannst mit dem Sitzungscode jederzeit wieder beitreten.",
-    "leave": "Verlassen"
+    "leave": "Verlassen",
+    "stopVotingTitle": "Abstimmung stoppen?",
+    "stopVotingMessage": "Niemand kann abstimmen, bis du fortsetzt. Du kannst jederzeit fortsetzen.",
+    "stopVoting": "Abstimmung stoppen",
+    "resumeVotingTitle": "Abstimmung fortsetzen?",
+    "resumeVotingMessage": "Teilnehmende können wieder abstimmen und der Abstimmungs-Timer startet neu.",
+    "resumeVoting": "Abstimmung fortsetzen"
   },
   "transcript": {
     "empty": "Das Transkript erscheint hier",
@@ -279,7 +285,40 @@
     "voteScaleUnlocked": "Beim Erstellen der Sitzung festgelegt.",
     "likert": "Likert (5-stufig)",
     "binary": "Zustimmen / Ablehnen",
-    "locked": "Gesperrt"
+    "locked": "Gesperrt",
+    "votingTitle": "Abstimmungsdauer",
+    "votingHint": "Wie lange die Abstimmung offen bleibt, plus manuelle Steuerung zum Stoppen oder Fortsetzen.",
+    "votingOpen": "Abstimmung offen",
+    "votingOpenFor": "Abstimmung offen · {{time}}",
+    "votingStopped": "Abstimmung gestoppt",
+    "votingLifetimeLabel": "Abstimmung bleibt offen für",
+    "votingLenHours": "{{count}} Stunden",
+    "votingLen": {
+      "len1h": "1 Stunde",
+      "len6h": "6 Stunden",
+      "len12h": "12 Stunden",
+      "len1d": "1 Tag",
+      "len3d": "3 Tage",
+      "len1w": "1 Woche",
+      "len2w": "2 Wochen",
+      "len1mo": "1 Monat"
+    },
+    "stopVoting": "Abstimmung jetzt stoppen",
+    "resumeVoting": "Abstimmung fortsetzen",
+    "stopVotingNote": "Teilnehmende können erst wieder abstimmen, wenn du fortsetzt. Du kannst jederzeit fortsetzen.",
+    "resumeVotingNote": "Die Abstimmung ist derzeit gestoppt. Setze sie fort, wann immer du bereit bist.",
+    "votingLogTitle": "Aktivitätsprotokoll",
+    "votingLog": {
+      "stopped": "Abstimmung gestoppt",
+      "resumed": "Abstimmung fortgesetzt",
+      "expired": "Abstimmung automatisch beendet",
+      "lifetime": "Dauer auf {{duration}} gesetzt"
+    }
+  },
+  "voting": {
+    "closedTitle": "Abstimmung ist geschlossen",
+    "closedDesc": "Der Host hat die Abstimmung vorerst gestoppt. Du kannst weiterhin Aussagen und Ergebnisse ansehen.",
+    "closedToast": "Die Abstimmung ist derzeit geschlossen."
   },
   "participants": {
     "all": "Alle",

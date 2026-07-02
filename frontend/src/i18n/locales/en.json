@@ -72,7 +72,13 @@
     "giveMic": "Give mic",
     "leaveTitle": "Leave this session?",
     "leaveMessage": "You can rejoin anytime with the session code.",
-    "leave": "Leave"
+    "leave": "Leave",
+    "stopVotingTitle": "Stop voting?",
+    "stopVotingMessage": "No one will be able to vote until you resume. You can resume anytime.",
+    "stopVoting": "Stop voting",
+    "resumeVotingTitle": "Resume voting?",
+    "resumeVotingMessage": "Participants will be able to vote again, and the voting timer restarts.",
+    "resumeVoting": "Resume voting"
   },
   "transcript": {
     "empty": "Transcript will appear here",
@@ -279,7 +285,40 @@
     "voteScaleUnlocked": "Set when creating the session.",
     "likert": "Likert (5-point)",
     "binary": "Agree / Disagree",
-    "locked": "Locked"
+    "locked": "Locked",
+    "votingTitle": "Voting lifetime",
+    "votingHint": "How long voting stays open, plus manual controls to stop or resume it.",
+    "votingOpen": "Voting open",
+    "votingOpenFor": "Voting open · {{time}}",
+    "votingStopped": "Voting stopped",
+    "votingLifetimeLabel": "Voting stays open for",
+    "votingLenHours": "{{count}} hours",
+    "votingLen": {
+      "len1h": "1 hour",
+      "len6h": "6 hours",
+      "len12h": "12 hours",
+      "len1d": "1 day",
+      "len3d": "3 days",
+      "len1w": "1 week",
+      "len2w": "2 weeks",
+      "len1mo": "1 month"
+    },
+    "stopVoting": "Stop voting now",
+    "resumeVoting": "Resume voting",
+    "stopVotingNote": "Participants won't be able to vote until you resume. You can resume anytime.",
+    "resumeVotingNote": "Voting is currently stopped. Resume it whenever you're ready.",
+    "votingLogTitle": "Activity log",
+    "votingLog": {
+      "stopped": "Voting stopped",
+      "resumed": "Voting resumed",
+      "expired": "Voting closed automatically",
+      "lifetime": "Lifetime set to {{duration}}"
+    }
+  },
+  "voting": {
+    "closedTitle": "Voting is closed",
+    "closedDesc": "The host has stopped voting for now. You can still browse statements and results.",
+    "closedToast": "Voting is currently closed."
   },
   "participants": {
     "all": "All",
