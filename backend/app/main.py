@@ -26,7 +26,7 @@ from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 load_dotenv()
 
 db = Database()
-sessions = SessionManager(ttl_seconds=db.ttl_seconds if db.enabled else None)
+sessions = SessionManager(ttl_seconds=None)
 transcription = TranscriptionService()
 analysis = AnalysisService()
 
@@ -66,24 +66,40 @@ async def drop_session(session_id: str):
 
 
 async def purge_expired_sessions():
-    now = time.time()
-    expired = set()
-    if db.enabled:
-        try:
-            expired.update(await db.purge_expired())
-        except Exception as exc:
-            print(f"DB purge error: {exc}")
-    for sid, session in list(sessions.sessions.items()):
-        if session.expires_at and session.expires_at <= now:
-            expired.add(sid)
-    for sid in expired:
-        await drop_session(sid)
+    # Session data is retained indefinitely — nothing is ever purged.
+    return
 
 
 async def purge_loop():
     while True:
         await asyncio.sleep(SESSION_PURGE_INTERVAL_SECONDS)
         await purge_expired_sessions()
+
+
+VOTING_WATCH_INTERVAL_SECONDS = 30
+
+
+async def auto_close_expired_voting():
+    now = time.time()
+    for session_id, session in list(sessions.sessions.items()):
+        if session.voting_open and session.voting_expires_at and now >= session.voting_expires_at:
+            session.voting_open = False
+            session.voting_expires_at = None
+            sessions._log_voting_activity(session, "expired", "")
+            await _safe_db(db.update_voting(session))
+            await sessions.broadcast(session_id, {
+                "type": "voting_status_updated",
+                **sessions.voting_status(session_id),
+            })
+
+
+async def voting_watch_loop():
+    while True:
+        await asyncio.sleep(VOTING_WATCH_INTERVAL_SECONDS)
+        try:
+            await auto_close_expired_voting()
+        except Exception as exc:
+            print(f"Voting watch error: {exc}")
 
 
 @asynccontextmanager
@@ -101,14 +117,16 @@ async def lifespan(_app: FastAPI):
         db.enabled = False
         sessions.ttl_seconds = None
     purge_task = asyncio.create_task(purge_loop())
+    voting_task = asyncio.create_task(voting_watch_loop())
     try:
         yield
     finally:
-        purge_task.cancel()
-        try:
-            await purge_task
-        except asyncio.CancelledError:
-            pass
+        for task in (purge_task, voting_task):
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
         await db.disconnect()
 
 
@@ -166,7 +184,12 @@ async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
     session_id = sessions.create(topic=topic, vote_type=vote_type)
     await persist_session(sessions.get(session_id))
-    return {"sessionId": session_id, "topic": topic, "voteType": vote_type}
+    return {
+        "sessionId": session_id,
+        "topic": topic,
+        "voteType": vote_type,
+        "publicId": sessions.get(session_id).public_id,
+    }
 
 
 MOCK_TRANSCRIPT = [
@@ -329,6 +352,31 @@ async def run_analysis(session_id: str):
 
 COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
 TENSION_TIMEOUT_SECONDS = float(os.environ.get("TENSION_TIMEOUT_SECONDS", "45"))
+TENSION_TRANSCRIPT_MAX_TURNS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_TURNS", "80"))
+TENSION_TRANSCRIPT_MAX_CHARS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_CHARS", "12000"))
+
+
+def build_transcript_excerpt(session) -> list[dict]:
+    if not session or not getattr(session, "transcript", None):
+        return []
+    turns = []
+    for entry in session.transcript:
+        text = (entry.get("text") or "").strip()
+        if not text:
+            continue
+        turns.append({"speaker": entry.get("speaker") or "Speaker", "text": text})
+
+    turns = turns[-TENSION_TRANSCRIPT_MAX_TURNS:]
+
+    total = 0
+    trimmed = []
+    for turn in reversed(turns):
+        total += len(turn["text"])
+        if total > TENSION_TRANSCRIPT_MAX_CHARS and trimmed:
+            break
+        trimmed.append(turn)
+    trimmed.reverse()
+    return trimmed
 
 
 async def run_tensions(
@@ -345,6 +393,9 @@ async def run_tensions(
         return
 
     await participant.websocket.send_json({"type": "tensions_pending"})
+
+    payload = dict(payload)
+    payload["transcript"] = build_transcript_excerpt(session)
 
     tensions: list[str] = []
     try:
@@ -373,6 +424,7 @@ async def run_tensions(
         await participant.websocket.send_json({
             "type": "tensions_error",
             "message": "Could not generate tension statements. Try again.",
+            "code": "tensionsFailed",
         })
 
 
@@ -430,7 +482,24 @@ async def run_common_ground(
         await sessions.broadcast(session_id, {
             "type": "common_ground_error",
             "message": "Could not generate common ground. Please try again.",
+            "code": "cgFailed",
         })
+
+
+def pending_turn_text(entry: dict) -> str:
+    full = (entry.get("text") or "").strip()
+    analyzed = (entry.get("analyzedText") or "").strip()
+    if not analyzed:
+        pending = full
+    elif full == analyzed:
+        pending = ""
+    elif full.startswith(analyzed):
+        pending = full[len(analyzed):].strip()
+    else:
+        pending = full
+    if is_low_information_transcript(pending):
+        return ""
+    return pending
 
 
 async def run_turn_analysis(session_id: str, entry_id: str):
@@ -440,15 +509,21 @@ async def run_turn_analysis(session_id: str, entry_id: str):
     if not session:
         return
     entry = next((e for e in session.transcript if e.get("id") == entry_id), None)
-    if not entry or entry.get("argumentAnalyzed"):
+    if not entry:
+        return
+
+    pending_text = pending_turn_text(entry)
+    if not pending_text:
+        entry["argumentAnalyzed"] = True
         return
     if time.time() - entry.get("updatedAt", entry.get("timestamp", 0)) < SPEAKER_TURN_IDLE_SECONDS:
         schedule_turn_analysis(session_id, entry)
         return
 
     entry["argumentAnalyzed"] = True
+    entry["analyzedText"] = entry.get("text", "")
     new_texts = await analysis.extract_turn_statement(
-        turn_entry=entry,
+        turn_entry={**entry, "text": pending_text},
         existing_statements=[s.text for s in session.statements],
         topic=session.topic,
         language=session_statement_language(session_id),
@@ -537,7 +612,6 @@ async def add_transcript_text(
     if should_merge_transcript(last_entry, speaker, now):
         last_entry["text"] = merge_transcript_text(last_entry.get("text", ""), text)
         last_entry["updatedAt"] = now
-        last_entry["argumentAnalyzed"] = False
         last_entry.setdefault("itemIds", [])
         if item_id:
             last_entry["itemIds"].append(item_id)
@@ -558,6 +632,7 @@ async def add_transcript_text(
         "timestamp": now,
         "updatedAt": now,
         "argumentAnalyzed": False,
+        "analyzedText": "",
     }
     if item_id:
         entry["itemId"] = item_id
@@ -600,7 +675,7 @@ async def finalize_caption(
         })
 
 
-async def broadcast_caption_error(session_id: str, message: str):
+async def broadcast_caption_error(session_id: str, message: str, code: str | None = None):
     key = (session_id, message)
     if key in realtime_errors_seen:
         return
@@ -608,6 +683,7 @@ async def broadcast_caption_error(session_id: str, message: str):
     await sessions.broadcast(session_id, {
         "type": "caption_error",
         "message": message,
+        "code": code,
     })
 
 
@@ -620,8 +696,12 @@ async def get_realtime_session(
         return None
 
     existing = realtime_sessions.get(key)
-    if existing and existing.is_open:
+    if existing and existing.is_open and not existing.expired:
         return existing
+
+    if existing:
+        realtime_sessions.pop(key, None)
+        asyncio.create_task(existing.close())
 
     speaker = sessions.get_participant_name(session_id, participant_id)
     language = sessions.get_participant_language(session_id, participant_id)
@@ -640,7 +720,8 @@ async def get_realtime_session(
         return bridge
 
     realtime_sessions.pop(key, None)
-    realtime_unavailable.add(key)
+    if not bridge.available:
+        realtime_unavailable.add(key)
     return None
 
 
@@ -670,9 +751,11 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     wants_host = bool(init.get("wantsHost"))
     client_id = init.get("clientId") or None
 
+    restored_missing_public_id = False
     if not sessions.exists(session_id) and db.enabled:
         restored = await db.load_session(session_id)
         if restored:
+            restored_missing_public_id = not restored.get("public_id")
             sessions.hydrate(restored)
 
     existed = sessions.exists(session_id)
@@ -681,6 +764,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     )
     if not existed:
         await persist_session(sessions.get(session_id))
+    elif restored_missing_public_id:
+        _restored = sessions.get(session_id)
+        if _restored and _restored.public_id:
+            await _safe_db(db.update_public_id(session_id, _restored.public_id))
     await _safe_db(db.save_participant(
         sessions.get(session_id), participant_id, client_id, name, language,
         is_host=sessions.is_host(session_id, participant_id),
@@ -752,6 +839,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             elif msg_type == "vote":
                 statement_id = data.get("statementId", "")
                 vote_value = data.get("vote", "")
+                if not sessions.is_voting_open(session_id):
+                    await websocket.send_json({
+                        "type": "voting_rejected",
+                        "code": "votingClosed",
+                    })
+                    continue
                 ok = sessions.record_vote(
                     session_id, participant_id, statement_id, vote_value,
                 )
@@ -812,12 +905,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 payload = data.get("analysis")
                 if not isinstance(payload, dict):
                     continue
-                depth = data.get("depth") or "basic"
+                session = sessions.get(session_id)
+                depth = data.get("depth") or (session.common_ground_depth if session else "extended")
                 if depth not in ("basic", "extended", "comprehensive"):
-                    depth = "basic"
+                    depth = "extended"
                 payload = dict(payload)
                 payload["previousFeedback"] = sessions.collect_common_ground_feedback(session_id)
-                session = sessions.get(session_id)
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
                 await sessions.broadcast(session_id, {"type": "common_ground_pending", "depth": depth})
@@ -832,6 +925,63 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 client_id = sessions.set_auto_approve(session_id, participant_id, value)
                 if client_id:
                     await _safe_db(db.save_auto_approve(session_id, client_id, value))
+
+            elif msg_type == "set_default_statement_permission":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                allowed = bool(data.get("allowed", True))
+                if sessions.set_default_can_add_statement(session_id, allowed):
+                    await sessions.broadcast(session_id, {
+                        "type": "default_statement_permission_updated",
+                        "allowed": allowed,
+                    })
+
+            elif msg_type == "set_voting_open":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                is_open = bool(data.get("open", True))
+                actor = sessions.get_participant_name(session_id, participant_id)
+                if sessions.set_voting_open(session_id, is_open, actor):
+                    session = sessions.get(session_id)
+                    await _safe_db(db.update_voting(session))
+                    await sessions.broadcast(session_id, {
+                        "type": "voting_status_updated",
+                        **sessions.voting_status(session_id),
+                    })
+
+            elif msg_type == "set_voting_lifetime":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                hours = data.get("hours")
+                actor = sessions.get_participant_name(session_id, participant_id)
+                if sessions.set_voting_lifetime(session_id, hours, actor):
+                    session = sessions.get(session_id)
+                    await _safe_db(db.update_voting(session))
+                    await sessions.broadcast(session_id, {
+                        "type": "voting_status_updated",
+                        **sessions.voting_status(session_id),
+                    })
+
+            elif msg_type == "set_statement_permission":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                target = data.get("participantId")
+                allowed = bool(data.get("allowed", True))
+                if not target:
+                    continue
+                if sessions.set_statement_permission(session_id, target, allowed) is None:
+                    continue
+                await sessions.broadcast_participants(session_id)
+                session = sessions.get(session_id)
+                target_p = session.participants.get(target) if session else None
+                if target_p:
+                    try:
+                        await target_p.websocket.send_json({
+                            "type": "permissions_updated",
+                            "canAddStatement": allowed,
+                        })
+                    except Exception:
+                        pass
 
             elif msg_type == "vote_common_ground":
                 cg_id = data.get("id") or ""
@@ -884,15 +1034,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await _safe_db(db.delete_statements(removed))
 
             elif msg_type == "add_statement":
-                if not sessions.is_host(session_id, participant_id):
-                    continue
                 text = (data.get("text") or "").strip()
                 if not text:
                     continue
-                stmt = sessions.add_custom_statement(session_id, text)
+                is_host = sessions.is_host(session_id, participant_id)
+                if is_host:
+                    stmt = sessions.add_custom_statement(session_id, text)
+                elif sessions.can_add_statement(session_id, participant_id):
+                    stmt = sessions.add_participant_statement(
+                        session_id, text, sessions.get_participant_name(session_id, participant_id)
+                    )
+                else:
+                    continue
                 if stmt:
                     await _safe_db(db.save_statements(sessions.get(session_id), [stmt]))
                     await sessions.broadcast_statements(session_id)
+                    if not is_host:
+                        await websocket.send_json({"type": "statement_submitted"})
 
             elif msg_type == "edit_statement":
                 if not sessions.is_host(session_id, participant_id):
@@ -938,6 +1096,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     await sessions.broadcast(session_id, {
                         "type": "vote_type_updated",
                         "voteType": vote_type,
+                    })
+
+            elif msg_type == "set_common_ground_depth":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                depth = sessions.set_common_ground_depth(session_id, data.get("depth"))
+                if depth:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_depth_updated",
+                        "depth": depth,
                     })
 
             elif msg_type == "set_topic":
@@ -1018,8 +1186,78 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await sessions.broadcast(session_id, {"type": "recording_stopped"})
 
 
+async def _resolve_public_session(public_id: str) -> Optional[str]:
+    session_id = sessions.get_by_public_id(public_id)
+    if session_id:
+        return session_id
+    if db.enabled:
+        restored = await db.load_by_public_id(public_id)
+        if restored:
+            sessions.hydrate(restored)
+            session_id = restored["id"]
+            if not restored.get("public_id"):
+                pid = sessions.ensure_public_id(session_id)
+                await _safe_db(db.update_public_id(session_id, pid))
+            return session_id
+    return None
+
+
+@app.get("/api/public/results/{public_id}")
+async def public_results(public_id: str):
+    session_id = await _resolve_public_session(public_id)
+    if not session_id:
+        raise HTTPException(status_code=404, detail="Results not found")
+    data = sessions.public_results(session_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="Results not found")
+    return data
+
+
+def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
+    import html as _html
+
+    title = _html.escape(topic) if topic else "Live results"
+    full_title = f"{title} · HearTheRoom"
+    desc = "See the live opinion map, common ground and open tensions from this conversation."
+    url = f"/r/{_html.escape(public_id, quote=True)}"
+
+    replacements = {
+        '<meta property="og:title" content="HearTheRoom" />':
+            f'<meta property="og:title" content="{full_title}" />',
+        '<meta property="og:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta property="og:description" content="{desc}" />',
+        '<meta name="twitter:title" content="HearTheRoom" />':
+            f'<meta name="twitter:title" content="{full_title}" />',
+        '<meta name="twitter:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta name="twitter:description" content="{desc}" />',
+        '<meta name="description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+            f'<meta name="description" content="{desc}" />',
+        "<title>HearTheRoom</title>":
+            f"<title>{full_title}</title>",
+    }
+    for old, new in replacements.items():
+        html = html.replace(old, new)
+    html = html.replace(
+        "</head>",
+        f'    <meta property="og:url" content="{url}" />\n  </head>',
+    )
+    return html
+
+
 if FRONTEND_DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    from fastapi.responses import HTMLResponse
+
+    @app.get("/r/{public_id}", response_class=HTMLResponse)
+    async def serve_public_results(public_id: str):
+        index_html = (FRONTEND_DIST / "index.html").read_text(encoding="utf-8")
+        session_id = await _resolve_public_session(public_id)
+        topic = None
+        if session_id:
+            data = sessions.public_results(session_id)
+            topic = data.get("topic") if data else None
+        return HTMLResponse(_inject_public_meta(index_html, public_id, topic))
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):

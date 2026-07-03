@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 import time
+import secrets
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
@@ -36,6 +37,8 @@ class Statement:
     tension: bool = False
     edited: bool = False
     created_at: float = field(default_factory=time.time)
+    author: Optional[str] = None
+    snapshot: Optional[dict] = None
     votes: Dict[str, str] = field(default_factory=dict)
 
 
@@ -53,12 +56,20 @@ class Session:
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
     vote_type: str = "binary"
+    common_ground_depth: str = "extended"
     started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
     common_ground_history: list = field(default_factory=list)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
+    statement_perms: Dict[str, bool] = field(default_factory=dict)
+    default_can_add_statement: bool = True
+    voting_open: bool = True
+    voting_lifetime_hours: float = 24.0
+    voting_expires_at: Optional[float] = None
+    voting_activity: list = field(default_factory=list)
+    public_id: Optional[str] = None
 
 
 SILENCE_THRESHOLD = 0.01
@@ -67,6 +78,12 @@ ANALYSIS_BATCH_SIZE = 3
 COMMON_GROUND_REASON_MAX = 280
 
 VOTE_TYPES = ("binary", "likert")
+DEFAULT_VOTING_LIFETIME_HOURS = 24.0
+MIN_VOTING_LIFETIME_HOURS = 1.0
+MAX_VOTING_LIFETIME_HOURS = 720.0
+VOTING_ACTIVITY_MAX = 100
+COMMON_GROUND_DEPTHS = ("basic", "extended", "comprehensive")
+DEFAULT_COMMON_GROUND_DEPTH = "extended"
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
 VALID_LIKERT_VOTES = ("strongly_agree", "agree", "neutral", "disagree", "strongly_disagree")
 AGREE_VOTES = ("agree", "strongly_agree")
@@ -87,12 +104,45 @@ class SessionManager:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
         vt = vote_type if vote_type in VOTE_TYPES else "binary"
-        return Session(id=session_id, topic=topic, vote_type=vt, created_at=now, expires_at=expires_at)
+        return Session(
+            id=session_id,
+            topic=topic,
+            vote_type=vt,
+            created_at=now,
+            expires_at=expires_at,
+            voting_lifetime_hours=DEFAULT_VOTING_LIFETIME_HOURS,
+            voting_expires_at=now + DEFAULT_VOTING_LIFETIME_HOURS * 3600,
+        )
+
+    def _gen_public_id(self) -> str:
+        existing = {s.public_id for s in self.sessions.values() if s.public_id}
+        while True:
+            token = secrets.token_urlsafe(9).replace("-", "").replace("_", "")[:12]
+            if token and token not in existing:
+                return token
 
     def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
         session_id = uuid.uuid4().hex[:6].upper()
-        self.sessions[session_id] = self._new_session(session_id, topic, vote_type)
+        session = self._new_session(session_id, topic, vote_type)
+        session.public_id = self._gen_public_id()
+        self.sessions[session_id] = session
         return session_id
+
+    def get_by_public_id(self, public_id: str) -> Optional[str]:
+        if not public_id:
+            return None
+        for s in self.sessions.values():
+            if s.public_id == public_id:
+                return s.id
+        return None
+
+    def ensure_public_id(self, session_id: str) -> Optional[str]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        if not session.public_id:
+            session.public_id = self._gen_public_id()
+        return session.public_id
 
     def hydrate(self, data: dict) -> Session:
         session = Session(
@@ -103,6 +153,16 @@ class SessionManager:
             expires_at=data.get("expires_at"),
         )
         session.transcript = list(data.get("transcript", []))
+        session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
+        if "default_can_add_statement" in data:
+            session.default_can_add_statement = bool(data["default_can_add_statement"])
+        if "voting_open" in data and data["voting_open"] is not None:
+            session.voting_open = bool(data["voting_open"])
+        if data.get("voting_lifetime_hours"):
+            session.voting_lifetime_hours = float(data["voting_lifetime_hours"])
+        session.voting_expires_at = data.get("voting_expires_at")
+        session.voting_activity = list(data.get("voting_activity") or [])
+        session.public_id = data.get("public_id")
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -112,6 +172,8 @@ class SessionManager:
                 session.host_client_ids.add(client_id)
             if client_id and "auto_approve" in member:
                 session.auto_approve_prefs[client_id] = bool(member["auto_approve"])
+            if client_id and "can_add_statement" in member:
+                session.statement_perms[client_id] = bool(member["can_add_statement"])
         for s in data.get("statements", []):
             session.statements.append(Statement(
                 id=s["id"],
@@ -146,6 +208,8 @@ class SessionManager:
             self.sessions[session_id] = self._new_session(session_id)
 
         session = self.sessions[session_id]
+        if not session.public_id:
+            session.public_id = self._gen_public_id()
 
         returning = bool(client_id and client_id in session.known_participants)
         participant_id = session.known_participants.get(client_id) if returning else uuid.uuid4().hex[:8]
@@ -160,6 +224,10 @@ class SessionManager:
         session.participants[participant_id] = participant
         if client_id:
             session.known_participants[client_id] = participant_id
+
+        perm_key = client_id or participant_id
+        if perm_key not in session.statement_perms:
+            session.statement_perms[perm_key] = session.default_can_add_statement
 
         already_host = self._is_host(session, participant_id)
         if not already_host and wants_host and not session.host_client_ids:
@@ -193,12 +261,21 @@ class SessionManager:
             ),
             "voteType": session.vote_type,
             "voteTypeLocked": session.started,
+            "expiresAt": session.expires_at,
+            "votingOpen": session.voting_open,
+            "votingLifetimeHours": session.voting_lifetime_hours,
+            "votingExpiresAt": session.voting_expires_at,
+            "votingActivity": session.voting_activity,
+            "commonGroundDepth": session.common_ground_depth,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
+            "canAddStatement": self.can_add_statement(session_id, participant_id),
+            "defaultCanAddStatement": session.default_can_add_statement,
             "language": language,
             "recorderLanguage": self.get_recorder_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
+            "publicId": session.public_id,
         })
 
         if not returning:
@@ -445,9 +522,73 @@ class SessionManager:
             return False
         return session.host_participant_id in session.participants
 
+    def is_voting_open(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        return self._voting_open(session)
+
+    def _voting_open(self, session: Session) -> bool:
+        if not session.voting_open:
+            return False
+        if session.voting_expires_at is not None and time.time() >= session.voting_expires_at:
+            return False
+        return True
+
+    def _log_voting_activity(self, session: Session, action: str, actor: str, extra: dict | None = None) -> dict:
+        entry = {"action": action, "at": time.time(), "by": actor or ""}
+        if extra:
+            entry.update(extra)
+        session.voting_activity.append(entry)
+        if len(session.voting_activity) > VOTING_ACTIVITY_MAX:
+            session.voting_activity = session.voting_activity[-VOTING_ACTIVITY_MAX:]
+        return entry
+
+    def set_voting_open(self, session_id: str, is_open: bool, actor: str = "") -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        was_open = self._voting_open(session)
+        session.voting_open = is_open
+        if is_open:
+            session.voting_expires_at = time.time() + session.voting_lifetime_hours * 3600
+        else:
+            session.voting_expires_at = None
+        if self._voting_open(session) == was_open:
+            return True
+        self._log_voting_activity(session, "resumed" if is_open else "stopped", actor)
+        return True
+
+    def set_voting_lifetime(self, session_id: str, hours: float, actor: str = "") -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        try:
+            hours = float(hours)
+        except (TypeError, ValueError):
+            return False
+        hours = max(MIN_VOTING_LIFETIME_HOURS, min(MAX_VOTING_LIFETIME_HOURS, hours))
+        session.voting_lifetime_hours = hours
+        session.voting_expires_at = time.time() + hours * 3600
+        self._log_voting_activity(session, "lifetime", actor, {"hours": hours})
+        return True
+
+    def voting_status(self, session_id: str) -> dict:
+        session = self.sessions.get(session_id)
+        if not session:
+            return {}
+        return {
+            "votingOpen": session.voting_open,
+            "votingLifetimeHours": session.voting_lifetime_hours,
+            "votingExpiresAt": session.voting_expires_at,
+            "votingActivity": session.voting_activity,
+        }
+
     def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
         session = self.sessions.get(session_id)
         if not session:
+            return False
+        if not self._voting_open(session):
             return False
         stmt = next((s for s in session.statements if s.id == statement_id), None)
         if not stmt or not stmt.approved:
@@ -476,6 +617,9 @@ class SessionManager:
             "custom": stmt.custom,
             "tension": stmt.tension,
             "edited": stmt.edited,
+            "author": stmt.author,
+            "createdAt": stmt.created_at,
+            "snapshot": stmt.snapshot,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
@@ -507,6 +651,22 @@ class SessionManager:
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
             "commonGroundHistory": history,
+            "commonGroundDepth": session.common_ground_depth,
+        }
+
+    def public_results(self, session_id: str) -> Optional[dict]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        matrix = self.vote_matrix(session_id, "")
+        return {
+            "publicId": session.public_id,
+            "topic": session.topic,
+            "voteType": session.vote_type,
+            "createdAt": session.created_at,
+            "participantCount": len(session.known_participants) or len(session.participants),
+            "votingOpen": self._voting_open(session),
+            **matrix,
         }
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
@@ -529,6 +689,65 @@ class SessionManager:
             return None
         session.auto_approve_prefs[client_id] = value
         return client_id
+
+    def can_add_statement(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        if self._is_host(session, participant_id):
+            return True
+        participant = session.participants.get(participant_id)
+        client_id = participant.client_id if participant else None
+        if not client_id:
+            return session.statement_perms.get(participant_id, True)
+        return session.statement_perms.get(client_id, True)
+
+    def set_default_can_add_statement(self, session_id: str, allowed: bool) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        session.default_can_add_statement = allowed
+        return True
+
+    def set_statement_permission(
+        self, session_id: str, participant_id: str, allowed: bool
+    ) -> Optional[str]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        participant = session.participants.get(participant_id)
+        if not participant:
+            return None
+        key = participant.client_id or participant_id
+        session.statement_perms[key] = allowed
+        return key
+
+    def add_participant_statement(
+        self, session_id: str, text: str, author: str | None = None
+    ) -> Optional[Statement]:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        clean = (text or "").strip()[:240]
+        if not clean:
+            return None
+        if normalize_statement(clean) in {normalize_statement(s.text) for s in session.statements}:
+            return None
+        snapshot = {
+            "participantCount": len(session.participants),
+            "statementCount": sum(1 for s in session.statements if s.approved),
+        }
+        stmt = Statement(
+            id=uuid.uuid4().hex[:8],
+            text=clean,
+            round=1,
+            approved=False,
+            custom=True,
+            author=author,
+            snapshot=snapshot,
+        )
+        session.statements.append(stmt)
+        return stmt
 
     def _cg_vote_tally(self, participant_votes: dict) -> dict:
         agree = sum(1 for v in participant_votes.values() if v.get("vote") == "agree")
@@ -738,6 +957,7 @@ class SessionManager:
                 "language": p.language,
                 "isHost": self._is_host(session, p.id),
                 "isRecorder": p.id == session.host_participant_id,
+                "canAddStatement": self.can_add_statement(session_id, p.id),
                 "votesCast": sum(1 for s in approved if p.id in s.votes),
                 "votesRequired": required,
             }
@@ -783,6 +1003,13 @@ class SessionManager:
             return None
         session.topic = (topic or "").strip()[:200] or None
         return session.topic
+
+    def set_common_ground_depth(self, session_id: str, depth: str) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session or depth not in COMMON_GROUND_DEPTHS:
+            return None
+        session.common_ground_depth = depth
+        return depth
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)

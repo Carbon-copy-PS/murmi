@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { filterLanguages, getLanguage } from '../constants/languages'
+import { useTranslation } from 'react-i18next'
+import { filterLanguages, getLanguage, DEFAULT_LANGUAGE } from '../constants/languages'
 
 const PANEL_MIN_WIDTH = 280
 const PANEL_MAX_HEIGHT = 280
@@ -55,7 +56,8 @@ export default function LanguageSelect({
   const searchRef = useRef(null)
   const listId = useId()
   const searchId = useId()
-  const selected = getLanguage(value) || getLanguage('auto')
+  const { t } = useTranslation()
+  const selected = getLanguage(value) || getLanguage(DEFAULT_LANGUAGE)
   const filtered = useMemo(() => filterLanguages(query), [query])
 
   const updatePanelPosition = useCallback(() => {
@@ -131,7 +133,7 @@ export default function LanguageSelect({
           className="lang-select-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search languages…"
+          placeholder={t('language.searchPlaceholder')}
           autoComplete="off"
           aria-controls={listId}
           data-testid={testId ? `${testId}-search` : undefined}
@@ -140,7 +142,7 @@ export default function LanguageSelect({
       <ul className="lang-select-menu" id={listId} role="listbox">
         {filtered.length === 0 ? (
           <li className="lang-select-empty" data-testid={testId ? `${testId}-empty` : undefined}>
-            No languages match “{query}”
+            {t('language.noMatch', { query })}
           </li>
         ) : filtered.map((lang) => (
           <li key={lang.code} role="presentation">
@@ -185,9 +187,7 @@ export default function LanguageSelect({
         <span className="lang-select-flag" aria-hidden="true">{selected.flag}</span>
         <span className="lang-select-text">
           <span className="lang-select-native">{inline ? selected.label : selected.native}</span>
-          {!inline && !singleLine && selected.code === 'auto' ? (
-            <span className="lang-select-label">{selected.label}</span>
-          ) : !inline && !singleLine && selected.native !== selected.label ? (
+          {!inline && !singleLine && selected.native !== selected.label ? (
             <span className="lang-select-label">{selected.label}</span>
           ) : null}
         </span>

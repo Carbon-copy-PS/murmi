@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
+import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../constants/app'
 import { resolveTheme } from '../theme'
 
-export default function ShareModal({ sessionId, topic, onClose }) {
+export default function ShareModal({ sessionId, topic, publicId, onClose }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState('')
   const qrRef = useRef(null)
   const shareLink = `${window.location.origin}/?code=${sessionId}`
+  const resultsLink = publicId ? `${window.location.origin}/r/${publicId}` : ''
   const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share
   const isDark = resolveTheme() === 'dark'
 
@@ -44,7 +47,7 @@ export default function ShareModal({ sessionId, topic, onClose }) {
         await navigator.share({
           files: [file],
           title: APP_NAME,
-          text: topic ? `Scan to join my session: "${topic}"` : `Scan to join my session on ${APP_NAME}`,
+          text: topic ? t('share.scanTopic', { topic }) : t('share.scanApp', { app: APP_NAME }),
         })
       } catch {
         /* user cancelled */
@@ -77,7 +80,7 @@ export default function ShareModal({ sessionId, topic, onClose }) {
     try {
       await navigator.share({
         title: APP_NAME,
-        text: topic ? `Join my session: "${topic}"` : `Join my session on ${APP_NAME}`,
+        text: topic ? t('share.joinTopic', { topic }) : t('share.joinApp', { app: APP_NAME }),
         url: shareLink,
       })
     } catch {
@@ -91,16 +94,16 @@ export default function ShareModal({ sessionId, topic, onClose }) {
         className="modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Share session"
+        aria-label={t('room.shareSession')}
         onClick={(e) => e.stopPropagation()}
         data-testid="share-modal"
       >
-        <button className="modal-close" onClick={onClose} aria-label="Close" data-testid="share-close">
+        <button className="modal-close" onClick={onClose} aria-label={t('share.close')} data-testid="share-close">
           ×
         </button>
 
-        <h2 className="modal-title">Invite others</h2>
-        <p className="modal-sub">Scan the QR code, or share the code or link so people can join your session.</p>
+        <h2 className="modal-title">{t('share.inviteOthers')}</h2>
+        <p className="modal-sub">{t('share.sub')}</p>
 
         <div className="share-qr" data-testid="share-qr">
           <div className="share-qr-frame" ref={qrRef}>
@@ -113,14 +116,14 @@ export default function ShareModal({ sessionId, topic, onClose }) {
               fgColor={isDark ? '#f2f2f3' : '#111111'}
             />
           </div>
-          <span className="share-qr-hint">Point a phone camera here to join</span>
+          <span className="share-qr-hint">{t('share.qrHint')}</span>
           <div className="share-qr-actions">
             <button className="btn" onClick={downloadQr} data-testid="download-qr">
-              Save QR
+              {t('share.saveQr')}
             </button>
             {canShareFiles && (
               <button className="btn" onClick={shareQr} data-testid="share-qr-btn">
-                Share QR
+                {t('share.shareQr')}
               </button>
             )}
           </div>
@@ -133,7 +136,7 @@ export default function ShareModal({ sessionId, topic, onClose }) {
             onClick={() => copy(sessionId, 'code')}
             data-testid="copy-code"
           >
-            {copied === 'code' ? 'Copied!' : 'Copy code'}
+            {copied === 'code' ? t('share.copied') : t('share.copyCode')}
           </button>
         </div>
 
@@ -144,14 +147,39 @@ export default function ShareModal({ sessionId, topic, onClose }) {
             onClick={() => copy(shareLink, 'link')}
             data-testid="copy-link"
           >
-            {copied === 'link' ? 'Copied!' : 'Copy link'}
+            {copied === 'link' ? t('share.copied') : t('share.copyLink')}
           </button>
         </div>
 
         {canNativeShare && (
           <button className="btn primary share-native" onClick={nativeShare} data-testid="native-share">
-            Share…
+            {t('share.shareNative')}
           </button>
+        )}
+
+        {resultsLink && (
+          <div className="share-results-block" data-testid="share-results-block">
+            <div className="share-results-head">
+              <span className="share-results-title">{t('share.resultsTitle')}</span>
+              <span className="share-results-sub">{t('share.resultsSub')}</span>
+            </div>
+            <div className="share-link-box">
+              <input
+                className="share-link"
+                type="text"
+                value={resultsLink}
+                readOnly
+                data-testid="share-results-link"
+              />
+              <button
+                className="btn"
+                onClick={() => copy(resultsLink, 'results')}
+                data-testid="copy-results-link"
+              >
+                {copied === 'results' ? t('share.copied') : t('share.copyLink')}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

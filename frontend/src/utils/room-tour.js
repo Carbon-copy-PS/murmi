@@ -57,115 +57,106 @@ export const TOUR_PARTICIPANTS = [
   { id: 'p3', name: 'Lena Meier', isHost: false, isRecorder: false, language: 'fr', votesRequired: 3, votesCast: 0 },
 ]
 
-function buildSteps({ isHost, isRecorder, baseView }) {
+function buildSteps({ isHost, isRecorder, baseView, t }) {
   const steps = []
+  const roleKey = isHost ? 'host' : 'guest'
 
-  steps.push({
-    view: baseView,
-    element: '[data-testid="code-pill"]',
-    popover: {
-      title: 'Your room code',
-      description: 'Anyone with this 6-character code can join your session. Tap it any time to share.',
-    },
+  const push = (step) => steps.push(step)
+  const pop = (title, description, extra = {}) => ({
+    title,
+    description,
+    ...extra,
   })
 
-  steps.push({
+  push({
+    view: baseView,
+    popover: pop(
+      t('tour.welcomeTitle'),
+      t(`tour.welcomeDesc_${roleKey}`),
+    ),
+  })
+
+  push({
     view: baseView,
     element: '[data-testid="share-btn"]',
-    popover: {
-      title: 'Invite the room',
-      description: 'Share a link or QR code so people can hop in from their own phone or laptop.',
-    },
+    popover: pop(t('tour.inviteTitle'), t('tour.inviteDesc')),
   })
 
-  const tabNames = [isRecorder && 'Record', 'Vote', 'Results', isHost && 'Participants'].filter(Boolean)
+  const tabNames = [
+    isRecorder && t('tabs.record'),
+    t('tabs.vote'),
+    t('tabs.results'),
+    isHost && t('tabs.participants'),
+    isHost && t('tabs.settings'),
+  ].filter(Boolean)
   const tabList =
     tabNames.length > 1
-      ? `${tabNames.slice(0, -1).join(', ')} and ${tabNames[tabNames.length - 1]}`
+      ? `${tabNames.slice(0, -1).join(', ')} ${t('tour.and')} ${tabNames[tabNames.length - 1]}`
       : tabNames[0]
-  steps.push({
+  push({
     view: baseView,
     element: '.tabs',
-    popover: {
-      title: 'Move around',
-      description: `Switch between ${tabList} here. We’ll walk through each one.`,
-    },
+    popover: pop(t('tour.moveTitle'), t('tour.moveDesc', { tabs: tabList })),
   })
 
   if (isRecorder) {
-    steps.push({
+    push({
       view: 'record',
       element: '.record-btn',
-      popover: {
-        title: 'Capture the room',
-        description: 'Press Record and only your device streams audio. Live captions show up below as people speak.',
-      },
+      popover: pop(t('tour.captureTitle'), t('tour.captureDesc')),
     })
-    steps.push({
+    push({
       view: 'record',
       element: '.transcript',
-      popover: {
-        title: 'Live transcript',
-        description: 'Completed turns are transcribed here — and the AI turns them into claims to vote on.',
-      },
+      popover: pop(t('tour.transcriptTitle'), t('tour.transcriptDesc')),
     })
   }
 
-  if (isHost) {
-    steps.push({
-      view: 'statements',
-      element: '[data-testid="host-composer"]',
-      popover: {
-        title: 'Add & curate claims',
-        description: 'Write your own statements, or approve and reject the ones AI suggests before they go live.',
-      },
-    })
-  }
+  push({
+    view: 'statements',
+    element: '[data-testid="host-composer"]',
+    popover: isHost
+      ? pop(t('tour.curateTitle'), t('tour.curateDesc'))
+      : pop(t('tour.addGuestTitle'), t('tour.addGuestDesc')),
+  })
 
-  steps.push({
+  push({
     view: 'statements',
     element: '.swipe-area',
-    popover: {
-      title: 'Cast your vote',
-      description: 'Your turn — swipe right to agree, left to disagree, down for neutral. Try it now! Buttons and arrow keys work too.',
-    },
+    popover: pop(t('tour.voteTitle'), t('tour.voteDesc')),
   })
 
-  steps.push({
+  push({
     view: 'results',
     element: '.results-panel',
-    popover: {
-      title: 'Where the room stands',
-      description: 'Opinion clusters and vote splits update live, so you can see what unites or divides the room.',
-    },
+    popover: pop(t('tour.standsTitle'), t('tour.standsDesc')),
   })
 
-  steps.push({
+  push({
     view: 'results',
     element: '[data-testid="common-ground"]',
-    popover: {
-      title: 'Find common ground',
-      description: 'An AI mediator drafts a statement the whole room could share — and everyone can vote on it.',
-    },
+    popover: pop(t('tour.cgTitle'), t('tour.cgDesc')),
   })
 
   if (isHost) {
-    steps.push({
+    push({
       view: 'participants',
       element: '.participants-panel',
-      popover: {
-        title: 'Manage the room',
-        description: 'Track who has voted, hand over the mic, or promote a co-host.',
-      },
+      popover: pop(t('tour.manageTitle'), t('tour.manageDesc')),
     })
   }
+
+  push({
+    view: baseView,
+    popover: pop(t('tour.finishTitle'), t(`tour.finishDesc_${roleKey}`)),
+  })
 
   return steps
 }
 
-export function startRoomTour({ isHost = false, isRecorder = false, setView, onDone }) {
+export function startRoomTour({ isHost = false, isRecorder = false, setView, onDone, t }) {
   const baseView = isRecorder ? 'record' : 'statements'
-  const steps = buildSteps({ isHost, isRecorder, baseView })
+  const steps = buildSteps({ isHost, isRecorder, baseView, t })
   const baseViewRef = { current: baseView }
   let finished = false
 
@@ -178,17 +169,20 @@ export function startRoomTour({ isHost = false, isRecorder = false, setView, onD
   const driverObj = driver({
     showProgress: true,
     allowClose: true,
-    overlayOpacity: 0.65,
-    stagePadding: 6,
-    stageRadius: 12,
-    nextBtnText: 'Next',
-    prevBtnText: 'Back',
-    doneBtnText: 'Got it!',
-    progressText: 'Step {{current}} of {{total}}',
+    smoothScroll: true,
+    overlayColor: '#0b1220',
+    overlayOpacity: 0.72,
+    stagePadding: 8,
+    stageRadius: 14,
+    popoverClass: 'ds-tour-popover',
+    nextBtnText: t('tour.next'),
+    prevBtnText: t('tour.back'),
+    doneBtnText: t('tour.done'),
+    progressText: t('tour.progress', { current: '{{current}}', total: '{{total}}' }),
     steps,
     onPopoverRender: (popover) => {
       const skip = document.createElement('button')
-      skip.innerText = 'Skip tour'
+      skip.innerText = t('tour.skip')
       skip.className = 'driver-skip-btn'
       skip.addEventListener('click', () => driverObj.destroy())
       popover.footerButtons.prepend(skip)

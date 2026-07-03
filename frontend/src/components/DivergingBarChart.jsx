@@ -1,32 +1,34 @@
+import { useTranslation } from 'react-i18next'
 import NeutralIcon from './neutral-icon'
 
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max) + '...' : text
 }
 
-const VOTE_LABEL = {
-  strongly_agree: 'Strongly agree',
-  agree: 'Agree',
-  neutral: 'Neutral',
-  disagree: 'Disagree',
-  strongly_disagree: 'Strongly disagree',
+const VOTE_LABEL_KEY = {
+  strongly_agree: 'common.stronglyAgree',
+  agree: 'common.agree',
+  neutral: 'common.neutral',
+  disagree: 'common.disagree',
+  strongly_disagree: 'common.stronglyDisagree',
 }
 
 const LIKERT_CHIPS = [
-  { vote: 'strongly_disagree', cls: 'disagree strong', glyph: '⇤', label: 'Strongly disagree' },
-  { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
-  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, label: 'Neutral', match: 'neutral' },
-  { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
-  { vote: 'strongly_agree', cls: 'agree strong', glyph: '⇥', label: 'Strongly agree' },
+  { vote: 'strongly_disagree', cls: 'disagree strong', glyph: '⇤', labelKey: 'common.stronglyDisagree' },
+  { vote: 'disagree', cls: 'disagree', glyph: '✕', labelKey: 'common.disagree' },
+  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, labelKey: 'common.neutral', match: 'neutral' },
+  { vote: 'agree', cls: 'agree', glyph: '✓', labelKey: 'common.agree' },
+  { vote: 'strongly_agree', cls: 'agree strong', glyph: '⇥', labelKey: 'common.stronglyAgree' },
 ]
 
 const BINARY_CHIPS = [
-  { vote: 'agree', cls: 'agree', glyph: '✓', label: 'Agree' },
-  { vote: 'disagree', cls: 'disagree', glyph: '✕', label: 'Disagree' },
-  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, label: 'Neutral', match: 'neutral' },
+  { vote: 'agree', cls: 'agree', glyph: '✓', labelKey: 'common.agree' },
+  { vote: 'disagree', cls: 'disagree', glyph: '✕', labelKey: 'common.disagree' },
+  { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, labelKey: 'common.neutral', match: 'neutral' },
 ]
 
 export default function DivergingBarChart({ statements, justVotedId, onAnimationDone, onChangeVote, voteType = 'binary' }) {
+  const { t } = useTranslation()
   const chips = voteType === 'likert' ? LIKERT_CHIPS : BINARY_CHIPS
   return (
     <div className="bar-chart">
@@ -67,18 +69,19 @@ export default function DivergingBarChart({ statements, justVotedId, onAnimation
             {onChangeVote && (
               <div className={`bar-revote ${voteType === 'likert' ? 'likert' : ''}`} data-testid={`revote-${stmt.id}`}>
                 <span className="bar-myvote">
-                  You: <strong className={stmt.myVote}>{VOTE_LABEL[stmt.myVote] || '—'}</strong>
+                  {t('revote.you')} <strong className={stmt.myVote}>{stmt.myVote ? t(VOTE_LABEL_KEY[stmt.myVote]) : t('revote.none')}</strong>
                 </span>
                 <div className="bar-revote-actions">
                   {chips.map((c) => {
                     const active = stmt.myVote === (c.match || c.vote)
+                    const label = t(c.labelKey)
                     return (
                       <button
                         key={c.vote}
                         className={`revote-chip ${c.cls} ${active ? 'on' : ''}`}
                         onClick={() => onChangeVote(stmt.id, c.vote)}
-                        aria-label={`Change vote to ${c.label.toLowerCase()}`}
-                        title={c.label}
+                        aria-label={t('revote.changeVoteTo', { label: label.toLowerCase() })}
+                        title={label}
                         data-testid={`revote-${c.vote}-${stmt.id}`}
                       >{c.glyph}</button>
                     )
@@ -87,7 +90,7 @@ export default function DivergingBarChart({ statements, justVotedId, onAnimation
                     className="revote-undo"
                     onClick={() => onChangeVote(stmt.id, 'undo')}
                     data-testid={`revote-undo-${stmt.id}`}
-                  >Undo</button>
+                  >{t('revote.undo')}</button>
                 </div>
               </div>
             )}

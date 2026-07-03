@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { CG_DEPTH_OPTIONS, CG_DEPTH_LABELS, CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
+import TensionGenerator from './tension-generator'
+import { canGenerateTensions } from '../utils/tension-stats'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
 import {
   buildCSV,
@@ -36,6 +39,7 @@ function VoteBar({ agree, disagree, empty = false }) {
 }
 
 function CgVoteSummary({ votes, compact = false, testId }) {
+  const { t } = useTranslation()
   const agree = votes?.agree || 0
   const disagree = votes?.disagree || 0
   const total = agree + disagree
@@ -48,31 +52,32 @@ function CgVoteSummary({ votes, compact = false, testId }) {
       {total > 0 ? (
         compact ? (
           <div className="cg-vote-pcts-compact">
-            <span className="meta-agree">{agreePct}% agree</span>
-            <span className="meta-disagree">{disagreePct}% disagree</span>
+            <span className="meta-agree">{t('results.pctAgree', { pct: agreePct })}</span>
+            <span className="meta-disagree">{t('results.pctDisagree', { pct: disagreePct })}</span>
           </div>
         ) : (
           <div className="result-statement-meta">
-            <span className="meta-agree">{agreePct}% agree</span>
-            <span className="meta-disagree">{disagreePct}% disagree</span>
+            <span className="meta-agree">{t('results.pctAgree', { pct: agreePct })}</span>
+            <span className="meta-disagree">{t('results.pctDisagree', { pct: disagreePct })}</span>
           </div>
         )
       ) : (
-        <span className="cg-vote-summary-empty">No votes yet</span>
+        <span className="cg-vote-summary-empty">{t('results.noVotesYet')}</span>
       )}
     </div>
   )
 }
 
 const LIKERT_SEGMENTS = [
-  { key: 'strongly_disagree', cls: 'sd', label: 'Strongly disagree' },
-  { key: 'disagree', cls: 'd', label: 'Disagree' },
-  { key: 'neutral', cls: 'n', label: 'Neutral' },
-  { key: 'agree', cls: 'a', label: 'Agree' },
-  { key: 'strongly_agree', cls: 'sa', label: 'Strongly agree' },
+  { key: 'strongly_disagree', cls: 'sd', labelKey: 'common.stronglyDisagree' },
+  { key: 'disagree', cls: 'd', labelKey: 'common.disagree' },
+  { key: 'neutral', cls: 'n', labelKey: 'common.neutral' },
+  { key: 'agree', cls: 'a', labelKey: 'common.agree' },
+  { key: 'strongly_agree', cls: 'sa', labelKey: 'common.stronglyAgree' },
 ]
 
 function LikertBar({ dist, responded }) {
+  const { t } = useTranslation()
   const total = responded || 1
   return (
     <div className="likert-bar" aria-hidden="true">
@@ -85,7 +90,7 @@ function LikertBar({ dist, responded }) {
             key={seg.key}
             className={`likert-seg ${seg.cls}`}
             style={{ width: `${(count / total) * 100}%` }}
-            title={`${seg.label}: ${count} (${pct}%)`}
+            title={`${t(seg.labelKey)}: ${count} (${pct}%)`}
           >
             {pct >= 12 ? `${count}` : ''}
           </span>
@@ -96,12 +101,13 @@ function LikertBar({ dist, responded }) {
 }
 
 function StatementRow({ s, voteType = 'binary' }) {
+  const { t } = useTranslation()
   const likert = voteType === 'likert'
   return (
     <li className="result-statement" data-testid={`result-statement-${s.id}`}>
       <p className="result-statement-text">
-        {s.edited && <span className="card-tag inline edited">Edited</span>}
-        {s.custom && <span className="card-tag inline">Custom</span>}
+        {s.edited && <span className="card-tag inline edited">{t('tags.edited')}</span>}
+        {s.custom && <span className="card-tag inline">{t('tags.custom')}</span>}
         {s.text}
       </p>
       {likert ? (
@@ -113,7 +119,7 @@ function StatementRow({ s, voteType = 'binary' }) {
               const pct = s.responded ? Math.round((count / s.responded) * 100) : 0
               return (
                 <span key={seg.key} className={`meta-likert ${seg.cls}`}>
-                  <span className="meta-likert-dot" /> {seg.label} {count} ({pct}%)
+                  <span className="meta-likert-dot" /> {t(seg.labelKey)} {count} ({pct}%)
                 </span>
               )
             })}
@@ -123,8 +129,8 @@ function StatementRow({ s, voteType = 'binary' }) {
         <>
           <VoteBar agree={s.agree} disagree={s.disagree} />
           <div className="result-statement-meta">
-            <span className="meta-agree">{s.agree} agree</span>
-            <span className="meta-disagree">{s.disagree} disagree</span>
+            <span className="meta-agree">{t('results.countAgree', { count: s.agree })}</span>
+            <span className="meta-disagree">{t('results.countDisagree', { count: s.disagree })}</span>
           </div>
         </>
       )}
@@ -133,6 +139,7 @@ function StatementRow({ s, voteType = 'binary' }) {
 }
 
 function ClusterMap({ result }) {
+  const { t } = useTranslation()
   const { points, clusters } = result
   const hulls = clusters.map((cl) => {
     const members = points.filter((p) => p.cluster === cl.id)
@@ -167,7 +174,7 @@ function ClusterMap({ result }) {
                 textAnchor="middle"
                 fill={color}
               >
-                Group {GROUP_LETTERS[h.id]}
+                {t('results.groupLabel', { letter: GROUP_LETTERS[h.id] })}
               </text>
             </g>
           )
@@ -178,7 +185,7 @@ function ClusterMap({ result }) {
             <g key={`pt-${i}`} data-testid="cluster-you">
               <circle cx={project(p.x)} cy={project(p.y)} r="4.4" fill="none" stroke={color} strokeWidth="1.1" />
               <circle cx={project(p.x)} cy={project(p.y)} r="2.6" fill={color} />
-              <text x={project(p.x)} y={project(p.y) - 6} className="you-label" textAnchor="middle">You</text>
+              <text x={project(p.x)} y={project(p.y) - 6} className="you-label" textAnchor="middle">{t('common.you')}</text>
             </g>
           ) : (
             <circle key={`pt-${i}`} cx={project(p.x)} cy={project(p.y)} r="2.1" fill={color} opacity="0.78" />
@@ -186,13 +193,14 @@ function ClusterMap({ result }) {
         })}
       </svg>
       <p className="cluster-map-caption">
-        Each dot is one participant. People who voted alike sit closer together and share a color.
+        {t('results.clusterCaption')}
       </p>
     </div>
   )
 }
 
 function GroupSizeBars({ clusters, voterCount, youCluster }) {
+  const { t } = useTranslation()
   return (
     <div className="group-bars" data-testid="group-bars">
       {clusters.map((c) => {
@@ -202,8 +210,8 @@ function GroupSizeBars({ clusters, voterCount, youCluster }) {
           <div className="group-bar-row" key={c.id}>
             <span className="group-bar-name">
               <span className="cluster-dot" style={{ background: color }} />
-              Group {GROUP_LETTERS[c.id]}
-              {youCluster === c.id && <span className="you-chip">You</span>}
+              {t('results.groupLabel', { letter: GROUP_LETTERS[c.id] })}
+              {youCluster === c.id && <span className="you-chip">{t('common.you')}</span>}
             </span>
             <div className="group-bar-track">
               <span className="group-bar-fill" style={{ width: `${pct}%`, background: color }} />
@@ -217,20 +225,21 @@ function GroupSizeBars({ clusters, voterCount, youCluster }) {
 }
 
 const GROUP_STANCES = [
-  { key: 'stronglyAgree', label: 'Strongly agree on', cls: 'strongly-agree' },
-  { key: 'agree', label: 'Agree on', cls: 'agree' },
-  { key: 'stronglyDisagree', label: 'Strongly disagree on', cls: 'strongly-disagree' },
-  { key: 'disagree', label: 'Disagree on', cls: 'disagree' },
+  { key: 'stronglyAgree', labelKey: 'stances.stronglyAgreeOn', cls: 'strongly-agree' },
+  { key: 'agree', labelKey: 'stances.agreeOn', cls: 'agree' },
+  { key: 'stronglyDisagree', labelKey: 'stances.stronglyDisagreeOn', cls: 'strongly-disagree' },
+  { key: 'disagree', labelKey: 'stances.disagreeOn', cls: 'disagree' },
 ]
 
 function GroupCard({ group, isYou, voteType = 'binary' }) {
+  const { t } = useTranslation()
   const color = CLUSTER_COLORS[group.id % CLUSTER_COLORS.length]
   const likert = voteType === 'likert'
   const stances = likert
     ? GROUP_STANCES
     : [
-        { key: 'agree', label: 'Tend to agree', cls: 'agree' },
-        { key: 'disagree', label: 'Tend to disagree', cls: 'disagree' },
+        { key: 'agree', labelKey: 'stances.tendToAgree', cls: 'agree' },
+        { key: 'disagree', labelKey: 'stances.tendToDisagree', cls: 'disagree' },
       ]
   const hasStances = stances.some((st) => (group[st.key] || []).length > 0)
 
@@ -240,22 +249,22 @@ function GroupCard({ group, isYou, voteType = 'binary' }) {
         <span className="group-card-badge" style={{ background: color }}>{GROUP_LETTERS[group.id]}</span>
         <div>
           <span className="group-card-title">
-            Group {GROUP_LETTERS[group.id]}
-            {isYou && <span className="you-chip">You</span>}
+            {t('results.groupLabel', { letter: GROUP_LETTERS[group.id] })}
+            {isYou && <span className="you-chip">{t('common.you')}</span>}
           </span>
-          <span className="group-card-size">{group.size} {group.size === 1 ? 'person' : 'people'}</span>
+          <span className="group-card-size">{t('results.person', { count: group.size })}</span>
         </div>
       </div>
 
       {!hasStances ? (
-        <p className="group-card-empty">No strong shared positions yet.</p>
+        <p className="group-card-empty">{t('results.noSharedPositions')}</p>
       ) : (
         stances.map((st) => {
           const items = group[st.key] || []
           if (!items.length) return null
           return (
             <div className="group-stance" key={st.key}>
-              <span className={`group-stance-label ${st.cls}`}>{st.label}</span>
+              <span className={`group-stance-label ${st.cls}`}>{t(st.labelKey)}</span>
               <ul>
                 {items.map((s) => (
                   <li key={s.id} data-testid={`group-${group.id}-${st.key}-${s.id}`}>{s.text}</li>
@@ -270,6 +279,7 @@ function GroupCard({ group, isYou, voteType = 'binary' }) {
 }
 
 function ExportBar({ ctx }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const hasData = ctx.statements.some((s) => s.approved)
   if (!hasData) return null
@@ -289,8 +299,8 @@ function ExportBar({ ctx }) {
   return (
     <section className="result-section export-bar" data-testid="export-bar">
       <div className="result-section-head">
-        <span className="result-section-title">Export results</span>
-        <span className="result-section-hint">Download or share this session</span>
+        <span className="result-section-title">{t('export.title')}</span>
+        <span className="result-section-hint">{t('export.hint')}</span>
       </div>
       <div className="export-actions">
         <button
@@ -315,7 +325,7 @@ function ExportBar({ ctx }) {
           JSON
         </button>
         <button className="export-btn primary" onClick={copySummary} data-testid="export-summary">
-          {copied ? 'Copied ✓' : 'Copy summary'}
+          {copied ? t('export.copied') : t('export.copySummary')}
         </button>
       </div>
     </section>
@@ -342,33 +352,34 @@ function Placeholder({ title, message, stats }) {
   )
 }
 
-function formatCgTimestamp(ts) {
-  if (!ts) return 'Unknown time'
+function formatCgTimestamp(ts, t) {
+  if (!ts) return t('time.unknown')
   return new Date(ts * 1000).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
 }
 
-function formatCgRelative(ts) {
+function formatCgRelative(ts, t) {
   if (!ts) return ''
   const diff = Math.max(0, Date.now() - ts * 1000)
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return t('time.justNowCap')
+  if (mins < 60) return t('time.minutesAgo', { count: mins })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return t('time.hoursAgo', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return formatCgTimestamp(ts)
+  if (days < 7) return t('time.daysAgo', { count: days })
+  return formatCgTimestamp(ts, t)
 }
 
 function CgSharedTensions({ shared = [], tensions = [], id }) {
+  const { t } = useTranslation()
   if (!shared.length && !tensions.length) return null
   return (
     <div className="cg-split" data-testid="cg-split">
       <div className="cg-split-col agree">
-        <span className="cg-split-label">Shared ground</span>
+        <span className="cg-split-label">{t('cg.sharedGround')}</span>
         <ul className="cg-split-list">
           {shared.length ? shared.map((t, i) => (
             <li key={`${id}-s-${i}`} data-testid={`cg-shared-${i}`}>{t}</li>
@@ -376,7 +387,7 @@ function CgSharedTensions({ shared = [], tensions = [], id }) {
         </ul>
       </div>
       <div className="cg-split-col disagree">
-        <span className="cg-split-label">Open tensions</span>
+        <span className="cg-split-label">{t('cg.openTensions')}</span>
         <ul className="cg-split-list">
           {tensions.length ? tensions.map((t, i) => (
             <li key={`${id}-t-${i}`} data-testid={`cg-tension-${i}`}>{t}</li>
@@ -388,28 +399,29 @@ function CgSharedTensions({ shared = [], tensions = [], id }) {
 }
 
 function CgExtrasCollapsible({ data }) {
+  const { t } = useTranslation()
   const extras = [
-    { key: 'alt', title: 'Alternative bridges', items: data.bridgingAlternatives },
-    { key: 'insight', title: 'Insights', items: data.insights },
-    { key: 'trade', title: 'Trade-offs', items: data.tradeoffs },
+    { key: 'alt', title: t('cg.altBridges'), items: data.bridgingAlternatives },
+    { key: 'insight', title: t('cg.insights'), items: data.insights },
+    { key: 'trade', title: t('cg.tradeoffs'), items: data.tradeoffs },
   ].filter((e) => e.items?.length)
   const hasGroups = data.groupNotes?.length > 0
   if (!extras.length && !hasGroups) return null
 
   return (
     <details className="cg-extras-toggle" data-testid="cg-extras-toggle">
-      <summary className="cg-extras-summary">More analysis</summary>
+      <summary className="cg-extras-summary">{t('cg.moreAnalysis')}</summary>
       <div className="cg-extras-body">
         {extras.map((e) => (
           <CgExtraList key={e.key} title={e.title} items={e.items} testId={`cg-${e.key}`} />
         ))}
         {hasGroups && (
           <div className="cg-group-notes" data-testid="cg-group-notes">
-            <span className="cg-extra-label">Group perspectives</span>
+            <span className="cg-extra-label">{t('cg.groupPerspectives')}</span>
             <ul className="cg-extra-list">
               {data.groupNotes.map((g, i) => (
                 <li key={`cg-group-note-${i}`} data-testid={`cg-group-note-${i}`}>
-                  <strong>Group {g.group}:</strong> {g.note}
+                  <strong>{t('cg.groupNote', { group: g.group })}</strong> {g.note}
                 </li>
               ))}
             </ul>
@@ -421,9 +433,10 @@ function CgExtrasCollapsible({ data }) {
 }
 
 function CgVersionPicker({ sorted, selectedId, onSelect }) {
+  const { t } = useTranslation()
   if (sorted.length <= 1) return null
   return (
-    <div className="cg-version-picker" data-testid="cg-history-tabs" role="tablist" aria-label="Common ground versions">
+    <div className="cg-version-picker" data-testid="cg-history-tabs" role="tablist" aria-label={t('cg.title')}>
       <div className="cg-version-scroll">
         {sorted.map((item, index) => {
           const isLatest = index === 0
@@ -437,19 +450,19 @@ function CgVersionPicker({ sorted, selectedId, onSelect }) {
               aria-selected={isSelected}
               className={`cg-version-chip ${isSelected ? 'on' : ''}`}
               data-testid={`cg-tab-${item.id}`}
-              title={formatCgTimestamp(item.generatedAt)}
+              title={formatCgTimestamp(item.generatedAt, t)}
               onClick={() => onSelect(item.id)}
             >
               <span className="cg-version-chip-top">
                 <span className="cg-version-chip-ver">v{versionNum}</span>
-                {isLatest && <span className="cg-version-chip-latest">Latest</span>}
+                {isLatest && <span className="cg-version-chip-latest">{t('cg.latest')}</span>}
                 {item.depth && (
                   <span className={`cg-version-chip-depth depth-${item.depth}`}>
-                    {CG_DEPTH_LABELS[item.depth]}
+                    {t(`cgDepth.${item.depth}.label`)}
                   </span>
                 )}
               </span>
-              <span className="cg-version-chip-time">{formatCgRelative(item.generatedAt)}</span>
+              <span className="cg-version-chip-time">{formatCgRelative(item.generatedAt, t)}</span>
               <CgVoteSummary votes={item.votes} compact testId={`cg-tab-votes-${item.id}`} />
             </button>
           )
@@ -460,6 +473,7 @@ function CgVersionPicker({ sorted, selectedId, onSelect }) {
 }
 
 function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState(myReason || '')
   const [pendingVote, setPendingVote] = useState(null)
   const activeVote = myVote || pendingVote
@@ -492,10 +506,10 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   return (
     <div className="cg-vote" data-testid="cg-vote">
       <div className="cg-vote-head">
-        <span className="cg-vote-label">Your reaction</span>
+        <span className="cg-vote-label">{t('cg.yourReaction')}</span>
         {activeVote && (
           <span className={`cg-vote-you ${activeVote}`} data-testid="cg-your-vote">
-            You {activeVote === 'agree' ? 'agree' : 'disagree'}
+            {activeVote === 'agree' ? t('cg.youAgree') : t('cg.youDisagree')}
           </span>
         )}
       </div>
@@ -507,7 +521,7 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
           aria-pressed={activeVote === 'agree'}
           data-testid="cg-vote-agree"
         >
-          👍 Agree <span className="cg-vote-count">{agree}</span>
+          {t('cg.voteAgree')} <span className="cg-vote-count">{agree}</span>
         </button>
         <button
           type="button"
@@ -516,13 +530,13 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
           aria-pressed={activeVote === 'disagree'}
           data-testid="cg-vote-disagree"
         >
-          👎 Disagree <span className="cg-vote-count">{disagree}</span>
+          {t('cg.voteDisagree')} <span className="cg-vote-count">{disagree}</span>
         </button>
       </div>
       {activeVote && (
         <div className="cg-reason-wrap cg-reason-animate">
           <label className="cg-reason-label" htmlFor={`cg-vote-reason-${cgId}`}>
-            Why? <span className="cg-reason-optional">(optional)</span>
+            {t('cg.why')} <span className="cg-reason-optional">{t('cg.optional')}</span>
           </label>
           <textarea
             id={`cg-vote-reason-${cgId}`}
@@ -531,7 +545,7 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
             value={reason}
             maxLength={CG_VOTE_REASON_MAX}
             rows={2}
-            placeholder="Share what resonates or what’s missing…"
+            placeholder={t('cg.reasonPlaceholder')}
             onChange={(e) => setReason(e.target.value)}
             onBlur={saveReason}
           />
@@ -547,8 +561,9 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   )
 }
 
-function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null }) {
-  const depthLabel = data.depth ? CG_DEPTH_LABELS[data.depth] : null
+export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null, hideVote = false }) {
+  const { t } = useTranslation()
+  const depthLabel = data.depth ? t(`cgDepth.${data.depth}.label`) : null
 
   return (
     <div className="cg-card" data-testid={`cg-card-${data.id}`}>
@@ -557,17 +572,17 @@ function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = fals
           {multiVersion && versionNum != null && (
             <span className="cg-card-ver" data-testid="cg-card-ver">v{versionNum}</span>
           )}
-          <span className="cg-meta-time" data-testid="cg-meta-time">{formatCgTimestamp(data.generatedAt)}</span>
-          <span className="cg-meta-relative">{formatCgRelative(data.generatedAt)}</span>
+          <span className="cg-meta-time" data-testid="cg-meta-time">{formatCgTimestamp(data.generatedAt, t)}</span>
+          <span className="cg-meta-relative">{formatCgRelative(data.generatedAt, t)}</span>
           {depthLabel && <span className={`cg-depth-badge depth-${data.depth}`}>{depthLabel}</span>}
           {data.generatedByName && (
             <span className="cg-meta-host" data-testid="cg-meta-host">· {data.generatedByName}</span>
           )}
           {(data.voterCountAtGeneration != null || data.statementCountAtGeneration != null) && (
             <span className="cg-meta-snapshot" data-testid="cg-meta-snapshot">
-              · {data.voterCountAtGeneration != null && `${data.voterCountAtGeneration} voters`}
+              · {data.voterCountAtGeneration != null && t('cg.voters', { count: data.voterCountAtGeneration })}
               {data.voterCountAtGeneration != null && data.statementCountAtGeneration != null && ' · '}
-              {data.statementCountAtGeneration != null && `${data.statementCountAtGeneration} stmts`}
+              {data.statementCountAtGeneration != null && t('cg.stmts', { count: data.statementCountAtGeneration })}
             </span>
           )}
         </div>
@@ -577,9 +592,9 @@ function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = fals
             className="cg-remove-version-btn"
             data-testid={`cg-remove-${data.id}`}
             onClick={() => onDismiss(data.id)}
-            aria-label="Remove this common ground version"
+            aria-label={t('cg.removeVersionAria')}
           >
-            Remove version
+            {t('cg.removeVersion')}
           </button>
         )}
       </div>
@@ -592,6 +607,23 @@ function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = fals
         {data.groupStatement}
       </blockquote>
 
+      {Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0 && (
+        <div className="cg-group-analysis" data-testid={`cg-group-analysis-${data.id}`}>
+          <span className="cg-group-analysis-label">{t('cg.groupAnalysis')}</span>
+          <ul className="cg-group-analysis-list">
+            {data.groupAnalysis.map((g, i) => (
+              <li key={`${data.id}-ga-${g.group || i}`} className="cg-group-analysis-item">
+                <span className="cg-group-analysis-title">
+                  {t('results.groupLabel', { letter: g.group })}
+                  {g.title ? ` · ${g.title}` : ''}
+                </span>
+                <p>{g.description}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <CgSharedTensions
         id={data.id}
         shared={data.commonGround}
@@ -600,22 +632,24 @@ function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = fals
 
       {data.bridgingProposal && (
         <div className="cg-bridge">
-          <span className="cg-bridge-label">Bridging proposal</span>
+          <span className="cg-bridge-label">{t('cg.bridgingProposal')}</span>
           <p>{data.bridgingProposal}</p>
         </div>
       )}
 
       <CgExtrasCollapsible data={data} />
 
-      <div className="cg-vote-panel">
-        <CommonGroundVote
-          cgId={data.id}
-          votes={data.votes}
-          myVote={data.myVote}
-          myReason={data.myReason}
-          onVote={(vote, reason) => onVote(data.id, vote, reason)}
-        />
-      </div>
+      {!hideVote && (
+        <div className="cg-vote-panel">
+          <CommonGroundVote
+            cgId={data.id}
+            votes={data.votes}
+            myVote={data.myVote}
+            myReason={data.myReason}
+            onVote={(vote, reason) => onVote(data.id, vote, reason)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -634,47 +668,6 @@ function CgExtraList({ title, items, testId }) {
   )
 }
 
-function CgDepthPicker({ sorted, canGenerate, pending, payload, onGenerate, onClose, popover = false }) {
-  return (
-    <div
-      className={`cg-depth-picker ${popover ? 'popover' : ''}`}
-      data-testid="cg-depth-picker"
-      role={popover ? 'dialog' : undefined}
-      aria-label={popover ? 'Choose analysis depth' : undefined}
-    >
-      <span className="cg-depth-picker-label">
-        {sorted.length ? 'Choose depth for the next version' : 'Choose analysis depth'}
-      </span>
-      <div className="cg-depth-options">
-        {CG_DEPTH_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            className={`cg-depth-btn depth-${opt.id}`}
-            data-testid={`cg-generate-${opt.id}`}
-            disabled={!canGenerate || pending}
-            onClick={() => {
-              onGenerate(payload, opt.id)
-              onClose?.()
-            }}
-            title={opt.hint}
-          >
-            <span className="cg-depth-btn-tier">Level {opt.tier}</span>
-            <span className="cg-depth-btn-label">
-              {opt.label}
-              {opt.recommended && <span className="cg-depth-rec">Recommended</span>}
-            </span>
-            <span className="cg-depth-btn-hint">{opt.hint}</span>
-          </button>
-        ))}
-      </div>
-      {!canGenerate && (
-        <p className="cg-hint">Needs votes on at least one statement before generating.</p>
-      )}
-    </div>
-  )
-}
-
 function CommonGroundSection({
   history,
   pending,
@@ -682,72 +675,70 @@ function CommonGroundSection({
   error,
   isHost,
   payload,
+  defaultDepth = 'extended',
   onGenerate,
   onDismiss,
   onVote,
+  statements = [],
+  tensionsPending = false,
+  tensionsError = null,
+  tensionDrafts = null,
+  onGenerateTensions,
+  onPublishTensions,
+  onClearTensionDrafts,
+  hideVote = false,
 }) {
+  const { t } = useTranslation()
   const canGenerate =
     isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
-  const depthLabel = pending && pendingDepth ? CG_DEPTH_LABELS[pendingDepth] : null
+  const depthLabel = pending && pendingDepth ? t(`cgDepth.${pendingDepth}.label`) : null
+  const defaultDepthLabel = t(`cgDepth.${defaultDepth}.label`)
   const sorted = useMemo(
     () => [...(history || [])].sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0)),
     [history],
   )
   const [selectedId, setSelectedId] = useState(null)
-  const [generateOpen, setGenerateOpen] = useState(false)
   const selected = sorted.find((item) => item.id === selectedId) || sorted[0] || null
   const multiVersion = sorted.length > 1
+  const latestId = sorted[0]?.id ?? null
+  const prevLatestId = useRef(latestId)
 
   useEffect(() => {
     if (!sorted.length) {
       setSelectedId(null)
+      prevLatestId.current = null
       return
     }
-    if (!selectedId || !sorted.some((item) => item.id === selectedId)) {
-      setSelectedId(sorted[0].id)
+    if (!selectedId || !sorted.some((item) => item.id === selectedId) || latestId !== prevLatestId.current) {
+      setSelectedId(latestId)
     }
-  }, [sorted, selectedId])
+    prevLatestId.current = latestId
+  }, [sorted, selectedId, latestId])
 
   if (!isHost && !sorted.length && !pending) return null
-
-  const showGeneratePanel = isHost && (generateOpen || !sorted.length)
 
   return (
     <section className="result-section common-ground" data-testid="common-ground">
       <div className="result-section-head cg-section-head">
         <div className="cg-section-title-wrap">
-          <span className="result-section-title">AI common ground</span>
+          <span className="result-section-title">{t('cg.title')}</span>
           <span className="result-section-hint">
             {multiVersion
-              ? `${sorted.length} versions — pick one to compare room sentiment`
-              : 'Synthesized from votes — refine as the discussion evolves'}
+              ? t('cg.hintMulti', { count: sorted.length })
+              : t('cg.hintSingle')}
           </span>
         </div>
         {isHost && sorted.length > 0 && (
-          <div className="cg-generate-anchor">
-            <button
-              type="button"
-              className={`cg-new-version-btn ${generateOpen ? 'open' : ''}`}
-              data-testid="cg-toggle-generate"
-              disabled={pending}
-              aria-expanded={generateOpen}
-              aria-haspopup="dialog"
-              onClick={() => setGenerateOpen((o) => !o)}
-            >
-              {generateOpen ? 'Cancel' : '+ New version'}
-            </button>
-            {generateOpen && !pending && (
-              <CgDepthPicker
-                sorted={sorted}
-                canGenerate={canGenerate}
-                pending={pending}
-                payload={payload}
-                onGenerate={onGenerate}
-                onClose={() => setGenerateOpen(false)}
-                popover
-              />
-            )}
-          </div>
+          <button
+            type="button"
+            className="cg-new-version-btn"
+            data-testid="cg-generate"
+            disabled={!canGenerate || pending}
+            onClick={() => onGenerate(payload, defaultDepth)}
+            title={t('cg.generateTitle', { depth: defaultDepthLabel })}
+          >
+            {t('cg.newVersion')}
+          </button>
         )}
       </div>
 
@@ -756,8 +747,8 @@ function CommonGroundSection({
           <div className="cg-loading-row">
             <span className="cg-spinner" />
             <div className="cg-loading-copy">
-              <strong>{depthLabel ? `${depthLabel} analysis` : 'Finding common ground'}</strong>
-              <span>Reading votes and prior feedback…</span>
+              <strong>{depthLabel ? t('cg.analysis', { depth: depthLabel }) : t('cg.finding')}</strong>
+              <span>{t('cg.readingVotes')}</span>
             </div>
           </div>
           <div className="cg-skeleton" aria-hidden="true">
@@ -768,9 +759,34 @@ function CommonGroundSection({
 
       {!pending && error && <p className="cg-error" data-testid="cg-error">{error}</p>}
 
-      {!pending && !sorted.length && isHost && !showGeneratePanel && (
+      {!pending && !sorted.length && isHost && (
         <div className="cg-empty" data-testid="cg-empty">
-          <p>No common ground yet. Generate one when the room has voted on a few statements.</p>
+          <span className="cg-empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+              <circle cx="12" cy="12" r="3.2" />
+            </svg>
+          </span>
+          <div className="cg-empty-copy">
+            <p className="cg-empty-title">{t('cg.emptyTitle')}</p>
+            <p className="cg-empty-sub">{t('cg.emptySub')}</p>
+          </div>
+          <button
+            type="button"
+            className="cg-generate-cta"
+            data-testid="cg-generate"
+            disabled={!canGenerate || pending}
+            onClick={() => onGenerate(payload, defaultDepth)}
+            title={t('cg.generateTitle', { depth: defaultDepthLabel })}
+          >
+            {t('cg.generate')}
+          </button>
+          <span className="cg-depth-note" data-testid="cg-depth-note">
+            {t('cg.depthNote', { depth: defaultDepthLabel })}<span className="cg-depth-note-link">{t('cg.changeInSettings')}</span>
+          </span>
+          {!canGenerate && (
+            <p className="cg-hint">{t('cg.needsVotes')}</p>
+          )}
         </div>
       )}
 
@@ -784,17 +800,23 @@ function CommonGroundSection({
           versionNum={multiVersion ? sorted.length - sorted.findIndex((i) => i.id === selected.id) : null}
           onDismiss={onDismiss}
           onVote={onVote}
+          hideVote={hideVote}
         />
       )}
 
-      {isHost && showGeneratePanel && !sorted.length && (
-        <CgDepthPicker
-          sorted={sorted}
-          canGenerate={canGenerate}
-          pending={pending}
-          payload={payload}
-          onGenerate={onGenerate}
-        />
+      {isHost && onGenerateTensions && canGenerateTensions(statements) && (
+        <div className="cg-tensions" data-testid="cg-tensions">
+          <div className="section-divider"><span>{t('cg.surfaceTensions')}</span></div>
+          <TensionGenerator
+            statements={statements}
+            pending={tensionsPending}
+            error={tensionsError}
+            drafts={tensionDrafts}
+            onGenerate={onGenerateTensions}
+            onPublish={onPublishTensions}
+            onClearDrafts={onClearTensionDrafts}
+          />
+        </div>
       )}
     </section>
   )
@@ -811,10 +833,19 @@ export default function ResultsPanel({
   cgPending = false,
   cgPendingDepth = null,
   cgError = null,
+  defaultDepth = 'extended',
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
   onVoteCommonGround = () => {},
+  tensionsPending = false,
+  tensionsError = null,
+  tensionDrafts = null,
+  onGenerateTensions,
+  onPublishTensions,
+  onClearTensionDrafts,
+  publicView = false,
 }) {
+  const { t, i18n } = useTranslation()
   const cluster = useMemo(
     () => (results ? computeOpinionClusters({ ...results, voteType }) : null),
     [results, voteType],
@@ -828,6 +859,8 @@ export default function ResultsPanel({
     cluster,
     commonGroundHistory,
     voteType,
+    t,
+    lang: i18n.language,
   }
 
   const cgPayload = useMemo(() => {
@@ -856,9 +889,18 @@ export default function ResultsPanel({
       error={cgError}
       isHost={isHost}
       payload={cgPayload}
+      defaultDepth={defaultDepth}
       onGenerate={onGenerateCommonGround}
       onDismiss={onDismissCommonGround}
       onVote={onVoteCommonGround}
+      statements={statements}
+      tensionsPending={tensionsPending}
+      tensionsError={tensionsError}
+      tensionDrafts={tensionDrafts}
+      onGenerateTensions={onGenerateTensions}
+      onPublishTensions={onPublishTensions}
+      onClearTensionDrafts={onClearTensionDrafts}
+      hideVote={publicView}
     />
   )
 
@@ -868,9 +910,9 @@ export default function ResultsPanel({
     return (
       <div className="results-panel">
         <Placeholder
-          title="Opinion Clusters"
-          message="Crunching the votes…"
-          stats={`${approvedCount} statement${approvedCount !== 1 ? 's' : ''} live`}
+          title={t('results.opinionClusters')}
+          message={t('results.crunching')}
+          stats={t('results.statementsLive', { count: approvedCount })}
         />
       </div>
     )
@@ -879,14 +921,14 @@ export default function ResultsPanel({
   if (!cluster.ok) {
     const message =
       cluster.reason === 'need-voters'
-        ? `Opinion groups appear once at least 3 people have voted (currently ${cluster.voterCount}).`
-        : `At least 2 statements are needed to map opinions (currently ${cluster.statementCount}).`
+        ? t('results.needVoters', { count: cluster.voterCount })
+        : t('results.needStatements', { count: cluster.statementCount })
     return (
       <div className="results-panel">
-        <Placeholder title="Opinion Clusters" message={message} />
+        <Placeholder title={t('results.opinionClusters')} message={message} />
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
-        <ExportBar ctx={exportCtx} />
+        {!publicView && <ExportBar ctx={exportCtx} />}
       </div>
     )
   }
@@ -897,16 +939,16 @@ export default function ResultsPanel({
   return (
     <div className="results-panel" data-testid="results-panel">
       <div className="results-head">
-        <h3 className="results-title">Opinion Clusters</h3>
+        <h3 className="results-title">{t('results.opinionClusters')}</h3>
         <p className="results-sub">
-          {cluster.voterCount} participants split into {cluster.k} opinion {cluster.k === 1 ? 'group' : 'groups'} based on how they voted.
+          {t('results.clustersSub', { voterCount: cluster.voterCount, k: cluster.k, groupWord: t('results.group', { count: cluster.k }) })}
         </p>
       </div>
 
       {!isHost && youLetter && (
         <div className="you-callout" data-testid="you-callout">
-          You're in <strong>Group {youLetter}</strong>
-          {youSize > 1 ? ` with ${youSize - 1} ${youSize - 1 === 1 ? 'other' : 'others'} who vote like you.` : ' — a unique stance so far.'}
+          {t('results.youreInGroup')} <strong>{t('results.groupLabel', { letter: youLetter })}</strong>
+          {youSize > 1 ? t('results.youWithOthers', { count: youSize - 1 }) : t('results.youUnique')}
         </div>
       )}
 
@@ -918,8 +960,8 @@ export default function ResultsPanel({
 
       <section className="result-section">
         <div className="result-section-head">
-          <span className="result-section-title">What each group thinks</span>
-          <span className="result-section-hint">Positions that define the group</span>
+          <span className="result-section-title">{t('results.whatEachGroupThinks')}</span>
+          <span className="result-section-hint">{t('results.positionsDefine')}</span>
         </div>
         <div className="group-card-grid">
           {cluster.groups.map((g) => (
@@ -930,19 +972,20 @@ export default function ResultsPanel({
 
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 
-      <ExportBar ctx={exportCtx} />
+      {!publicView && <ExportBar ctx={exportCtx} />}
     </div>
   )
 }
 
 function ConsensusBlocks({ cluster, voteType = 'binary' }) {
+  const { t } = useTranslation()
   return (
     <>
       {cluster.consensus.length > 0 && (
         <section className="result-section">
           <div className="result-section-head">
-            <span className="result-section-title">Common ground</span>
-            <span className="result-section-hint">Where most people agree</span>
+            <span className="result-section-title">{t('results.commonGround')}</span>
+            <span className="result-section-hint">{t('results.whereAgree')}</span>
           </div>
           <ul className="result-statement-list">
             {cluster.consensus.map((s) => <StatementRow key={s.id} s={s} voteType={voteType} />)}
@@ -953,8 +996,8 @@ function ConsensusBlocks({ cluster, voteType = 'binary' }) {
       {cluster.divisive.length > 0 && (
         <section className="result-section">
           <div className="result-section-head">
-            <span className="result-section-title">Most divisive</span>
-            <span className="result-section-hint">Where opinions split</span>
+            <span className="result-section-title">{t('results.mostDivisive')}</span>
+            <span className="result-section-hint">{t('results.whereSplit')}</span>
           </div>
           <ul className="result-statement-list">
             {cluster.divisive.map((s) => <StatementRow key={s.id} s={s} voteType={voteType} />)}

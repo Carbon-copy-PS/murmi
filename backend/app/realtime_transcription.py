@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import os
+import time
 from typing import Awaitable, Callable, Optional
 
 import websockets
@@ -13,7 +14,7 @@ from .languages import LANGUAGE_LABELS
 
 CaptionDeltaHandler = Callable[[str, str, str, str], Awaitable[None]]
 CaptionFinalHandler = Callable[[str, str, str, str, Optional[bytes]], Awaitable[None]]
-CaptionErrorHandler = Callable[[str, str], Awaitable[None]]
+CaptionErrorHandler = Callable[[str, str, Optional[str]], Awaitable[None]]
 
 
 class RealtimeTranscriptionSession:
@@ -55,6 +56,8 @@ class RealtimeTranscriptionSession:
             "OPENAI_REALTIME_URL",
             "wss://api.openai.com/v1/realtime?intent=transcription",
         )
+        self.max_session_seconds = float(os.environ.get("OPENAI_REALTIME_MAX_SESSION_SECONDS", "1500"))
+        self.started_at = 0.0
         self.ws = None
         self.receiver_task: Optional[asyncio.Task] = None
         self.send_lock = asyncio.Lock()
@@ -79,9 +82,15 @@ class RealtimeTranscriptionSession:
     def is_open(self) -> bool:
         return self.ws is not None and not self.closed
 
+    @property
+    def expired(self) -> bool:
+        if self.max_session_seconds <= 0 or self.started_at <= 0:
+            return False
+        return (time.monotonic() - self.started_at) >= self.max_session_seconds
+
     async def start(self) -> bool:
         if not self.available:
-            await self.on_error(self.session_id, "Realtime captions need OPENAI_API_KEY.")
+            await self.on_error(self.session_id, "Realtime captions need OPENAI_API_KEY.", "captionsUnavailable")
             return False
 
         try:
@@ -91,10 +100,11 @@ class RealtimeTranscriptionSession:
                 max_size=8 * 1024 * 1024,
             )
             await self._send_json(self._session_update())
+            self.started_at = time.monotonic()
             self.receiver_task = asyncio.create_task(self._receive_events())
             return True
         except Exception as exc:
-            await self.on_error(self.session_id, f"Realtime transcription failed to start: {exc}")
+            await self.on_error(self.session_id, f"Realtime transcription failed to start: {exc}", "captionsUnavailable")
             await self.close(flush=False)
             return False
 
@@ -235,8 +245,12 @@ class RealtimeTranscriptionSession:
         self.bytes_since_commit = 0
 
     async def _send_json(self, payload: dict):
-        if self.ws is not None:
+        if self.ws is None:
+            return
+        try:
             await self.ws.send(json.dumps(payload))
+        except Exception:
+            self.closed = True
 
     async def _receive_events(self):
         if self.ws is None:
@@ -281,12 +295,21 @@ class RealtimeTranscriptionSession:
                     message = error.get("message") or "Realtime transcription error"
                     if code == "input_audio_buffer_commit_empty" or "buffer too small" in message.lower():
                         continue
-                    await self.on_error(self.session_id, message)
+                    await self.on_error(self.session_id, message, "captionsUnavailable")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             if not self.closed:
-                await self.on_error(self.session_id, f"Realtime transcription disconnected: {exc}")
+                print(f"Realtime transcription connection lost (auto-recovering): {exc}")
+        finally:
+            self.closed = True
+            ws = self.ws
+            self.ws = None
+            if ws is not None:
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
 
     def _track_audio_energy(self, audio_bytes: bytes):
         for i in range(0, len(audio_bytes) - 1, 2):

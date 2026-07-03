@@ -24,6 +24,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
+NEVER_EXPIRES_SECONDS = 100 * 365 * 24 * 3600  # ~100 years
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -38,6 +41,11 @@ class SessionRow(Base):
     vote_type: Mapped[str] = mapped_column(String(16), default="binary", server_default="binary")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    voting_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    voting_lifetime_hours: Mapped[float] = mapped_column(Float, default=24.0, server_default="24")
+    voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -157,6 +165,30 @@ class Database:
                 "ALTER TABLE statements "
                 "ADD COLUMN IF NOT EXISTS edited boolean NOT NULL DEFAULT false"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS voting_open boolean NOT NULL DEFAULT true"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS voting_lifetime_hours double precision NOT NULL DEFAULT 24"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS voting_expires_at timestamptz"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS voting_activity jsonb"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS public_id varchar(24)"
+            ))
+            await conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
+                "ON sessions (public_id)"
+            ))
         return True
 
     async def disconnect(self):
@@ -166,7 +198,10 @@ class Database:
 
     def _session_values(self, session) -> dict:
         created = datetime.fromtimestamp(session.created_at, timezone.utc)
-        expires_epoch = session.expires_at or (session.created_at + self.ttl_seconds)
+        # Sessions are retained indefinitely; keep a far-future expiry so the
+        # not-null column stays populated and load queries always include the row.
+        expires_epoch = session.expires_at or (session.created_at + NEVER_EXPIRES_SECONDS)
+        voting_expires = getattr(session, "voting_expires_at", None)
         return {
             "id": session.id,
             "topic": session.topic,
@@ -175,6 +210,11 @@ class Database:
             "vote_type": getattr(session, "vote_type", "binary"),
             "created_at": created,
             "expires_at": datetime.fromtimestamp(expires_epoch, timezone.utc),
+            "voting_open": getattr(session, "voting_open", True),
+            "voting_lifetime_hours": getattr(session, "voting_lifetime_hours", 24.0),
+            "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
+            "voting_activity": getattr(session, "voting_activity", []),
+            "public_id": getattr(session, "public_id", None),
         }
 
     async def _ensure_session(self, db, session):
@@ -228,6 +268,45 @@ class Database:
                 update(SessionRow).where(SessionRow.id == session_id).values(vote_type=vote_type)
             )
             await db.commit()
+
+    async def update_voting(self, session):
+        if not self.enabled:
+            return
+        voting_expires = getattr(session, "voting_expires_at", None)
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    voting_open=getattr(session, "voting_open", True),
+                    voting_lifetime_hours=getattr(session, "voting_lifetime_hours", 24.0),
+                    voting_expires_at=datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
+                    voting_activity=getattr(session, "voting_activity", []),
+                )
+            )
+            await db.commit()
+
+    async def update_public_id(self, session_id: str, public_id: str):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(public_id=public_id)
+            )
+            await db.commit()
+
+    async def load_by_public_id(self, public_id: str) -> Optional[dict]:
+        if not self.enabled or not public_id:
+            return None
+        async with self._sessionmaker() as db:
+            result = await db.execute(
+                select(SessionRow).where(SessionRow.public_id == public_id)
+            )
+            row = result.scalar_one_or_none()
+            if not row:
+                return None
+            return await self._build_session_dict(db, row)
 
     async def update_topic(self, session_id: str, topic: str | None):
         if not self.enabled:
@@ -395,6 +474,11 @@ class Database:
             "vote_type": row.vote_type,
             "created_at": row.created_at.timestamp(),
             "expires_at": row.expires_at.timestamp(),
+            "voting_open": getattr(row, "voting_open", True),
+            "voting_lifetime_hours": getattr(row, "voting_lifetime_hours", 24.0),
+            "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
+            "voting_activity": getattr(row, "voting_activity", None) or [],
+            "public_id": getattr(row, "public_id", None),
             "transcript": [t.payload for t in transcript],
             "statements": [
                 {
@@ -425,38 +509,21 @@ class Database:
     async def load_active_sessions(self) -> list[dict]:
         if not self.enabled:
             return []
-        now = datetime.now(timezone.utc)
         async with self._sessionmaker() as db:
-            rows = (await db.execute(
-                select(SessionRow).where(SessionRow.expires_at > now)
-            )).scalars().all()
+            rows = (await db.execute(select(SessionRow))).scalars().all()
             return [await self._build_session_dict(db, row) for row in rows]
 
     async def load_session(self, session_id: str) -> Optional[dict]:
         if not self.enabled:
             return None
-        now = datetime.now(timezone.utc)
         async with self._sessionmaker() as db:
             row = (await db.execute(
-                select(SessionRow).where(
-                    SessionRow.id == session_id, SessionRow.expires_at > now
-                )
+                select(SessionRow).where(SessionRow.id == session_id)
             )).scalar_one_or_none()
             if row is None:
                 return None
             return await self._build_session_dict(db, row)
 
     async def purge_expired(self) -> list[str]:
-        if not self.enabled:
-            return []
-        now = datetime.now(timezone.utc)
-        async with self._sessionmaker() as db:
-            expired = (await db.execute(
-                select(SessionRow.id).where(SessionRow.expires_at <= now)
-            )).scalars().all()
-            if expired:
-                await db.execute(
-                    delete(SessionRow).where(SessionRow.id.in_(expired))
-                )
-                await db.commit()
-            return list(expired)
+        # Session data is retained indefinitely — never delete anything.
+        return []

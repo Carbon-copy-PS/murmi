@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 from functools import partial
 from typing import Optional
 
@@ -36,7 +37,9 @@ COMMON_GROUND_BASE = """You are an impartial deliberation mediator, inspired by 
 
 You receive, for a live room discussion: the topic, how opinion groups voted, statements that found broad agreement, and statements that divided people.
 
-Never invent positions that are not supported by the data. Be neutral, concise, and non-partisan."""
+Never invent positions that are not supported by the data. Be neutral, concise, and non-partisan.
+
+For "groupAnalysis": add one entry per opinion group provided in the input, using the same group letters. Each entry gets a short title and a 1-2 sentence description of that group's stance. If no opinion-group data is provided, return an empty array."""
 
 COMMON_GROUND_PROMPTS = {
     "basic": COMMON_GROUND_BASE + """
@@ -45,6 +48,7 @@ Write a short "group statement" the whole room could endorse. Capture genuine co
 
 Respond ONLY with JSON:
 {
+  "groupAnalysis": [{"group": "A", "title": "2-4 word label for this opinion group", "description": "1-2 sentence description of what this group believes, grounded in the vote data"}],
   "groupStatement": "2-3 sentence statement the group could collectively endorse",
   "commonGround": ["exactly 2 short bullets of shared agreement"],
   "divides": ["exactly 2 short bullets describing key disagreements"],
@@ -56,6 +60,7 @@ Produce a richer mediation summary. Surface more nuance across opinion groups wh
 
 Respond ONLY with JSON:
 {
+  "groupAnalysis": [{"group": "A", "title": "2-4 word label for this opinion group", "description": "1-2 sentence description of what this group believes, grounded in the vote data"}],
   "groupStatement": "3-4 sentence statement balancing shared values and main tensions",
   "commonGround": ["3-5 short bullets of shared agreement, ordered from strongest to weaker"],
   "divides": ["3-5 short bullets describing open tensions, ordered by importance"],
@@ -68,6 +73,7 @@ Produce the deepest analysis available from the data. Map multiple layers of agr
 
 Respond ONLY with JSON:
 {
+  "groupAnalysis": [{"group": "A", "title": "2-4 word label for this opinion group", "description": "1-2 sentence description of what this group believes, grounded in the vote data"}],
   "groupStatement": "3-5 sentence synthesis the room could discuss collectively",
   "commonGround": ["4-6 bullets of shared agreement across groups"],
   "divides": ["4-6 bullets of open tensions and unresolved disagreements"],
@@ -83,15 +89,25 @@ Include groupNotes only when opinion-group data is provided. Use the group lette
 
 COMMON_GROUND_DEPTHS = frozenset(COMMON_GROUND_PROMPTS)
 
-TENSION_PROMPT = """You are a deliberation facilitator. Given live vote results from a group discussion, write crisp votable statements that surface the key open tensions — unresolved disagreements worth testing with the room.
+TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
-Rules:
-- Each output is one clear sentence participants can agree or disagree with
-- Prioritize tensions revealed by the most split / divisive source statements
-- Frame neutrally — no straw-manning either side
-- Be specific to this discussion and topic; do not invent positions unsupported by the data
-- Do not duplicate any existing statement
-- Return exactly the requested count when possible; fewer only if the data is too thin
+What an open tension IS:
+- A fresh, sharply framed proposition that forces a choice between two defensible positions the room is actually split on
+- Something that would divide the room roughly down the middle if voted on now
+- Often the underlying trade-off, principle, or edge case that the existing statements only hint at
+
+What an open tension is NOT (do NOT output these):
+- A paraphrase, rewording, or merge of any existing statement
+- A restatement of something already broadly agreed (consensus) — that is settled, not a tension
+- A vague, compound, or double-barrelled sentence, or a leading/loaded question
+
+Method:
+- Read the transcript to understand context, then look at which statements split the room
+- Identify the deeper disagreement driving those splits and phrase it as ONE new claim
+- Frame neutrally so either side could plausibly vote agree; no straw-manning
+- Be specific to this discussion and topic; never invent positions unsupported by the data
+- Each output must be materially different from every existing statement AND from the other tensions you output
+- You MUST return the requested number of tensions — always hit the count. If obvious tensions run out, surface finer-grained trade-offs, edge cases, or second-order implications rather than returning fewer
 
 Respond ONLY with JSON:
 {"tensions": ["statement 1", "statement 2", ...]}"""
@@ -104,6 +120,10 @@ MOCK_TENSIONS = [
 
 MOCK_COMMON_GROUND = {
     "basic": {
+        "groupAnalysis": [
+            {"group": "A", "title": "Federal-law advocates", "description": "Favor a broad federal AI law and EU-compatible guardrails to ensure consistent oversight."},
+            {"group": "B", "title": "Sector pragmatists", "description": "Prefer sector-specific rules that keep the burden on startups low while still protecting public trust."},
+        ],
         "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle.",
         "commonGround": [
             "AI oversight and public trust are widely seen as essential.",
@@ -116,6 +136,10 @@ MOCK_COMMON_GROUND = {
         "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
     },
     "extended": {
+        "groupAnalysis": [
+            {"group": "A", "title": "Federal-harmonization advocates", "description": "Push for federal coherence and EU alignment, accepting more scope in exchange for predictability across sectors."},
+            {"group": "B", "title": "Sector-specific pragmatists", "description": "Want domain-tailored rules and minimal cost for smaller firms, while still backing baseline transparency."},
+        ],
         "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden, yet disagreement on how far federal harmonization should go.",
         "commonGround": [
             "AI oversight and public trust are widely seen as essential.",
@@ -136,6 +160,10 @@ MOCK_COMMON_GROUND = {
         ],
     },
     "comprehensive": {
+        "groupAnalysis": [
+            {"group": "A", "title": "Federal coherence camp", "description": "Prioritizes federal coherence and EU-compatible guardrails, favoring horizontal rules for predictability."},
+            {"group": "B", "title": "Innovation-first camp", "description": "Wants sector nuance and minimal burden on innovators, wary of one-size-fits-all obligations."},
+        ],
         "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden. The room also shares skepticism toward one-size-fits-all rules that ignore domain risk.",
         "commonGround": [
             "AI oversight and public trust are widely seen as essential.",
@@ -173,6 +201,40 @@ MOCK_COMMON_GROUND = {
         ],
     },
 }
+
+def _normalize_text(text: str) -> set[str]:
+    cleaned = re.sub(r"[^\w\s]", " ", (text or "").lower())
+    return {w for w in cleaned.split() if len(w) > 2}
+
+
+def _too_similar(tokens: set[str], others: list[set[str]], threshold: float = 0.6) -> bool:
+    if not tokens:
+        return False
+    for other in others:
+        if not other:
+            continue
+        overlap = len(tokens & other)
+        union = len(tokens | other)
+        if union and overlap / union >= threshold:
+            return True
+        smaller = min(len(tokens), len(other))
+        if smaller and overlap / smaller >= 0.85:
+            return True
+    return False
+
+
+def _dedupe_tensions(tensions: list[str], existing: list[str]) -> list[str]:
+    existing_tokens = [_normalize_text(s) for s in existing]
+    accepted: list[str] = []
+    accepted_tokens: list[set[str]] = []
+    for tension in tensions:
+        tokens = _normalize_text(tension)
+        if _too_similar(tokens, existing_tokens) or _too_similar(tokens, accepted_tokens):
+            continue
+        accepted.append(tension)
+        accepted_tokens.append(tokens)
+    return accepted
+
 
 def _language_rule(language: Optional[str] = None) -> str:
     if language and language in LANGUAGE_LABELS:
@@ -287,8 +349,18 @@ class AnalysisService:
             note = (item.get("note") or "").strip()
             if group and note:
                 group_notes.append({"group": group, "note": note})
+        group_analysis = []
+        for item in data.get("groupAnalysis") or []:
+            if not isinstance(item, dict):
+                continue
+            group = (item.get("group") or "").strip()
+            title = (item.get("title") or "").strip()
+            description = (item.get("description") or "").strip()
+            if group and description:
+                group_analysis.append({"group": group, "title": title, "description": description})
         result = {
             "depth": depth,
+            "groupAnalysis": group_analysis,
             "groupStatement": statement,
             "commonGround": [s for s in (data.get("commonGround") or []) if isinstance(s, str) and s.strip()],
             "divides": [s for s in (data.get("divides") or []) if isinstance(s, str) and s.strip()],
@@ -314,13 +386,27 @@ class AnalysisService:
         topic: Optional[str] = None,
         language: Optional[str] = None,
     ) -> list[str]:
+        request_count = count + 4
         parts = []
         parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
-        parts.append(f"\nGenerate exactly {count} open-tension statement(s).")
+        parts.append(
+            f"\nYou MUST return at least {count} open-tension statement(s). "
+            f"Generate {request_count} distinct candidates, ordered strongest first, so the {count} best can be kept. "
+            f"Never return fewer than {count} — if the data is thin, dig into finer-grained trade-offs and edge cases to reach the count."
+        )
+
+        transcript = analysis.get("transcript") or []
+        if transcript:
+            parts.append("\nDiscussion transcript (for context — understand what people actually mean):")
+            for turn in transcript:
+                speaker = turn.get("speaker") or "Speaker"
+                text = (turn.get("text") or "").strip()
+                if text:
+                    parts.append(f"{speaker}: {text}")
 
         existing = analysis.get("existingStatements") or []
         if existing:
-            parts.append("\nExisting statements (do NOT duplicate):")
+            parts.append("\nExisting statements — your tensions must NOT restate or paraphrase any of these:")
             for s in existing:
                 parts.append(f"- {s}")
 
@@ -358,13 +444,23 @@ class AnalysisService:
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            tensions = [
-                s.strip()
-                for s in (data.get("tensions") or [])
-                if isinstance(s, str) and s.strip()
-            ]
-            existing_set = set(existing)
-            return [t for t in tensions if t not in existing_set][:count]
+            raw = data.get("tensions")
+            if not isinstance(raw, list):
+                raw = next((v for v in data.values() if isinstance(v, list)), [])
+            tensions = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
+            filtered = _dedupe_tensions(tensions, existing)
+            if len(filtered) < count:
+                existing_set = {s.strip().lower() for s in existing}
+                seen = {t.lower() for t in filtered}
+                for t in tensions:
+                    if len(filtered) >= count:
+                        break
+                    key = t.lower()
+                    if key in seen or key in existing_set:
+                        continue
+                    filtered.append(t)
+                    seen.add(key)
+            return (filtered or tensions)[:count]
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Tension parse error: {e}")
             return []

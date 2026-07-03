@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   buildTensionAnalysisPayload,
   canGenerateTensions,
@@ -20,6 +21,7 @@ export default function TensionGenerator({
   onPublish,
   onClearDrafts,
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(3)
   const [items, setItems] = useState([])
@@ -81,9 +83,9 @@ export default function TensionGenerator({
       >
         <span className="tension-gen-toggle-label">
           <span className="tension-gen-icon" aria-hidden="true">⚡</span>
-          Surface open tensions
+          {t('tension.surface')}
           {items.length > 0 && !open && (
-            <span className="tension-gen-badge" data-testid="tension-draft-badge">{included.length} ready</span>
+            <span className="tension-gen-badge" data-testid="tension-draft-badge">{t('tension.ready', { count: included.length })}</span>
           )}
         </span>
         <span className={`votes-recap-chevron ${open ? 'open' : ''}`} aria-hidden="true">⌄</span>
@@ -92,22 +94,22 @@ export default function TensionGenerator({
       {open && (
         <div className="tension-gen-body" data-testid="tension-gen-body">
           <p className="tension-gen-lead">
-            Turn the room&apos;s most split votes into new statements everyone can react to.
+            {t('tension.lead')}
           </p>
 
-          <div className="tension-steps" aria-label="Progress">
-            <span className={`tension-step ${step === 'configure' ? 'on' : 'done'}`}>1 · Configure</span>
-            <span className={`tension-step ${step === 'review' ? 'on' : ''}`}>2 · Review</span>
-            <span className="tension-step">3 · Go live</span>
+          <div className="tension-steps" aria-label={t('tension.progressAria')}>
+            <span className={`tension-step ${step === 'configure' ? 'on' : 'done'}`}>{t('tension.stepConfigure')}</span>
+            <span className={`tension-step ${step === 'review' ? 'on' : ''}`}>{t('tension.stepReview')}</span>
+            <span className="tension-step">{t('tension.stepGoLive')}</span>
           </div>
 
           {divisive.length > 0 && (
             <div className="tension-source" data-testid="tension-source">
-              <span className="tension-source-label">Most divisive in the room</span>
+              <span className="tension-source-label">{t('tension.mostDivisive')}</span>
               <ul className="tension-source-list">
                 {divisive.map((s) => (
                   <li key={s.id} className="tension-source-item">
-                    <span className="tension-source-split">{Math.round(s.split * 100)}% split</span>
+                    <span className="tension-source-split">{t('tension.split', { pct: Math.round(s.split * 100) })}</span>
                     <span className="tension-source-text">{truncate(s.text)}</span>
                     <span className="tension-source-votes">{s.agree}↑ {s.disagree}↓</span>
                   </li>
@@ -118,8 +120,8 @@ export default function TensionGenerator({
 
           {step === 'configure' && (
             <div className="tension-config" data-testid="tension-config">
-              <span className="tension-config-label">How many tensions?</span>
-              <div className="tension-count-seg" role="group" aria-label="Number of tensions">
+              <span className="tension-config-label">{t('tension.howMany')}</span>
+              <div className="tension-count-seg" role="group" aria-label={t('tension.numberOf')}>
                 {COUNT_OPTIONS.map((n) => (
                   <button
                     key={n}
@@ -140,7 +142,7 @@ export default function TensionGenerator({
                 onClick={handleGenerate}
                 data-testid="tension-generate"
               >
-                {pending ? 'Generating…' : `Generate ${count} tension${count === 1 ? '' : 's'}`}
+                {pending ? t('tension.generating') : t('tension.generate', { count })}
               </button>
             </div>
           )}
@@ -148,7 +150,7 @@ export default function TensionGenerator({
           {pending && (
             <div className="tension-loading" data-testid="tension-loading">
               <span className="cg-spinner" aria-hidden="true" />
-              AI is drafting tension statements from vote splits…
+              {t('tension.drafting')}
             </div>
           )}
 
@@ -159,7 +161,7 @@ export default function TensionGenerator({
           {items.length > 0 && !pending && (
             <div className="tension-review" data-testid="tension-review">
               <div className="tension-review-head">
-                <span className="tension-review-title">Review before going live</span>
+                <span className="tension-review-title">{t('tension.reviewTitle')}</span>
                 <button
                   type="button"
                   className="tension-link-btn"
@@ -167,7 +169,7 @@ export default function TensionGenerator({
                   disabled={pending}
                   data-testid="tension-regenerate"
                 >
-                  Regenerate
+                  {t('tension.regenerate')}
                 </button>
               </div>
 
@@ -181,7 +183,7 @@ export default function TensionGenerator({
                         onChange={() => toggleIncluded(item.id)}
                         data-testid={`tension-include-${item.id}`}
                       />
-                      <span className="tension-draft-tag">Tension</span>
+                      <span className="tension-draft-tag">{t('tension.tag')}</span>
                     </label>
                     <textarea
                       className="tension-draft-input"
@@ -195,7 +197,7 @@ export default function TensionGenerator({
                       type="button"
                       className="tension-draft-remove"
                       onClick={() => removeItem(item.id)}
-                      aria-label="Remove draft"
+                      aria-label={t('tension.removeDraft')}
                       data-testid={`tension-remove-${item.id}`}
                     >
                       ×
@@ -211,7 +213,7 @@ export default function TensionGenerator({
                   onClick={handleDiscard}
                   data-testid="tension-discard"
                 >
-                  Discard
+                  {t('tension.discard')}
                 </button>
                 <button
                   type="button"
@@ -220,7 +222,7 @@ export default function TensionGenerator({
                   onClick={handlePublish}
                   data-testid="tension-publish"
                 >
-                  Push {included.length} to live
+                  {t('tension.pushToLive', { count: included.length })}
                 </button>
               </div>
             </div>

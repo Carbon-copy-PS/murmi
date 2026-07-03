@@ -330,7 +330,7 @@ function CaptionsShot() {
 export default function SessionJoin({ onJoin }) {
   const [mode, setMode] = useState(null)
   const [name, setName] = useState(getSavedName)
-  const [language, setLanguage] = useState('auto')
+  const [language, setLanguage] = useState('en')
   const [topic, setTopic] = useState('')
   const [voteType, setVoteType] = useState('binary')
   const [code, setCode] = useState('')
@@ -367,7 +367,7 @@ export default function SessionJoin({ onJoin }) {
     return {
       sessionId,
       userName: name.trim(),
-      userLanguage: wantsHost && language !== 'auto' ? language : null,
+      userLanguage: wantsHost ? language : null,
       wantsHost,
     }
   }

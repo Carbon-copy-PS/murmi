@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'motion/react'
-import { StatementTags } from './statement-tags'
+import { useTranslation } from 'react-i18next'
+import { StatementTags, StatementByline } from './statement-tags'
 import NeutralIcon from './neutral-icon'
 
 const SWIPE_DISTANCE = 110
@@ -56,6 +57,7 @@ function isTypingTarget() {
 }
 
 export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocus = false, voteType = 'binary' }) {
+  const { t } = useTranslation()
   const isLikert = voteType === 'likert'
   const [focus, setFocus] = useState(false)
   const x = useMotionValue(0)
@@ -213,22 +215,20 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
 
   const behind = statements.slice(1, VISIBLE)
 
-  const hintText = isLikert
-    ? 'Right = agree · Left = disagree · Down = neutral'
-    : 'Right = agree · Left = disagree · Down = neutral'
+  const hintText = t('swipe.hint')
 
   const body = (
     <>
       <div className="swipe-progress-head">
-        <span className="swipe-counter"><strong>{current}</strong> of {total}</span>
+        <span className="swipe-counter"><strong>{current}</strong> {t('swipe.of', { total })}</span>
         <div className="swipe-head-right">
-          <span className="swipe-progress-text" data-testid="swipe-remaining">{statements.length} left</span>
+          <span className="swipe-progress-text" data-testid="swipe-remaining">{t('swipe.left', { count: statements.length })}</span>
           {!hideFocus && (
             <button
               type="button"
               className="swipe-focus-btn"
               onClick={() => setFocus((f) => !f)}
-              aria-label={focus ? 'Exit focus mode' : 'Focus mode'}
+              aria-label={focus ? t('swipe.exitFocusMode') : t('swipe.focusMode')}
               data-testid="swipe-focus-toggle"
             >
               {focus ? (
@@ -240,7 +240,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
                   <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                 </svg>
               )}
-              <span>{focus ? 'Exit' : 'Focus'}</span>
+              <span>{focus ? t('swipe.exit') : t('swipe.focus')}</span>
             </button>
           )}
         </div>
@@ -297,16 +297,17 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
               <motion.span className="swipe-tint disagree strong" style={{ opacity: disagreeStrongStep }} aria-hidden="true" />
             </>
           )}
-          <motion.span className="swipe-stamp agree" style={{ opacity: agreeBase, scale: agreeStampScale }}>AGREE</motion.span>
-          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeBase, scale: disagreeStampScale }}>DISAGREE</motion.span>
-          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>NEUTRAL</motion.span>
+          <motion.span className="swipe-stamp agree" style={{ opacity: agreeBase, scale: agreeStampScale }}>{t('swipe.stampAgree')}</motion.span>
+          <motion.span className="swipe-stamp disagree" style={{ opacity: disagreeBase, scale: disagreeStampScale }}>{t('swipe.stampDisagree')}</motion.span>
+          <motion.span className="swipe-stamp pass" style={{ opacity: passOpacity, scale: passStampScale }}>{t('swipe.stampNeutral')}</motion.span>
           {isLikert && (
             <>
-              <motion.span className="swipe-stamp agree strong" style={{ opacity: agreeStrongStep }}>STRONGLY AGREE</motion.span>
-              <motion.span className="swipe-stamp disagree strong" style={{ opacity: disagreeStrongStep }}>STRONGLY DISAGREE</motion.span>
+              <motion.span className="swipe-stamp agree strong" style={{ opacity: agreeStrongStep }}>{t('swipe.stampStronglyAgree')}</motion.span>
+              <motion.span className="swipe-stamp disagree strong" style={{ opacity: disagreeStrongStep }}>{t('swipe.stampStronglyDisagree')}</motion.span>
             </>
           )}
           <StatementTags statement={top} />
+          <StatementByline statement={top} />
           <p className="swipe-text">{top.text}</p>
           <span className="swipe-hint-row" aria-hidden="true">
             <span className="swipe-grip"><span /><span /><span /></span>
@@ -324,7 +325,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
             btnScale={disagreeStrongBtnScale}
             onClick={() => flyOut('strongly_disagree')}
             glyph="⇤"
-            lines={['Strongly', 'Disagree']}
+            lines={[t('swipe.strongly'), t('common.disagree')]}
             testId="swipe-strongly-disagree"
           />
         )}
@@ -334,7 +335,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           btnScale={disagreeBtnScale}
           onClick={() => flyOut('disagree')}
           glyph="✕"
-          label="Disagree"
+          label={t('common.disagree')}
           testId="swipe-disagree"
         />
         <SwipeAction
@@ -343,7 +344,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           btnScale={passBtnScale}
           onClick={() => flyOut('pass')}
           glyph={<NeutralIcon />}
-          label="Neutral"
+          label={t('common.neutral')}
           testId="swipe-pass"
         />
         <SwipeAction
@@ -352,7 +353,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
           btnScale={agreeBtnScale}
           onClick={() => flyOut('agree')}
           glyph="✓"
-          label="Agree"
+          label={t('common.agree')}
           testId="swipe-agree"
         />
         {isLikert && (
@@ -363,7 +364,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
             btnScale={agreeStrongBtnScale}
             onClick={() => flyOut('strongly_agree')}
             glyph="⇥"
-            lines={['Strongly', 'Agree']}
+            lines={[t('swipe.strongly'), t('common.agree')]}
             testId="swipe-strongly-agree"
           />
         )}
@@ -373,7 +374,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
 
   if (focus) {
     return (
-      <div className="swipe-fullscreen" data-testid="swipe-fullscreen" role="dialog" aria-modal="true" aria-label="Focused voting">
+      <div className="swipe-fullscreen" data-testid="swipe-fullscreen" role="dialog" aria-modal="true" aria-label={t('swipe.focusedVoting')}>
         <div className="swipe-fs-frame">
           <div className="swipe-area fs" data-testid="swipe-deck">
             {body}
