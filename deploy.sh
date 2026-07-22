@@ -55,8 +55,8 @@ uv pip install --python .venv/bin/python -r requirements.txt
 
 echo "==> Building frontend (served by backend from frontend/dist)"
 cd "$DIR/frontend"
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules
+npm ci
 npm run build
 
 echo "==> Starting pm2 apps"
