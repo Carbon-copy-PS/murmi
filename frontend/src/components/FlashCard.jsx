@@ -1,8 +1,11 @@
+import { useTranslation } from 'react-i18next'
+
 export default function FlashCard({ statement, onVote, exiting }) {
+  const { t } = useTranslation()
   if (!statement && !exiting) {
     return (
       <div className="flash-card-empty">
-        All caught up — waiting for more statements
+        {t('statements.allCaughtUp')}
       </div>
     )
   }
@@ -17,13 +20,13 @@ export default function FlashCard({ statement, onVote, exiting }) {
           className="vote-btn disagree"
           onClick={() => onVote(statement.id, 'disagree')}
         >
-          Disagree
+          {t('common.disagree')}
         </button>
         <button
           className="vote-btn agree"
           onClick={() => onVote(statement.id, 'agree')}
         >
-          Agree
+          {t('common.agree')}
         </button>
       </div>
     </div>

@@ -1,0 +1,29 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="HearTheRoom">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1f1f22"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.65">
+      <stop stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g transform="translate(600 260)">
+    <g fill="none" stroke-linecap="round">
+      <g stroke="#12b76a">
+        <path d="M-55 95.26 A 110 110 0 0 1 -55 -95.26" stroke-width="30"/>
+        <path d="M-82.5 142.9 A 165 165 0 0 1 -82.5 -142.9" stroke-width="30" stroke-opacity="0.5"/>
+      </g>
+      <g stroke="#f04438">
+        <path d="M55 -95.26 A 110 110 0 0 1 55 95.26" stroke-width="30"/>
+        <path d="M82.5 -142.9 A 165 165 0 0 1 82.5 142.9" stroke-width="30" stroke-opacity="0.5"/>
+      </g>
+    </g>
+    <circle cx="0" cy="0" r="46" fill="#ffffff"/>
+  </g>
+  <text x="600" y="430" text-anchor="middle" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" letter-spacing="-0.02em">HearTheRoom</text>
+  <text x="600" y="490" text-anchor="middle" fill="#a1a1aa" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="500">Collaborative sense-making for live rooms</text>
+</svg>
