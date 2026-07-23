@@ -4,6 +4,8 @@ import { APP_NAME } from '../../constants/app'
 import { resolveUiLanguage } from '../../i18n'
 import ResultsPanel from '../ResultsPanel'
 import ThemeToggle from '../ThemeToggle'
+import FinalReportPage from '../final-report/FinalReportPage'
+import { getReportCopy } from '../final-report/report-copy'
 
 const POLL_INTERVAL_MS = 8000
 
@@ -145,6 +147,10 @@ export default function PublicResults({ publicId }) {
 
   const participantCount = data?.participantCount || 0
   const hasResults = (data?.voters?.length || 0) > 0
+  const hasPublishedReport = Boolean(
+    data?.report && ['published', 'stale'].includes(data?.reportStatus),
+  )
+  const reportCopy = getReportCopy(data?.report?.sourceLanguage || data?.language || 'en')
 
   return (
     <div className="pub-shell" data-testid="public-results">
@@ -155,9 +161,9 @@ export default function PublicResults({ publicId }) {
             {APP_NAME}
           </a>
           <div className="pub-header-actions">
-            <span className="pub-live" data-testid="public-live">
-              <span className="pub-live-dot" />
-              {t('public.live')}
+            <span className={`pub-live ${hasPublishedReport ? 'is-final' : ''}`} data-testid="public-live">
+              {!hasPublishedReport && <span className="pub-live-dot" />}
+              {hasPublishedReport ? reportCopy.finalReport : t('public.live')}
             </span>
             <ThemeToggle />
           </div>
@@ -199,7 +205,9 @@ export default function PublicResults({ publicId }) {
       </header>
 
       <main className="pub-body">
-        {hasResults ? (
+        {hasPublishedReport ? (
+          <FinalReportPage report={data.report} />
+        ) : hasResults ? (
           <ResultsPanel
             statements={statements}
             results={results}

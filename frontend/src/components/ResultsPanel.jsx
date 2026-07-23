@@ -4,6 +4,7 @@ import { CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
 import TensionGenerator from './tension-generator'
 import { canGenerateTensions } from '../utils/tension-stats'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
+import ReportControls from './final-report/ReportControls'
 import {
   buildCSV,
   buildJSON,
@@ -844,6 +845,11 @@ export default function ResultsPanel({
   onPublishTensions,
   onClearTensionDrafts,
   publicView = false,
+  publicId = null,
+  reportStatus = 'none',
+  reportSnapshot = null,
+  onFinalizeReport = () => {},
+  onPublishReport = () => {},
 }) {
   const { t, i18n } = useTranslation()
   const cluster = useMemo(
@@ -905,10 +911,20 @@ export default function ResultsPanel({
   )
 
   const approvedCount = statements.filter((s) => s.approved).length
+  const reportControls = isHost && !publicView ? (
+    <ReportControls
+      status={reportStatus}
+      report={reportSnapshot}
+      publicId={publicId}
+      onGenerate={onFinalizeReport}
+      onPublish={onPublishReport}
+    />
+  ) : null
 
   if (!cluster) {
     return (
       <div className="results-panel">
+        {reportControls}
         <Placeholder
           title={t('results.opinionClusters')}
           message={t('results.crunching')}
@@ -925,6 +941,7 @@ export default function ResultsPanel({
         : t('results.needStatements', { count: cluster.statementCount })
     return (
       <div className="results-panel">
+        {reportControls}
         <Placeholder title={t('results.opinionClusters')} message={message} />
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
@@ -938,6 +955,7 @@ export default function ResultsPanel({
 
   return (
     <div className="results-panel" data-testid="results-panel">
+      {reportControls}
       <div className="results-head">
         <h3 className="results-title">{t('results.opinionClusters')}</h3>
         <p className="results-sub">
