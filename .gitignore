@@ -6,3 +6,8 @@ dist/
 .venv/
 venv/
 *.egg-info/
+
+# Published example report. Raw session exports remain local-only.
+data-analysis/reports/*
+!data-analysis/reports/479D4D/
+!data-analysis/reports/479D4D/**
