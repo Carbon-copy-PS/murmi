@@ -22,6 +22,7 @@ from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
+from .reporting import build_report_snapshot
 
 load_dotenv()
 
@@ -448,6 +449,43 @@ async def broadcast_common_ground_history(session_id: str, added_id: str | None 
             pass
 
 
+async def broadcast_report_state(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    for participant_id, participant in list(session.participants.items()):
+        try:
+            await participant.websocket.send_json({
+                "type": "report_status_updated",
+                **sessions.report_state(
+                    session_id,
+                    include_snapshot=sessions.is_host(
+                        session_id, participant_id
+                    ),
+                ),
+            })
+        except Exception:
+            pass
+
+
+async def run_report_generation(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    try:
+        snapshot = build_report_snapshot(
+            session,
+            version=session.report_version + 1,
+        )
+        sessions.attach_report_snapshot(session_id, snapshot)
+        await _safe_db(db.save_report_snapshot(session, snapshot))
+    except Exception as exc:
+        print(f"Report generation error: {exc}")
+        session.report_status = "failed"
+        await _safe_db(db.update_report_status(session))
+    await broadcast_report_state(session_id)
+
+
 async def run_common_ground(
     session_id: str,
     payload: dict,
@@ -477,6 +515,15 @@ async def run_common_ground(
             "statementCount": payload.get("statementCount"),
         }
         added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
+        if added:
+            session = sessions.get(session_id)
+            stored = (
+                sessions._find_common_ground(session, added["id"])
+                if session
+                else None
+            )
+            if stored:
+                await _safe_db(db.save_common_ground(session_id, stored))
         await broadcast_common_ground_history(
             session_id,
             added_id=added.get("id") if added else None,
@@ -950,11 +997,48 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 actor = sessions.get_participant_name(session_id, participant_id)
                 if sessions.set_voting_open(session_id, is_open, actor):
                     session = sessions.get(session_id)
+                    if is_open and sessions.mark_report_stale(session_id):
+                        await _safe_db(
+                            db.save_report_snapshot(
+                                session, session.report_snapshot
+                            )
+                        )
                     await _safe_db(db.update_voting(session))
                     await sessions.broadcast(session_id, {
                         "type": "voting_status_updated",
                         **sessions.voting_status(session_id),
                     })
+                    if is_open:
+                        await broadcast_report_state(session_id)
+
+            elif msg_type in ("finalize_report", "regenerate_report"):
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                if not sessions.begin_report_generation(session_id):
+                    continue
+                session = sessions.get(session_id)
+                actor = sessions.get_participant_name(
+                    session_id, participant_id
+                )
+                sessions._log_voting_activity(session, "finalized", actor)
+                await _safe_db(db.update_voting(session))
+                await _safe_db(db.update_report_status(session))
+                await sessions.broadcast(session_id, {
+                    "type": "voting_status_updated",
+                    **sessions.voting_status(session_id),
+                })
+                await broadcast_report_state(session_id)
+                asyncio.create_task(run_report_generation(session_id))
+
+            elif msg_type == "publish_report":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                snapshot = sessions.publish_report(session_id)
+                if not snapshot:
+                    continue
+                session = sessions.get(session_id)
+                await _safe_db(db.save_report_snapshot(session, snapshot))
+                await broadcast_report_state(session_id)
 
             elif msg_type == "set_voting_lifetime":
                 if not sessions.is_host(session_id, participant_id):
@@ -998,6 +1082,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     session_id, cg_id, participant_id, vote_value, reason=reason,
                 )
                 if ok:
+                    session = sessions.get(session_id)
+                    stored = (
+                        sessions._find_common_ground(session, cg_id)
+                        if session
+                        else None
+                    )
+                    if stored:
+                        await _safe_db(
+                            db.save_common_ground(session_id, stored)
+                        )
                     await broadcast_common_ground_history(session_id)
 
             elif msg_type == "dismiss_common_ground":
@@ -1006,6 +1100,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 cg_id = data.get("id") or ""
                 if not cg_id or not sessions.remove_common_ground(session_id, cg_id):
                     continue
+                await _safe_db(db.delete_common_ground(cg_id))
                 await broadcast_common_ground_history(session_id)
 
             elif msg_type == "approve_statement":

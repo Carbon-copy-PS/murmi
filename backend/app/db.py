@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -47,6 +48,13 @@ class SessionRow(Base):
     voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
+    report_status: Mapped[str] = mapped_column(
+        String(24), default="none", server_default="none"
+    )
+    report_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    finalized_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -116,6 +124,37 @@ class ParticipantRow(Base):
     language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     auto_approve: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     is_host: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
+class CommonGroundRow(Base):
+    __tablename__ = "common_ground_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ReportSnapshotRow(Base):
+    __tablename__ = "report_snapshots"
+    __table_args__ = (UniqueConstraint("session_id", "version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24), default="draft_ready")
+    source_hash: Mapped[str] = mapped_column(String(64), index=True)
+    source_language: Mapped[str] = mapped_column(String(8), default="en")
+    analysis_version: Mapped[str] = mapped_column(String(32))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class Database:
@@ -201,6 +240,18 @@ class Database:
                 "ADD COLUMN IF NOT EXISTS public_id varchar(24)"
             ))
             await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS report_status varchar(24) NOT NULL DEFAULT 'none'"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS report_version integer NOT NULL DEFAULT 0"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS finalized_at timestamptz"
+            ))
+            await conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
                 "ON sessions (public_id)"
             ))
@@ -231,6 +282,13 @@ class Database:
             "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
+            "report_status": getattr(session, "report_status", "none"),
+            "report_version": getattr(session, "report_version", 0),
+            "finalized_at": (
+                datetime.fromtimestamp(session.finalized_at, timezone.utc)
+                if getattr(session, "finalized_at", None)
+                else None
+            ),
         }
 
     async def _ensure_session(self, db, session):
@@ -469,6 +527,118 @@ class Database:
             )
             await db.commit()
 
+    async def save_common_ground(self, session_id: str, item: dict):
+        if not self.enabled or not item or not item.get("id"):
+            return
+        generated_at = float(item.get("generatedAt") or 0.0) or datetime.now(
+            timezone.utc
+        ).timestamp()
+        async with self._sessionmaker() as db:
+            await db.execute(
+                pg_insert(CommonGroundRow)
+                .values(
+                    id=item["id"],
+                    session_id=session_id,
+                    payload=item,
+                    created_at=datetime.fromtimestamp(generated_at, timezone.utc),
+                )
+                .on_conflict_do_update(
+                    index_elements=["id"],
+                    set_={"payload": item},
+                )
+            )
+            await db.commit()
+
+    async def delete_common_ground(self, common_ground_id: str):
+        if not self.enabled or not common_ground_id:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                delete(CommonGroundRow).where(
+                    CommonGroundRow.id == common_ground_id
+                )
+            )
+            await db.commit()
+
+    async def update_report_status(self, session):
+        if not self.enabled or session is None:
+            return
+        finalized_at = getattr(session, "finalized_at", None)
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    report_status=getattr(session, "report_status", "none"),
+                    report_version=getattr(session, "report_version", 0),
+                    finalized_at=(
+                        datetime.fromtimestamp(finalized_at, timezone.utc)
+                        if finalized_at
+                        else None
+                    ),
+                )
+            )
+            await db.commit()
+
+    async def save_report_snapshot(self, session, snapshot: dict):
+        if not self.enabled or session is None or not snapshot:
+            return
+        created_at = float(snapshot.get("generatedAt") or time.time())
+        published_at = snapshot.get("publishedAt")
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                pg_insert(ReportSnapshotRow)
+                .values(
+                    id=uuid.uuid4().hex,
+                    session_id=session.id,
+                    version=int(snapshot["version"]),
+                    status=snapshot.get("status", "draft_ready"),
+                    source_hash=snapshot["sourceHash"],
+                    source_language=snapshot.get("sourceLanguage", "en"),
+                    analysis_version=snapshot.get("analysisVersion", "unknown"),
+                    payload=snapshot,
+                    created_at=datetime.fromtimestamp(created_at, timezone.utc),
+                    published_at=(
+                        datetime.fromtimestamp(float(published_at), timezone.utc)
+                        if published_at
+                        else None
+                    ),
+                )
+                .on_conflict_do_update(
+                    index_elements=["session_id", "version"],
+                    set_={
+                        "status": snapshot.get("status", "draft_ready"),
+                        "payload": snapshot,
+                        "published_at": (
+                            datetime.fromtimestamp(float(published_at), timezone.utc)
+                            if published_at
+                            else None
+                        ),
+                    },
+                )
+            )
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    voting_open=getattr(session, "voting_open", False),
+                    voting_expires_at=(
+                        datetime.fromtimestamp(
+                            float(session.voting_expires_at), timezone.utc
+                        )
+                        if getattr(session, "voting_expires_at", None)
+                        else None
+                    ),
+                    report_status=getattr(session, "report_status", "draft_ready"),
+                    report_version=getattr(session, "report_version", 0),
+                    finalized_at=datetime.fromtimestamp(
+                        float(session.finalized_at), timezone.utc
+                    ),
+                )
+            )
+            await db.commit()
+
     async def _build_session_dict(self, db, row: SessionRow) -> dict:
         transcript = (await db.execute(
             select(TranscriptRow)
@@ -486,6 +656,17 @@ class Database:
         participants = (await db.execute(
             select(ParticipantRow).where(ParticipantRow.session_id == row.id)
         )).scalars().all()
+        common_ground = (await db.execute(
+            select(CommonGroundRow)
+            .where(CommonGroundRow.session_id == row.id)
+            .order_by(CommonGroundRow.created_at)
+        )).scalars().all()
+        latest_report = (await db.execute(
+            select(ReportSnapshotRow)
+            .where(ReportSnapshotRow.session_id == row.id)
+            .order_by(ReportSnapshotRow.version.desc())
+            .limit(1)
+        )).scalar_one_or_none()
 
         votes_by_statement: dict[str, dict[str, str]] = {}
         for v in votes:
@@ -505,6 +686,15 @@ class Database:
             "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
+            "report_status": getattr(row, "report_status", "none"),
+            "report_version": getattr(row, "report_version", 0),
+            "finalized_at": (
+                row.finalized_at.timestamp()
+                if getattr(row, "finalized_at", None)
+                else None
+            ),
+            "report_snapshot": latest_report.payload if latest_report else None,
+            "common_ground_history": [item.payload for item in common_ground],
             "transcript": [t.payload for t in transcript],
             "statements": [
                 {

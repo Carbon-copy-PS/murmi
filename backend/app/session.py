@@ -71,6 +71,10 @@ class Session:
     voting_expires_at: Optional[float] = None
     voting_activity: list = field(default_factory=list)
     public_id: Optional[str] = None
+    report_status: str = "none"
+    report_version: int = 0
+    finalized_at: Optional[float] = None
+    report_snapshot: Optional[dict] = None
 
 
 SILENCE_THRESHOLD = 0.01
@@ -172,6 +176,13 @@ class SessionManager:
         session.voting_expires_at = data.get("voting_expires_at")
         session.voting_activity = list(data.get("voting_activity") or [])
         session.public_id = data.get("public_id")
+        session.report_status = data.get("report_status") or "none"
+        session.report_version = int(data.get("report_version") or 0)
+        session.finalized_at = data.get("finalized_at")
+        session.report_snapshot = data.get("report_snapshot")
+        session.common_ground_history = list(
+            data.get("common_ground_history") or []
+        )
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
@@ -289,6 +300,10 @@ class SessionManager:
             "recorderLanguage": self.get_session_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
             "publicId": session.public_id,
+            **self.report_state(
+                session_id,
+                include_snapshot=self._is_host(session, participant_id),
+            ),
         })
 
         if not returning:
@@ -671,8 +686,7 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return None
-        matrix = self.vote_matrix(session_id, "")
-        return {
+        result = {
             "publicId": session.public_id,
             "topic": session.topic,
             "language": self.get_session_language(session_id),
@@ -680,8 +694,78 @@ class SessionManager:
             "createdAt": session.created_at,
             "participantCount": len(session.known_participants) or len(session.participants),
             "votingOpen": self._voting_open(session),
-            **matrix,
+            **self.report_state(session_id, include_snapshot=False),
         }
+        if (
+            session.report_snapshot
+            and session.report_status in ("published", "stale")
+        ):
+            result["report"] = session.report_snapshot
+            return result
+        result.update(self.vote_matrix(session_id, ""))
+        return result
+
+    def report_state(
+        self,
+        session_id: str,
+        include_snapshot: bool = False,
+    ) -> dict:
+        session = self.sessions.get(session_id)
+        if not session:
+            return {
+                "reportStatus": "none",
+                "reportVersion": 0,
+                "finalizedAt": None,
+            }
+        result = {
+            "reportStatus": session.report_status,
+            "reportVersion": session.report_version,
+            "finalizedAt": session.finalized_at,
+        }
+        if include_snapshot and session.report_snapshot:
+            result["report"] = session.report_snapshot
+        return result
+
+    def begin_report_generation(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        session.report_status = "generating"
+        session.voting_open = False
+        session.voting_expires_at = None
+        return True
+
+    def attach_report_snapshot(self, session_id: str, snapshot: dict) -> bool:
+        session = self.sessions.get(session_id)
+        if not session or not snapshot:
+            return False
+        session.report_snapshot = snapshot
+        session.report_version = int(snapshot.get("version") or 0)
+        session.finalized_at = float(
+            snapshot.get("meta", {}).get("finalizedAt")
+            or snapshot.get("generatedAt")
+            or time.time()
+        )
+        session.report_status = snapshot.get("status") or "draft_ready"
+        return True
+
+    def publish_report(self, session_id: str) -> Optional[dict]:
+        session = self.sessions.get(session_id)
+        if not session or not session.report_snapshot:
+            return None
+        now = time.time()
+        session.report_status = "published"
+        session.report_snapshot["status"] = "published"
+        session.report_snapshot["publishedAt"] = now
+        return session.report_snapshot
+
+    def mark_report_stale(self, session_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        if not session or not session.report_snapshot:
+            return False
+        session.report_status = "stale"
+        session.report_snapshot["status"] = "stale"
+        return True
 
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
