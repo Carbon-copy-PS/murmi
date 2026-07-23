@@ -388,7 +388,7 @@ export default function SessionJoin({ onJoin }) {
       const res = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic.trim() || null, voteType }),
+        body: JSON.stringify({ topic: topic.trim() || null, voteType, language }),
       })
       if (!res.ok) throw new Error()
       const data = await res.json()

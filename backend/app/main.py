@@ -176,18 +176,21 @@ GENERIC_ASR_HALLUCINATION_MARKERS = (
 class CreateSessionRequest(BaseModel):
     topic: Optional[str] = None
     voteType: Optional[str] = None
+    language: Optional[str] = None
 
 
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
     vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
-    session_id = sessions.create(topic=topic, vote_type=vote_type)
+    language = normalize_language(req.language)
+    session_id = sessions.create(topic=topic, vote_type=vote_type, language=language)
     await persist_session(sessions.get(session_id))
     return {
         "sessionId": session_id,
         "topic": topic,
         "voteType": vote_type,
+        "language": language,
         "publicId": sessions.get(session_id).public_id,
     }
 
@@ -768,6 +771,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         _restored = sessions.get(session_id)
         if _restored and _restored.public_id:
             await _safe_db(db.update_public_id(session_id, _restored.public_id))
+    session = sessions.get(session_id)
+    if session and sessions.is_host(session_id, participant_id) and not session.language and language:
+        sessions.set_session_language(session_id, language)
+        await _safe_db(db.update_language(session_id, language))
     await _safe_db(db.save_participant(
         sessions.get(session_id), participant_id, client_id, name, language,
         is_host=sessions.is_host(session_id, participant_id),
@@ -1135,6 +1142,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 recorder = session.participants.get(recorder_id)
                 if not recorder or not sessions.set_participant_language(session_id, recorder_id, language):
                     continue
+                sessions.set_session_language(session_id, language)
                 await _safe_db(db.save_participant(
                     session,
                     recorder_id,
@@ -1143,6 +1151,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     language,
                     is_host=sessions.is_host(session_id, recorder_id),
                 ))
+                await _safe_db(db.update_language(session_id, language))
                 await close_realtime_sessions(session_id, recorder_id)
                 await sessions.broadcast(session_id, {
                     "type": "language_updated",

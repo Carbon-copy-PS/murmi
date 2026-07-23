@@ -36,6 +36,7 @@ class SessionRow(Base):
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True)
     topic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     threshold: Mapped[int] = mapped_column(Integer, default=5)
     vote_type: Mapped[str] = mapped_column(String(16), default="binary", server_default="binary")
@@ -158,6 +159,20 @@ class Database:
                 "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'binary'"
             ))
             await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS language varchar(8)"
+            ))
+            await conn.execute(text(
+                "UPDATE sessions AS s SET language = host.language "
+                "FROM ("
+                "SELECT DISTINCT ON (session_id) session_id, language "
+                "FROM participants "
+                "WHERE is_host = true AND language IS NOT NULL "
+                "ORDER BY session_id, id"
+                ") AS host "
+                "WHERE s.id = host.session_id AND s.language IS NULL"
+            ))
+            await conn.execute(text(
                 "ALTER TABLE statements "
                 "ADD COLUMN IF NOT EXISTS tension boolean NOT NULL DEFAULT false"
             ))
@@ -205,6 +220,7 @@ class Database:
         return {
             "id": session.id,
             "topic": session.topic,
+            "language": getattr(session, "language", None),
             "current_round": 1,
             "threshold": 5,
             "vote_type": getattr(session, "vote_type", "binary"),
@@ -314,6 +330,15 @@ class Database:
         async with self._sessionmaker() as db:
             await db.execute(
                 update(SessionRow).where(SessionRow.id == session_id).values(topic=topic)
+            )
+            await db.commit()
+
+    async def update_language(self, session_id: str, language: str | None):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(language=language)
             )
             await db.commit()
 
@@ -469,6 +494,7 @@ class Database:
         return {
             "id": row.id,
             "topic": row.topic,
+            "language": getattr(row, "language", None),
             "current_round": row.current_round,
             "threshold": row.threshold,
             "vote_type": row.vote_type,

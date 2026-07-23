@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../../constants/app'
+import { resolveUiLanguage } from '../../i18n'
 import ResultsPanel from '../ResultsPanel'
 import ThemeToggle from '../ThemeToggle'
 
@@ -27,7 +28,7 @@ function relativeTime(ts, t) {
 }
 
 export default function PublicResults({ publicId }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [data, setData] = useState(null)
   const [status, setStatus] = useState('loading')
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -71,6 +72,10 @@ export default function PublicResults({ publicId }) {
     const topic = data?.topic
     document.title = topic ? `${topic} · ${APP_NAME}` : `${t('public.title')} · ${APP_NAME}`
   }, [data?.topic, t])
+
+  useEffect(() => {
+    if (data) i18n.changeLanguage(resolveUiLanguage(data.language))
+  }, [data?.language, i18n])
 
   const results = useMemo(
     () => (data ? { statements: data.statements || [], voters: data.voters || [] } : null),

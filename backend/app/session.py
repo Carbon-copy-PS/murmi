@@ -46,6 +46,7 @@ class Statement:
 class Session:
     id: str
     topic: Optional[str] = None
+    language: Optional[str] = None
     participants: Dict[str, Participant] = field(default_factory=dict)
     transcript: list = field(default_factory=list)
     host_participant_id: Optional[str] = None
@@ -100,6 +101,7 @@ class SessionManager:
         session_id: str,
         topic: str | None = None,
         vote_type: str = "binary",
+        language: str | None = None,
     ) -> Session:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
@@ -107,6 +109,7 @@ class SessionManager:
         return Session(
             id=session_id,
             topic=topic,
+            language=language,
             vote_type=vt,
             created_at=now,
             expires_at=expires_at,
@@ -121,9 +124,14 @@ class SessionManager:
             if token and token not in existing:
                 return token
 
-    def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
+    def create(
+        self,
+        topic: str | None = None,
+        vote_type: str = "binary",
+        language: str | None = None,
+    ) -> str:
         session_id = uuid.uuid4().hex[:6].upper()
-        session = self._new_session(session_id, topic, vote_type)
+        session = self._new_session(session_id, topic, vote_type, language)
         session.public_id = self._gen_public_id()
         self.sessions[session_id] = session
         return session_id
@@ -148,6 +156,7 @@ class SessionManager:
         session = Session(
             id=data["id"],
             topic=data.get("topic"),
+            language=data.get("language"),
             vote_type=data.get("vote_type", "binary"),
             created_at=data.get("created_at", time.time()),
             expires_at=data.get("expires_at"),
@@ -170,6 +179,8 @@ class SessionManager:
                 session.known_participants[client_id] = pid
             if client_id and member.get("is_host"):
                 session.host_client_ids.add(client_id)
+                if not session.language and member.get("language"):
+                    session.language = member["language"]
             if client_id and "auto_approve" in member:
                 session.auto_approve_prefs[client_id] = bool(member["auto_approve"])
             if client_id and "can_add_statement" in member:
@@ -242,6 +253,8 @@ class SessionManager:
         ):
             session.host_participant_id = participant_id
             session.active_mic_id = participant_id
+        if already_host and language and not session.language:
+            session.language = language
 
         await websocket.send_json({
             "type": "joined",
@@ -273,7 +286,7 @@ class SessionManager:
             "canAddStatement": self.can_add_statement(session_id, participant_id),
             "defaultCanAddStatement": session.default_can_add_statement,
             "language": language,
-            "recorderLanguage": self.get_recorder_language(session_id),
+            "recorderLanguage": self.get_session_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
             "publicId": session.public_id,
         })
@@ -662,6 +675,7 @@ class SessionManager:
         return {
             "publicId": session.public_id,
             "topic": session.topic,
+            "language": self.get_session_language(session_id),
             "voteType": session.vote_type,
             "createdAt": session.created_at,
             "participantCount": len(session.known_participants) or len(session.participants),
@@ -1068,11 +1082,26 @@ class SessionManager:
             return session.participants[participant_id].language
         return None
 
-    def get_recorder_language(self, session_id: str) -> str | None:
+    def get_session_language(self, session_id: str) -> str | None:
         session = self.sessions.get(session_id)
-        if not session or not session.host_participant_id:
+        if not session:
+            return None
+        if session.language:
+            return session.language
+        if not session.host_participant_id:
             return None
         return self.get_participant_language(session_id, session.host_participant_id)
+
+    def get_recorder_language(self, session_id: str) -> str | None:
+        """Compatibility alias for callers that still use the former name."""
+        return self.get_session_language(session_id)
+
+    def set_session_language(self, session_id: str, language: str | None) -> bool:
+        session = self.sessions.get(session_id)
+        if not session:
+            return False
+        session.language = language
+        return True
 
     def set_participant_language(
         self,
