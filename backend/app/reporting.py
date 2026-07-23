@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
 import time
 from itertools import combinations
+from pathlib import Path
 
 
-ANALYSIS_VERSION = "story-report-v1"
+ANALYSIS_VERSION = "story-report-v2"
 SUPPORT_VOTES = {"agree", "strongly_agree"}
 OPPOSE_VOTES = {"disagree", "strongly_disagree"}
 VALID_VOTES = SUPPORT_VOTES | OPPOSE_VOTES | {"neutral"}
+OPINION_ANALYSIS_SCRIPT = Path(__file__).with_name(
+    "report-opinion-analysis.mjs"
+)
 
 
 def _rounded(value: float) -> float:
@@ -276,4 +281,144 @@ def build_report_snapshot(session, version: int) -> dict:
                 "participant identifiers or individual ballots."
             ),
         },
+    }
+
+
+async def build_opinion_landscape(session, timeout_seconds: float = 30) -> dict:
+    statements = [
+        statement for statement in session.statements if statement.approved
+    ]
+    source = {
+        "sessionId": session.id,
+        "statements": [
+            {
+                "id": statement.id,
+                "text": statement.text,
+                "created_at": statement.created_at,
+            }
+            for statement in statements
+        ],
+        "votes": [
+            {
+                "participant_id": participant_id,
+                "statement_id": statement.id,
+                "vote": vote,
+            }
+            for statement in statements
+            for participant_id, vote in statement.votes.items()
+            if vote in VALID_VOTES
+        ],
+    }
+    if len(statements) < 2 or len({
+        vote["participant_id"] for vote in source["votes"]
+    }) < 3:
+        return {
+            "available": False,
+            "reason": "insufficient-data",
+        }
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "node",
+            str(OPINION_ANALYSIS_SCRIPT),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError:
+        return {
+            "available": False,
+            "reason": "analysis-runtime-unavailable",
+        }
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(
+                json.dumps(
+                    {"source": source},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ),
+            timeout=timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.communicate()
+        return {
+            "available": False,
+            "reason": "analysis-timeout",
+        }
+    except Exception:
+        if process.returncode is None:
+            process.kill()
+            await process.communicate()
+        return {
+            "available": False,
+            "reason": "analysis-failed",
+        }
+
+    if process.returncode != 0:
+        return {
+            "available": False,
+            "reason": "analysis-failed",
+        }
+    try:
+        result = json.loads(stdout.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {
+            "available": False,
+            "reason": "invalid-analysis-output",
+        }
+    serialized = json.dumps(result, ensure_ascii=False)
+    forbidden_keys = (
+        "participantIndex",
+        "participant_id",
+        "participantId",
+        "assignments",
+        "coordinates",
+    )
+    if any(f'"{key}"' in serialized for key in forbidden_keys):
+        return {
+            "available": False,
+            "reason": "privacy-boundary-failed",
+        }
+    return result
+
+
+def narrative_evidence(snapshot: dict) -> dict:
+    statements = snapshot.get("evidence", {}).get("statements", [])
+    statement_by_id = {
+        statement["id"]: statement for statement in statements
+    }
+
+    def selected(ids: list) -> list:
+        return [
+            statement_by_id[statement_id]
+            for statement_id in ids
+            if statement_id in statement_by_id
+        ]
+
+    story = snapshot.get("story", {})
+    landscape = snapshot.get("opinionLandscape") or {}
+    return {
+        "topic": snapshot.get("meta", {}).get("topic"),
+        "counts": snapshot.get("meta"),
+        "strongestCommonGround": selected(
+            story.get("commonGroundStatementIds", [])
+        ),
+        "openQuestions": selected(
+            story.get("openQuestionStatementIds", [])
+        ),
+        "overlaps": story.get("overlaps", []),
+        "statements": [
+            {
+                "id": statement["id"],
+                "text": statement["text"],
+                "supportRate": statement["supportRate"],
+                "coverageRate": statement["coverageRate"],
+            }
+            for statement in statements
+        ],
+        "opinionLandscape": landscape,
+        "commonGroundProposal": snapshot.get("commonGroundProposal"),
     }

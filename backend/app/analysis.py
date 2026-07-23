@@ -89,6 +89,60 @@ Include groupNotes only when opinion-group data is provided. Use the group lette
 
 COMMON_GROUND_DEPTHS = frozenset(COMMON_GROUND_PROMPTS)
 
+REPORT_NARRATIVE_PROMPT = """You are an impartial data-story editor for a public deliberation report.
+
+You receive aggregate voting evidence only. Write a concise, reader-friendly narrative that helps participants understand what the room shared, how priorities combined, and what remains open.
+
+Rules:
+- Every substantive claim must be grounded in the supplied evidence.
+- Evidence references must use only statement IDs present in the input.
+- Never invent percentages, participant counts, quotations, themes, or causal explanations.
+- Opinion tendencies are overlapping patterns, not fixed, mutually exclusive, or opposing camps.
+- Describe PCA dimensions as variations in emphasis. Do not use technical language such as eigenvector, loading, fuzzy c-means, silhouette, or cluster in reader-facing copy.
+- Do not imply that an AI-written synthesis was endorsed by participants.
+- Prefer plain, specific language. Avoid inflated claims and generic facilitation language.
+- Titles should state the insight, not name the chart.
+- Keep each explanation to one or two short sentences.
+
+Respond ONLY with JSON:
+{
+  "headline": "6-14 word editorial headline",
+  "standfirst": "two-sentence overview",
+  "overviewEvidenceStatementIds": ["id"],
+  "takeaways": [
+    {"title": "short finding", "explanation": "why it matters", "evidenceStatementIds": ["id"]}
+  ],
+  "principles": [
+    {"title": "short principle", "explanation": "how the votes support it", "evidenceStatementIds": ["id"]}
+  ],
+  "dimensions": [
+    {
+      "axis": 1,
+      "label": "short name for this variation",
+      "negativeLabel": "one end",
+      "positiveLabel": "other end",
+      "explanation": "what changes along this dimension",
+      "evidenceStatementIds": ["id"]
+    }
+  ],
+  "tendencies": [
+    {
+      "tendencyId": 1,
+      "title": "2-5 word reader-friendly name",
+      "description": "what this overlapping tendency tends to emphasise",
+      "evidenceStatementIds": ["id"]
+    }
+  ],
+  "openQuestions": [
+    {"title": "short unresolved question", "explanation": "what remains unsettled", "evidenceStatementIds": ["id"]}
+  ],
+  "implications": [
+    {"title": "short practical implication", "explanation": "one cautious next step", "evidenceStatementIds": ["id"]}
+  ]
+}
+
+Return no more than 3 takeaways, 4 principles, 2 dimensions, 3 tendencies, 4 open questions, and 3 implications."""
+
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
 What an open tension IS:
@@ -337,6 +391,15 @@ class AnalysisService:
 
         return await self._live_common_ground(analysis, topic, language, depth)
 
+    async def generate_report_narrative(
+        self,
+        evidence: dict,
+        language: Optional[str] = None,
+    ) -> Optional[dict]:
+        if self._mock:
+            return None
+        return await self._live_report_narrative(evidence, language)
+
     def _normalize_common_ground(self, data: dict, depth: str) -> Optional[dict]:
         statement = (data.get("groupStatement") or "").strip()
         if not statement:
@@ -378,6 +441,128 @@ class AnalysisService:
         if group_notes:
             result["groupNotes"] = group_notes
         return result
+
+    def _normalize_report_narrative(
+        self,
+        data: dict,
+        evidence: dict,
+    ) -> Optional[dict]:
+        headline = str(data.get("headline") or "").strip()
+        standfirst = str(data.get("standfirst") or "").strip()
+        if not headline or not standfirst:
+            return None
+
+        allowed_statement_ids = {
+            str(statement.get("id"))
+            for statement in evidence.get("statements") or []
+            if statement.get("id")
+        }
+        landscape = evidence.get("opinionLandscape") or {}
+        allowed_tendency_ids = {
+            int(profile.get("tendencyId"))
+            for profile in (
+                landscape.get("tendencies", {}).get("profiles") or []
+            )
+            if isinstance(profile.get("tendencyId"), int)
+        }
+
+        def references(item: dict) -> list[str]:
+            result = []
+            for value in item.get("evidenceStatementIds") or []:
+                statement_id = str(value)
+                if statement_id in allowed_statement_ids and statement_id not in result:
+                    result.append(statement_id)
+            return result[:5]
+
+        overview_evidence_ids = references({
+            "evidenceStatementIds": (
+                data.get("overviewEvidenceStatementIds") or []
+            )
+        })
+        if not overview_evidence_ids:
+            return None
+
+        def items(key: str, limit: int) -> list[dict]:
+            normalized = []
+            for item in data.get(key) or []:
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title") or "").strip()
+                explanation = str(item.get("explanation") or "").strip()
+                evidence_ids = references(item)
+                if title and explanation and evidence_ids:
+                    normalized.append({
+                        "title": title,
+                        "explanation": explanation,
+                        "evidenceStatementIds": evidence_ids,
+                    })
+                if len(normalized) == limit:
+                    break
+            return normalized
+
+        dimensions = []
+        for item in data.get("dimensions") or []:
+            if not isinstance(item, dict):
+                continue
+            axis = item.get("axis")
+            if axis not in (1, 2) or any(
+                dimension["axis"] == axis for dimension in dimensions
+            ):
+                continue
+            label = str(item.get("label") or "").strip()
+            negative = str(item.get("negativeLabel") or "").strip()
+            positive = str(item.get("positiveLabel") or "").strip()
+            explanation = str(item.get("explanation") or "").strip()
+            evidence_ids = references(item)
+            if label and negative and positive and explanation and evidence_ids:
+                dimensions.append({
+                    "axis": axis,
+                    "label": label,
+                    "negativeLabel": negative,
+                    "positiveLabel": positive,
+                    "explanation": explanation,
+                    "evidenceStatementIds": evidence_ids,
+                })
+            if len(dimensions) == 2:
+                break
+
+        tendencies = []
+        for item in data.get("tendencies") or []:
+            if not isinstance(item, dict):
+                continue
+            tendency_id = item.get("tendencyId")
+            if (
+                tendency_id not in allowed_tendency_ids
+                or any(
+                    tendency["tendencyId"] == tendency_id
+                    for tendency in tendencies
+                )
+            ):
+                continue
+            title = str(item.get("title") or "").strip()
+            description = str(item.get("description") or "").strip()
+            evidence_ids = references(item)
+            if title and description and evidence_ids:
+                tendencies.append({
+                    "tendencyId": tendency_id,
+                    "title": title,
+                    "description": description,
+                    "evidenceStatementIds": evidence_ids,
+                })
+            if len(tendencies) == 3:
+                break
+
+        return {
+            "headline": headline,
+            "standfirst": standfirst,
+            "overviewEvidenceStatementIds": overview_evidence_ids,
+            "takeaways": items("takeaways", 3),
+            "principles": items("principles", 4),
+            "dimensions": dimensions,
+            "tendencies": tendencies,
+            "openQuestions": items("openQuestions", 4),
+            "implications": items("implications", 3),
+        }
 
     async def _live_tension_statements(
         self,
@@ -547,6 +732,54 @@ class AnalysisService:
             return None
         except Exception as e:
             print(f"Common ground error: {e}")
+            return None
+
+    async def _live_report_narrative(
+        self,
+        evidence: dict,
+        language: Optional[str] = None,
+    ) -> Optional[dict]:
+        language_instruction = _language_rule(language)
+        if language == "zh":
+            language_instruction += (
+                "- Use natural Taiwan Traditional Chinese terminology and punctuation.\n"
+                "- Avoid repeatedly framing sentences as 「不是……而是……」.\n"
+            )
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                REPORT_NARRATIVE_PROMPT
+                                + language_instruction
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": json.dumps(
+                                evidence,
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                        },
+                    ],
+                ),
+            )
+            data = json.loads(response.choices[0].message.content)
+            return self._normalize_report_narrative(data, evidence)
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            print(f"Report narrative parse error: {exc}")
+            return None
+        except Exception as exc:
+            print(f"Report narrative generation error: {exc}")
             return None
 
     def _mock_extract(self, existing_statements: list[str]) -> list[str]:

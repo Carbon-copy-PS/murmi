@@ -22,7 +22,11 @@ from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
-from .reporting import build_report_snapshot
+from .reporting import (
+    build_opinion_landscape,
+    build_report_snapshot,
+    narrative_evidence,
+)
 
 load_dotenv()
 
@@ -32,6 +36,9 @@ transcription = TranscriptionService()
 analysis = AnalysisService()
 
 SESSION_PURGE_INTERVAL_SECONDS = float(os.environ.get("SESSION_PURGE_INTERVAL_MINUTES", "15")) * 60
+REPORT_NARRATIVE_TIMEOUT_SECONDS = float(
+    os.environ.get("REPORT_NARRATIVE_TIMEOUT_SECONDS", "45")
+)
 
 
 async def _safe_db(coro):
@@ -477,6 +484,27 @@ async def run_report_generation(session_id: str):
             session,
             version=session.report_version + 1,
         )
+        snapshot["opinionLandscape"] = await build_opinion_landscape(
+            session
+        )
+        try:
+            narrative = await asyncio.wait_for(
+                analysis.generate_report_narrative(
+                    narrative_evidence(snapshot),
+                    snapshot.get("sourceLanguage"),
+                ),
+                timeout=REPORT_NARRATIVE_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            narrative = None
+            print("Report narrative generation timed out")
+        except Exception as exc:
+            narrative = None
+            print(f"Report narrative generation failed: {exc}")
+        if narrative:
+            snapshot["narrative"] = {
+                snapshot.get("sourceLanguage", "en"): narrative,
+            }
         sessions.attach_report_snapshot(session_id, snapshot)
         await _safe_db(db.save_report_snapshot(session, snapshot))
     except Exception as exc:
