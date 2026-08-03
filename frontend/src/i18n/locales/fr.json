@@ -220,7 +220,12 @@
     "vote": "Vote",
     "voteQuestion": "Les participants sont-ils d'accord avec ce terrain d'entente ?",
     "agreePct": "{{count}} pour ({{pct}} %)",
-    "disagreePct": "{{count}} contre ({{pct}} %)"
+    "disagreePct": "{{count}} contre ({{pct}} %)",
+    "rawVotesTitle": "Données de vote brutes",
+    "rawVotesHint": "Une ligne par affirmation avec le nombre de votes par option",
+    "rawVotesEmpty": "Chargez les résultats pour exporter les votes bruts",
+    "rawVotesCsv": "Votes bruts CSV",
+    "rawVotesJson": "Votes bruts JSON"
   },
   "cg": {
     "title": "Terrain d'entente IA",

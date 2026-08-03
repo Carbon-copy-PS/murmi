@@ -71,6 +71,7 @@ class Session:
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
+    participant_names: Dict[str, str] = field(default_factory=dict)
     common_ground_history: list = field(default_factory=list)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
     statement_perms: Dict[str, bool] = field(default_factory=dict)
@@ -178,6 +179,8 @@ class SessionManager:
             pid = member.get("participant_id")
             if client_id and pid:
                 session.known_participants[client_id] = pid
+            if pid and member.get("name"):
+                session.participant_names[pid] = member["name"]
             if client_id and member.get("is_host"):
                 session.host_client_ids.add(client_id)
             if client_id and "auto_approve" in member:
@@ -243,6 +246,7 @@ class SessionManager:
         session.participants[participant_id] = participant
         if client_id:
             session.known_participants[client_id] = participant_id
+        session.participant_names[participant_id] = name.strip()[:120]
 
         perm_key = client_id or participant_id
         if perm_key not in session.statement_perms:
@@ -1055,7 +1059,9 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session or participant_id not in session.participants:
             return False
-        session.participants[participant_id].name = name.strip()[:120]
+        clean = name.strip()[:120]
+        session.participants[participant_id].name = clean
+        session.participant_names[participant_id] = clean
         return True
 
     def leave(self, session_id: str, participant_id: str, websocket: WebSocket | None = None) -> dict:
@@ -1091,9 +1097,11 @@ class SessionManager:
 
     def get_participant_name(self, session_id: str, participant_id: str) -> str:
         session = self.sessions.get(session_id)
-        if session and participant_id in session.participants:
+        if not session:
+            return "Unknown"
+        if participant_id in session.participants:
             return session.participants[participant_id].name
-        return "Unknown"
+        return session.participant_names.get(participant_id, "Unknown")
 
     def get_participant_language(self, session_id: str, participant_id: str) -> str | None:
         session = self.sessions.get(session_id)

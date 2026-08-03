@@ -220,7 +220,12 @@
     "vote": "Abstimmung",
     "voteQuestion": "Stimmen die Teilnehmenden diesem gemeinsamen Nenner zu?",
     "agreePct": "{{count}} dafür ({{pct}}%)",
-    "disagreePct": "{{count}} dagegen ({{pct}}%)"
+    "disagreePct": "{{count}} dagegen ({{pct}}%)",
+    "rawVotesTitle": "Rohstimmdaten",
+    "rawVotesHint": "Eine Zeile pro Aussage mit Stimmenzahlen pro Option",
+    "rawVotesEmpty": "Ergebnisse laden, um Rohstimmen zu exportieren",
+    "rawVotesCsv": "Rohstimmen CSV",
+    "rawVotesJson": "Rohstimmen JSON"
   },
   "cg": {
     "title": "KI-Nenner",

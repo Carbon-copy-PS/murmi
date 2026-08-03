@@ -7,10 +7,13 @@ import { computeOpinionClusters } from '../utils/opinion-clusters'
 import {
   buildCSV,
   buildJSON,
+  buildRawVotesCSV,
+  buildRawVotesJSON,
   buildSummary,
   downloadFile,
   exportFilename,
   exportPDF,
+  exportVotesFilename,
 } from '../utils/export-results'
 
 const CLUSTER_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
@@ -282,6 +285,7 @@ function ExportBar({ ctx }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const hasData = ctx.statements.some((s) => s.approved)
+  const hasRawVotes = (ctx.results?.voters?.length ?? 0) > 0
   if (!hasData) return null
 
   const sid = ctx.sessionId
@@ -297,38 +301,77 @@ function ExportBar({ ctx }) {
   }
 
   return (
-    <section className="result-section export-bar" data-testid="export-bar">
-      <div className="result-section-head">
-        <span className="result-section-title">{t('export.title')}</span>
-        <span className="result-section-hint">{t('export.hint')}</span>
-      </div>
-      <div className="export-actions">
-        <button
-          className="export-btn"
-          onClick={() => exportPDF(ctx, exportFilename(sid, 'pdf'))}
-          data-testid="export-pdf"
-        >
-          PDF
-        </button>
-        <button
-          className="export-btn"
-          onClick={() => downloadFile(exportFilename(sid, 'csv'), buildCSV(ctx), 'text/csv')}
-          data-testid="export-csv"
-        >
-          CSV
-        </button>
-        <button
-          className="export-btn"
-          onClick={() => downloadFile(exportFilename(sid, 'json'), buildJSON(ctx), 'application/json')}
-          data-testid="export-json"
-        >
-          JSON
-        </button>
-        <button className="export-btn primary" onClick={copySummary} data-testid="export-summary">
-          {copied ? t('export.copied') : t('export.copySummary')}
-        </button>
-      </div>
-    </section>
+    <>
+      <section className="result-section export-bar" data-testid="export-bar">
+        <div className="result-section-head">
+          <span className="result-section-title">{t('export.title')}</span>
+          <span className="result-section-hint">{t('export.hint')}</span>
+        </div>
+        <div className="export-actions">
+          <button
+            className="export-btn"
+            onClick={() => exportPDF(ctx, exportFilename(sid, 'pdf'))}
+            data-testid="export-pdf"
+          >
+            PDF
+          </button>
+          <button
+            className="export-btn"
+            onClick={() => downloadFile(exportFilename(sid, 'csv'), buildCSV(ctx), 'text/csv')}
+            data-testid="export-csv"
+          >
+            CSV
+          </button>
+          <button
+            className="export-btn"
+            onClick={() => downloadFile(exportFilename(sid, 'json'), buildJSON(ctx), 'application/json')}
+            data-testid="export-json"
+          >
+            JSON
+          </button>
+          <button className="export-btn primary" onClick={copySummary} data-testid="export-summary">
+            {copied ? t('export.copied') : t('export.copySummary')}
+          </button>
+        </div>
+      </section>
+
+      <section className="result-section export-bar" data-testid="export-raw-votes">
+        <div className="result-section-head">
+          <span className="result-section-title">{t('export.rawVotesTitle')}</span>
+          <span className="result-section-hint">
+            {hasRawVotes ? t('export.rawVotesHint') : t('export.rawVotesEmpty')}
+          </span>
+        </div>
+        <div className="export-actions">
+          <button
+            type="button"
+            className="export-btn"
+            disabled={!hasRawVotes}
+            onClick={() => downloadFile(
+              exportVotesFilename(sid, 'raw-votes', 'csv'),
+              buildRawVotesCSV(ctx),
+              'text/csv',
+            )}
+            data-testid="export-raw-votes-csv"
+          >
+            {t('export.rawVotesCsv')}
+          </button>
+          <button
+            type="button"
+            className="export-btn"
+            disabled={!hasRawVotes}
+            onClick={() => downloadFile(
+              exportVotesFilename(sid, 'raw-votes', 'json'),
+              buildRawVotesJSON(ctx),
+              'application/json',
+            )}
+            data-testid="export-raw-votes-json"
+          >
+            {t('export.rawVotesJson')}
+          </button>
+        </div>
+      </section>
+    </>
   )
 }
 

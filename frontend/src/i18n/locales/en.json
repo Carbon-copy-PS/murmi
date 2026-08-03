@@ -220,7 +220,12 @@
     "vote": "Vote",
     "voteQuestion": "Do participants agree with this common ground?",
     "agreePct": "{{count}} agree ({{pct}}%)",
-    "disagreePct": "{{count}} disagree ({{pct}}%)"
+    "disagreePct": "{{count}} disagree ({{pct}}%)",
+    "rawVotesTitle": "Raw vote data",
+    "rawVotesHint": "One row per statement with vote counts per option",
+    "rawVotesEmpty": "Load results to export raw votes",
+    "rawVotesCsv": "Raw votes CSV",
+    "rawVotesJson": "Raw votes JSON"
   },
   "cg": {
     "title": "AI common ground",

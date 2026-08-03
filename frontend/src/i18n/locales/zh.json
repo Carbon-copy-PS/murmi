@@ -220,7 +220,12 @@
     "vote": "投票",
     "voteQuestion": "參與者同意這項共識嗎？",
     "agreePct": "{{count}} 同意（{{pct}}%）",
-    "disagreePct": "{{count}} 反對（{{pct}}%）"
+    "disagreePct": "{{count}} 反對（{{pct}}%）",
+    "rawVotesTitle": "原始投票數據",
+    "rawVotesHint": "每條陳述一行，顯示各選項的票數",
+    "rawVotesEmpty": "載入結果後可匯出原始投票",
+    "rawVotesCsv": "原始投票 CSV",
+    "rawVotesJson": "原始投票 JSON"
   },
   "cg": {
     "title": "AI 共識",

@@ -220,7 +220,12 @@
     "vote": "Voto",
     "voteQuestion": "I partecipanti sono d'accordo con questo terreno comune?",
     "agreePct": "{{count}} a favore ({{pct}}%)",
-    "disagreePct": "{{count}} contrari ({{pct}}%)"
+    "disagreePct": "{{count}} contrari ({{pct}}%)",
+    "rawVotesTitle": "Dati di voto grezzi",
+    "rawVotesHint": "Una riga per affermazione con conteggi per opzione di voto",
+    "rawVotesEmpty": "Carica i risultati per esportare i voti grezzi",
+    "rawVotesCsv": "Voti grezzi CSV",
+    "rawVotesJson": "Voti grezzi JSON"
   },
   "cg": {
     "title": "Terreno comune IA",
