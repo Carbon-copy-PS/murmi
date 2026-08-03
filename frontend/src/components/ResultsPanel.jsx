@@ -924,12 +924,12 @@ export default function ResultsPanel({
   if (!cluster) {
     return (
       <div className="results-panel">
-        {reportControls}
         <Placeholder
           title={t('results.opinionClusters')}
           message={t('results.crunching')}
           stats={t('results.statementsLive', { count: approvedCount })}
         />
+        {reportControls}
       </div>
     )
   }
@@ -941,11 +941,11 @@ export default function ResultsPanel({
         : t('results.needStatements', { count: cluster.statementCount })
     return (
       <div className="results-panel">
-        {reportControls}
         <Placeholder title={t('results.opinionClusters')} message={message} />
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
         {!publicView && <ExportBar ctx={exportCtx} />}
+        {reportControls}
       </div>
     )
   }
@@ -955,7 +955,6 @@ export default function ResultsPanel({
 
   return (
     <div className="results-panel" data-testid="results-panel">
-      {reportControls}
       <div className="results-head">
         <h3 className="results-title">{t('results.opinionClusters')}</h3>
         <p className="results-sub">
@@ -991,6 +990,8 @@ export default function ResultsPanel({
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 
       {!publicView && <ExportBar ctx={exportCtx} />}
+
+      {reportControls}
     </div>
   )
 }

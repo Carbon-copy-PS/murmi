@@ -98,32 +98,6 @@ function ResponseDistribution({ result, copy, language }) {
   )
 }
 
-function NeutralFollowUp({ results, threshold, copy, language }) {
-  return (
-    <ol className="story-neutral-list">
-      {results.map((result, index) => (
-        <li key={result.id}>
-          <span className="story-number">{String(index + 1).padStart(2, '0')}</span>
-          <div>
-            <h3>{result.text}</h3>
-            <div className="story-neutral-meter">
-              <i style={{ width: widthPercent(neutralRate(result)) }} />
-            </div>
-            <p>
-              <strong>{percent(neutralRate(result), language)} {copy.neutral}</strong>
-              {' · '}
-              {result.responded || 0} {copy.responses}
-              {result.responded < threshold && (
-                <span className="story-low-reach">{copy.fewerResponses}</span>
-              )}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ol>
-  )
-}
-
 function CoverageOverview({ results, summary, voterCount, copy, language }) {
   const lowIds = new Set(summary?.lowCoverageStatementIds || [])
   const segments = summary?.segments || []
@@ -563,26 +537,6 @@ export default function FinalReportPage({ report, preview = false }) {
   const fallbackCommonGround = (report.story?.commonGroundStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
-  const neutralFollowUpIds = (
-    report.story?.neutralFollowUpStatementIds
-    || analysis.neutralFollowUp?.statementIds
-    || []
-  )
-  const neutralFollowUp = (
-    neutralFollowUpIds.length > 0
-      ? neutralFollowUpIds.map((id) => statements.get(id)).filter(Boolean)
-      : [...results]
-        .filter((result) => result.responded > 0)
-        .sort((left, right) => (
-          neutralRate(right) - neutralRate(left)
-          || right.responded - left.responded
-        ))
-        .slice(0, 5)
-  )
-  const neutralThreshold = (
-    analysis.neutralFollowUp?.lowReachThresholdResponses
-    ?? Math.ceil((meta.voterCount || 0) * 0.5)
-  )
   const coverageSummary = analysis.responseCoverage || {
     averageRate: meta.responseCoverageRate || 0,
     medianRate: 0,
@@ -631,18 +585,6 @@ export default function FinalReportPage({ report, preview = false }) {
   const implications = (narrative?.implications || []).filter(
     (item) => (item.evidenceStatementIds || []).some((id) => statements.has(id)),
   )
-  const narrativeLimitations = (narrative?.limitations || []).filter(
-    (item) => (item.evidenceStatementIds || []).some((id) => statements.has(id)),
-  )
-  const limitations = narrativeLimitations.length > 0
-    ? narrativeLimitations
-    : copy.defaultLimitations({
-      lowerReachCount: coverageSummary.lowCoverageStatementIds?.length || 0,
-      hardGroupsWithheld: (
-        report.opinionLandscape?.reliability?.hardGroupStatus
-        !== 'publishable'
-      ),
-    })
   const takeaways = narrativeTakeaways.length > 0
     ? narrativeTakeaways
     : fallbackTakeaways
@@ -836,21 +778,6 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {neutralFollowUp.length > 0 && (
-        <StorySection
-          kicker={copy.neutralKicker}
-          title={copy.neutralTitle}
-          lead={copy.neutralLead}
-        >
-          <NeutralFollowUp
-            results={neutralFollowUp}
-            threshold={neutralThreshold}
-            copy={copy}
-            language={language}
-          />
-        </StorySection>
-      )}
-
       {report.opinionLandscape && (
         <StorySection
           kicker={copy.opinionKicker}
@@ -956,31 +883,6 @@ export default function FinalReportPage({ report, preview = false }) {
           </ol>
         )}
       </StorySection>
-
-      {limitations.length > 0 && (
-        <StorySection
-          kicker={copy.limitationsKicker}
-          title={copy.limitationsTitle}
-          lead={copy.limitationsLead}
-        >
-          <ol className="story-limitations-list">
-            {limitations.map((item, index) => (
-              <li key={`${item.title}-${index}`}>
-                <h3>{item.title}</h3>
-                {item.evidenceStatementIds ? (
-                  <NarrativeEvidence
-                    item={item}
-                    statements={statements}
-                    copy={copy}
-                    language={language}
-                    showBar={false}
-                  />
-                ) : <p>{item.explanation}</p>}
-              </li>
-            ))}
-          </ol>
-        </StorySection>
-      )}
 
       <AllStatementsTable
         results={results}
