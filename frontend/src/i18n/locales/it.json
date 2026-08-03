@@ -51,7 +51,10 @@
   },
   "errors": {
     "captionsUnavailable": "Sottotitoli in tempo reale non disponibili",
+    "openaiQuotaExhausted": "La trascrizione non è disponibile perché i crediti OpenAI di questo server sono esauriti. Aggiungi crediti su platform.openai.com oppure usa trascrizioni mock per i test locali.",
     "micBlocked": "L'accesso al microfono è bloccato per il registratore host.",
+    "micBlockedHelp": "L'accesso al microfono è bloccato. Fai clic sull'icona del lucchetto o delle impostazioni nella barra degli indirizzi, consenti il microfono per questo sito, poi premi di nuovo Registra.",
+    "micMuted": "Il microfono è disattivato. Riattivalo nelle impostazioni di sistema o nel browser, poi premi di nuovo Registra.",
     "cgFailed": "Impossibile generare un terreno comune.",
     "cgTimeout": "Tempo scaduto nella generazione del terreno comune. Riprova.",
     "tensionsFailed": "Impossibile generare le tensioni.",
@@ -104,7 +107,18 @@
     "emptyList": "Gli enunciati appariranno con il procedere della discussione",
     "live": "In diretta",
     "allCaughtUp": "Tutto aggiornato — in attesa di altri enunciati",
-    "yourVotes": "I tuoi voti"
+    "yourVotes": "I tuoi voti",
+    "allStatements": "Tutti gli enunciati",
+    "voteOnStatements": "Vota sugli enunciati",
+    "voteCount": "{{agrees}} d'accordo · {{disagrees}} in disaccordo · {{total}} voti",
+    "deleteStatement": "Elimina enunciato",
+    "deleteConfirmTitle": "Eliminare questo enunciato?",
+    "deleteConfirmMessage": "Questo enunciato verrà rimosso per tutti i partecipanti.",
+    "deleteConfirmWithVotes": "Questo enunciato ha {{count}} voti. Eliminandolo, verranno rimossi per tutti.",
+    "searchPlaceholder": "Cerca testo, autore, tag, voti…",
+    "searchAria": "Cerca enunciati",
+    "clearSearch": "Cancella ricerca",
+    "noSearchResults": "Nessun enunciato corrisponde"
   },
   "swipe": {
     "of": "di {{total}}",

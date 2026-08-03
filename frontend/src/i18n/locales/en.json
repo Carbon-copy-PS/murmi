@@ -51,7 +51,10 @@
   },
   "errors": {
     "captionsUnavailable": "Realtime captions unavailable",
+    "openaiQuotaExhausted": "Transcription is unavailable because the OpenAI API credits for this server are exhausted. Add credits at platform.openai.com, or use mock transcript injection for local testing.",
     "micBlocked": "Microphone access is blocked for the host recorder.",
+    "micBlockedHelp": "Microphone access is blocked. Click the lock or tune icon in your browser’s address bar, allow the microphone for this site, then press Record again.",
+    "micMuted": "Your microphone is muted. Unmute it in system settings or your browser, then press Record again.",
     "cgFailed": "Could not generate common ground.",
     "cgTimeout": "Timed out generating common ground. Please try again.",
     "tensionsFailed": "Could not generate tensions.",
@@ -104,7 +107,18 @@
     "emptyList": "Statements will appear as the discussion progresses",
     "live": "Live",
     "allCaughtUp": "All caught up — waiting for more statements",
-    "yourVotes": "Your votes"
+    "yourVotes": "Your votes",
+    "allStatements": "All statements",
+    "voteOnStatements": "Vote on statements",
+    "voteCount": "{{agrees}} agree · {{disagrees}} disagree · {{total}} votes",
+    "deleteStatement": "Delete statement",
+    "deleteConfirmTitle": "Delete this statement?",
+    "deleteConfirmMessage": "This statement will be removed for everyone in the session.",
+    "deleteConfirmWithVotes": "This statement has {{count}} votes. Deleting it will remove those votes for everyone.",
+    "searchPlaceholder": "Search text, author, tags, votes…",
+    "searchAria": "Search statements",
+    "clearSearch": "Clear search",
+    "noSearchResults": "No statements match your search"
   },
   "swipe": {
     "of": "of {{total}}",

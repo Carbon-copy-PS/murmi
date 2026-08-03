@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -100,6 +101,7 @@ class VoteRow(Base):
     )
     participant_id: Mapped[str] = mapped_column(String(64))
     vote: Mapped[str] = mapped_column(String(16))
+    voted_at: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
 
 
 class ParticipantRow(Base):
@@ -188,6 +190,10 @@ class Database:
             await conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
                 "ON sessions (public_id)"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE votes "
+                "ADD COLUMN IF NOT EXISTS voted_at double precision NOT NULL DEFAULT 0"
             ))
         return True
 
@@ -363,6 +369,7 @@ class Database:
     async def save_vote(self, session, statement, participant_id: str, vote: str):
         if not self.enabled or statement is None:
             return
+        now = time.time()
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
             await self._ensure_statement(db, session.id, statement)
@@ -374,10 +381,11 @@ class Database:
                     statement_id=statement.id,
                     participant_id=participant_id,
                     vote=vote,
+                    voted_at=now,
                 )
                 .on_conflict_do_update(
                     index_elements=["statement_id", "participant_id"],
-                    set_={"vote": vote},
+                    set_={"vote": vote, "voted_at": now},
                 )
             )
             await db.commit()
@@ -463,8 +471,33 @@ class Database:
         )).scalars().all()
 
         votes_by_statement: dict[str, dict[str, str]] = {}
+        vote_times_by_statement: dict[str, dict[str, float]] = {}
         for v in votes:
             votes_by_statement.setdefault(v.statement_id, {})[v.participant_id] = v.vote
+            voted_at = float(getattr(v, "voted_at", 0) or 0)
+            if voted_at > 0:
+                vote_times_by_statement.setdefault(v.statement_id, {})[v.participant_id] = voted_at
+
+        statement_payloads = []
+        for s in statements:
+            stmt_votes = votes_by_statement.get(s.id, {})
+            vote_times = vote_times_by_statement.get(s.id, {})
+            last_vote_at = max(vote_times.values()) if vote_times else 0.0
+            if stmt_votes and not last_vote_at:
+                last_vote_at = float(s.created_at or 0)
+            statement_payloads.append({
+                "id": s.id,
+                "text": s.text,
+                "round": s.round,
+                "approved": s.approved,
+                "custom": s.custom,
+                "tension": getattr(s, "tension", False),
+                "edited": getattr(s, "edited", False),
+                "created_at": s.created_at,
+                "votes": stmt_votes,
+                "vote_times": vote_times,
+                "last_vote_at": last_vote_at,
+            })
 
         return {
             "id": row.id,
@@ -480,20 +513,7 @@ class Database:
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
             "transcript": [t.payload for t in transcript],
-            "statements": [
-                {
-                    "id": s.id,
-                    "text": s.text,
-                    "round": s.round,
-                    "approved": s.approved,
-                    "custom": s.custom,
-                    "tension": getattr(s, "tension", False),
-                    "edited": getattr(s, "edited", False),
-                    "created_at": s.created_at,
-                    "votes": votes_by_statement.get(s.id, {}),
-                }
-                for s in statements
-            ],
+            "statements": statement_payloads,
             "members": {
                 p.client_id: {
                     "participant_id": p.id,

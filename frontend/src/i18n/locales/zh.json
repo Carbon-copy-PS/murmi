@@ -51,7 +51,10 @@
   },
   "errors": {
     "captionsUnavailable": "即時字幕無法使用",
+    "openaiQuotaExhausted": "轉錄功能無法使用，因為此伺服器的 OpenAI 點數已用完。請至 platform.openai.com 加值，或在本地測試時改用 mock 轉錄注入。",
     "micBlocked": "主持人錄音者的麥克風存取被封鎖。",
+    "micBlockedHelp": "麥克風存取已被封鎖。請點選網址列的鎖頭或設定圖示，允許此網站使用麥克風，然後再次按下錄音。",
+    "micMuted": "你的麥克風已靜音。請在系統設定或瀏覽器中取消靜音，然後再次按下錄音。",
     "cgFailed": "無法產生共識。",
     "cgTimeout": "產生共識逾時，請再試一次。",
     "tensionsFailed": "無法產生分歧點。",
@@ -104,7 +107,18 @@
     "emptyList": "隨著討論進行，陳述將會出現",
     "live": "直播中",
     "allCaughtUp": "已全部完成——等待更多陳述",
-    "yourVotes": "你的投票"
+    "yourVotes": "你的投票",
+    "allStatements": "所有陳述",
+    "voteOnStatements": "對陳述投票",
+    "voteCount": "{{agrees}} 同意 · {{disagrees}} 不同意 · 共 {{total}} 票",
+    "deleteStatement": "刪除陳述",
+    "deleteConfirmTitle": "刪除此陳述？",
+    "deleteConfirmMessage": "此陳述將從所有參與者的視圖中移除。",
+    "deleteConfirmWithVotes": "此陳述已有 {{count}} 票。刪除後，所有人的相關投票也會一併移除。",
+    "searchPlaceholder": "搜尋文字、作者、標籤、票數…",
+    "searchAria": "搜尋陳述",
+    "clearSearch": "清除搜尋",
+    "noSearchResults": "沒有符合的陳述"
   },
   "swipe": {
     "of": "／共 {{total}}",

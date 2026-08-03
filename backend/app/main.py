@@ -676,7 +676,7 @@ async def finalize_caption(
 
 
 async def broadcast_caption_error(session_id: str, message: str, code: str | None = None):
-    key = (session_id, message)
+    key = (session_id, code or message)
     if key in realtime_errors_seen:
         return
     realtime_errors_seen.add(key)
@@ -705,6 +705,11 @@ async def get_realtime_session(
 
     speaker = sessions.get_participant_name(session_id, participant_id)
     language = sessions.get_participant_language(session_id, participant_id)
+
+    async def on_bridge_error(sid: str, message: str, code: str | None = None):
+        realtime_unavailable.add((session_id, participant_id))
+        await broadcast_caption_error(sid, message, code)
+
     bridge = RealtimeTranscriptionSession(
         session_id=session_id,
         participant_id=participant_id,
@@ -712,7 +717,7 @@ async def get_realtime_session(
         language=language,
         on_delta=broadcast_caption_delta,
         on_final=finalize_caption,
-        on_error=broadcast_caption_error,
+        on_error=on_bridge_error,
     )
     realtime_sessions[key] = bridge
 
@@ -801,7 +806,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if not session or not session.recording:
                     continue
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
 
                 audio_bytes = base64.b64decode(data["audio"])
@@ -817,7 +822,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if not session or not session.recording:
                     continue
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
 
                 audio = data.get("audio")
@@ -827,11 +832,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 bridge = await get_realtime_session(session_id, participant_id)
                 if bridge:
                     await bridge.send_audio(audio)
+                elif (session_id, participant_id) in realtime_unavailable:
+                    continue
+                else:
+                    await broadcast_caption_error(
+                        session_id,
+                        "Realtime captions unavailable.",
+                        "captionsUnavailable",
+                    )
 
             elif msg_type == "set_recording":
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
                 recording = data.get("recording", False)
+                if recording:
+                    realtime_unavailable.discard((session_id, participant_id))
                 await sessions.set_recording(session_id, recording)
                 if not recording:
                     await close_realtime_sessions(session_id)
@@ -1028,6 +1043,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 else:
                     target = set()
                 removed = sessions.reject_statements(session_id, target)
+                if removed:
+                    await sessions.broadcast_statements(session_id)
+                    await sessions.broadcast_participants(session_id)
+                    await _safe_db(db.delete_statements(removed))
+
+            elif msg_type == "delete_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                ids = data.get("statementIds")
+                if isinstance(ids, list):
+                    target = set(ids)
+                elif data.get("statementId"):
+                    target = {data["statementId"]}
+                else:
+                    target = set()
+                removed = sessions.delete_statements(session_id, target)
                 if removed:
                     await sessions.broadcast_statements(session_id)
                     await sessions.broadcast_participants(session_id)

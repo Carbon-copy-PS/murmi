@@ -51,7 +51,10 @@
   },
   "errors": {
     "captionsUnavailable": "Echtzeit-Untertitel nicht verfügbar",
+    "openaiQuotaExhausted": "Transkription ist nicht verfügbar, weil das OpenAI-Guthaben dieses Servers aufgebraucht ist. Guthaben auf platform.openai.com aufladen oder Mock-Transkripte für lokale Tests verwenden.",
     "micBlocked": "Mikrofonzugriff ist für den Host-Recorder blockiert.",
+    "micBlockedHelp": "Mikrofonzugriff ist blockiert. Klicke auf das Schloss- oder Einstellungssymbol in der Adressleiste, erlaube das Mikrofon für diese Seite und drücke erneut Aufnahme.",
+    "micMuted": "Dein Mikrofon ist stummgeschaltet. Schalte es in den Systemeinstellungen oder im Browser ein und drücke erneut Aufnahme.",
     "cgFailed": "Gemeinsamer Nenner konnte nicht erstellt werden.",
     "cgTimeout": "Zeitüberschreitung beim Erstellen des gemeinsamen Nenners. Bitte erneut versuchen.",
     "tensionsFailed": "Spannungen konnten nicht erstellt werden.",
@@ -104,7 +107,18 @@
     "emptyList": "Aussagen erscheinen im Verlauf der Diskussion",
     "live": "Live",
     "allCaughtUp": "Alles erledigt — warte auf weitere Aussagen",
-    "yourVotes": "Deine Stimmen"
+    "yourVotes": "Deine Stimmen",
+    "allStatements": "Alle Aussagen",
+    "voteOnStatements": "Über Aussagen abstimmen",
+    "voteCount": "{{agrees}} zustimmend · {{disagrees}} ablehnend · {{total}} Stimmen",
+    "deleteStatement": "Aussage löschen",
+    "deleteConfirmTitle": "Diese Aussage löschen?",
+    "deleteConfirmMessage": "Diese Aussage wird für alle in der Sitzung entfernt.",
+    "deleteConfirmWithVotes": "Diese Aussage hat {{count}} Stimmen. Beim Löschen werden diese für alle entfernt.",
+    "searchPlaceholder": "Text, Autor, Tags, Stimmen suchen…",
+    "searchAria": "Aussagen suchen",
+    "clearSearch": "Suche löschen",
+    "noSearchResults": "Keine passenden Aussagen"
   },
   "swipe": {
     "of": "von {{total}}",

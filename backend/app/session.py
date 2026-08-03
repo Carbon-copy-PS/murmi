@@ -40,6 +40,16 @@ class Statement:
     author: Optional[str] = None
     snapshot: Optional[dict] = None
     votes: Dict[str, str] = field(default_factory=dict)
+    vote_times: Dict[str, float] = field(default_factory=dict)
+    last_vote_at: float = 0.0
+
+
+def sync_statement_last_vote_at(stmt: Statement) -> float:
+    if stmt.vote_times:
+        stmt.last_vote_at = max(stmt.vote_times.values())
+    elif not stmt.votes:
+        stmt.last_vote_at = 0.0
+    return stmt.last_vote_at
 
 
 @dataclass
@@ -175,7 +185,12 @@ class SessionManager:
             if client_id and "can_add_statement" in member:
                 session.statement_perms[client_id] = bool(member["can_add_statement"])
         for s in data.get("statements", []):
-            session.statements.append(Statement(
+            votes = dict(s.get("votes", {}))
+            vote_times = {k: float(v) for k, v in (s.get("vote_times") or {}).items()}
+            last_vote_at = float(s.get("last_vote_at") or 0)
+            if votes and not vote_times and not last_vote_at:
+                last_vote_at = float(s.get("created_at") or time.time())
+            stmt = Statement(
                 id=s["id"],
                 text=s["text"],
                 round=s.get("round", 1),
@@ -184,8 +199,12 @@ class SessionManager:
                 tension=s.get("tension", False),
                 edited=s.get("edited", False),
                 created_at=s.get("created_at", time.time()),
-                votes=dict(s.get("votes", {})),
-            ))
+                votes=votes,
+                vote_times=vote_times,
+                last_vote_at=last_vote_at,
+            )
+            sync_statement_last_vote_at(stmt)
+            session.statements.append(stmt)
         self.sessions[session.id] = session
         return session
 
@@ -334,6 +353,10 @@ class SessionManager:
     def is_host(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
         return session is not None and self._is_host(session, participant_id)
+
+    def is_recorder(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        return session is not None and session.host_participant_id == participant_id
 
     def set_recorder(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
@@ -491,7 +514,7 @@ class SessionManager:
         if not session:
             return None
         stmt = next((s for s in session.statements if s.id == statement_id), None)
-        if not stmt or stmt.approved:
+        if not stmt:
             return None
         new_text = (text or "").strip()[:240]
         if not new_text:
@@ -501,20 +524,21 @@ class SessionManager:
             stmt.edited = True
         return stmt
 
+    def delete_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
+        session = self.sessions.get(session_id)
+        if not session or not statement_ids:
+            return []
+        removed = [s.id for s in session.statements if s.id in statement_ids]
+        if removed:
+            session.statements = [s for s in session.statements if s.id not in statement_ids]
+        return removed
+
     def reject_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
         session = self.sessions.get(session_id)
         if not session or not statement_ids:
             return []
-        removed = [
-            s.id for s in session.statements
-            if not s.approved and s.id in statement_ids
-        ]
-        if removed:
-            session.statements = [
-                s for s in session.statements
-                if not (not s.approved and s.id in statement_ids)
-            ]
-        return removed
+        pending_ids = {s.id for s in session.statements if not s.approved}
+        return self.delete_statements(session_id, statement_ids & pending_ids)
 
     def has_active_host(self, session_id: str) -> bool:
         session = self.sessions.get(session_id)
@@ -594,16 +618,23 @@ class SessionManager:
         if not stmt or not stmt.approved:
             return False
         if vote == "undo":
-            return stmt.votes.pop(participant_id, None) is not None
+            removed = stmt.votes.pop(participant_id, None) is not None
+            if removed:
+                stmt.vote_times.pop(participant_id, None)
+                sync_statement_last_vote_at(stmt)
+            return removed
         valid = VALID_LIKERT_VOTES if session.vote_type == "likert" else VALID_BINARY_VOTES
         if vote not in valid:
             return False
         if stmt.votes.get(participant_id) == vote:
             return False
+        now = time.time()
         stmt.votes[participant_id] = vote
+        stmt.vote_times[participant_id] = now
+        stmt.last_vote_at = now
         p = session.participants.get(participant_id)
         if p:
-            p.last_vote_at = time.time()
+            p.last_vote_at = now
         return True
 
     def format_statement(self, stmt: Statement, participant_id: str) -> dict:
@@ -624,6 +655,7 @@ class SessionManager:
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
             "myVote": stmt.votes.get(participant_id),
+            "lastVoteAt": sync_statement_last_vote_at(stmt),
         }
 
     def vote_matrix(self, session_id: str, participant_id: str) -> dict:
@@ -938,6 +970,7 @@ class SessionManager:
                     "disagrees": disagrees,
                     "hasVoted": pid in stmt.votes,
                     "myVote": stmt.votes.get(pid),
+                    "lastVoteAt": sync_statement_last_vote_at(stmt),
                 })
             except Exception:
                 disconnected.append(pid)

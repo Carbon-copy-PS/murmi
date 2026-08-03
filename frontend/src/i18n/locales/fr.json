@@ -51,7 +51,10 @@
   },
   "errors": {
     "captionsUnavailable": "Sous-titres en temps réel indisponibles",
+    "openaiQuotaExhausted": "La transcription est indisponible car les crédits OpenAI de ce serveur sont épuisés. Ajoutez des crédits sur platform.openai.com ou utilisez l'injection de transcriptions simulées pour les tests locaux.",
     "micBlocked": "L'accès au micro est bloqué pour l'enregistreur hôte.",
+    "micBlockedHelp": "L'accès au micro est bloqué. Cliquez sur l'icône de cadenas ou de réglages dans la barre d'adresse, autorisez le micro pour ce site, puis appuyez à nouveau sur Enregistrer.",
+    "micMuted": "Votre micro est coupé. Réactivez-le dans les paramètres système ou le navigateur, puis appuyez à nouveau sur Enregistrer.",
     "cgFailed": "Impossible de générer un terrain d'entente.",
     "cgTimeout": "Délai dépassé lors de la génération du terrain d'entente. Veuillez réessayer.",
     "tensionsFailed": "Impossible de générer les tensions.",
@@ -104,7 +107,18 @@
     "emptyList": "Les énoncés apparaîtront au fil de la discussion",
     "live": "En direct",
     "allCaughtUp": "Tout est à jour — en attente d'autres énoncés",
-    "yourVotes": "Vos votes"
+    "yourVotes": "Vos votes",
+    "allStatements": "Tous les énoncés",
+    "voteOnStatements": "Voter sur les énoncés",
+    "voteCount": "{{agrees}} d'accord · {{disagrees}} pas d'accord · {{total}} votes",
+    "deleteStatement": "Supprimer l'énoncé",
+    "deleteConfirmTitle": "Supprimer cet énoncé ?",
+    "deleteConfirmMessage": "Cet énoncé sera supprimé pour tous les participants.",
+    "deleteConfirmWithVotes": "Cet énoncé a {{count}} votes. Sa suppression les effacera pour tous.",
+    "searchPlaceholder": "Rechercher texte, auteur, tags, votes…",
+    "searchAria": "Rechercher des énoncés",
+    "clearSearch": "Effacer la recherche",
+    "noSearchResults": "Aucun énoncé ne correspond"
   },
   "swipe": {
     "of": "sur {{total}}",

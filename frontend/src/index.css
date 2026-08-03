@@ -2605,6 +2605,22 @@ html.room-record-view #root {
   font-size: 0.85rem;
 }
 
+.transcript-alert {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1rem 1.1rem;
+  border: 1px solid #f5c2c7;
+  border-radius: 12px;
+  background: rgba(176, 0, 32, 0.08);
+}
+
+.transcript-alert .caption-error {
+  margin-top: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #ff8a8a;
+}
+
 /* Topic */
 .topic-label {
   display: block;
@@ -3884,6 +3900,105 @@ html.room-record-view #root {
 .votes-recap-body {
   padding: 0 1.1rem 1.1rem;
   animation: votesExpand 0.25s ease;
+}
+
+.statements-manage,
+.host-voting-section {
+  margin-top: 1.75rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 16px;
+  background: var(--ds-surface-3);
+  overflow: hidden;
+}
+
+.statements-manage-body,
+.host-voting-body {
+  padding: 0 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  animation: votesExpand 0.25s ease;
+}
+
+.statements-manage-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.statements-manage-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: 0 1.1rem 0.75rem;
+  color: #98a2b3;
+}
+
+.statements-manage-search-icon {
+  position: absolute;
+  left: 1.85rem;
+  pointer-events: none;
+}
+
+.statements-manage-search-input {
+  width: 100%;
+  padding: 0.6rem 2.5rem 0.6rem 2.3rem;
+  border: 1.5px solid var(--ds-border);
+  border-radius: 999px;
+  font-size: 0.88rem;
+  background: var(--ds-surface-2, var(--ds-surface-3));
+  color: var(--ds-text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.statements-manage-search-input:focus {
+  border-color: var(--ds-text);
+}
+
+.statements-manage-search-clear {
+  position: absolute;
+  right: 1.7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--ds-border);
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.statements-manage-search-clear:hover {
+  background: var(--ds-text-muted, #667085);
+  color: var(--ds-surface-3);
+}
+
+.statements-manage-body {
+  max-height: min(28rem, 52vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.statements-manage-body .flash-card-empty {
+  margin: 0.5rem 0 1rem;
+}
+
+.manage-card {
+  position: relative;
+}
+
+.manage-card-stats {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ds-text-muted, #667085);
 }
 
 @keyframes votesExpand {
