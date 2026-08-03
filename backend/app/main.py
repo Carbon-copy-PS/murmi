@@ -25,6 +25,7 @@ from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
     build_opinion_landscape,
     build_report_snapshot,
+    build_selected_overlaps,
     narrative_evidence,
 )
 
@@ -502,6 +503,17 @@ async def run_report_generation(session_id: str):
             narrative = None
             print(f"Report narrative generation failed: {exc}")
         if narrative:
+            selected_overlaps = build_selected_overlaps(
+                session,
+                narrative.get("overlapPairs") or [],
+            )
+            if selected_overlaps:
+                snapshot["story"]["overlaps"] = selected_overlaps
+                snapshot["story"]["overlapSource"] = "editorial-both-and"
+            if narrative.get("keyStatementIds"):
+                snapshot["story"]["keyStatementIds"] = (
+                    narrative["keyStatementIds"]
+                )
             snapshot["narrative"] = {
                 snapshot.get("sourceLanguage", "en"): narrative,
             }

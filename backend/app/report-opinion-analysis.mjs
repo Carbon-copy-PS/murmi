@@ -10,6 +10,11 @@ function round(value, digits = 4) {
   return Number(value.toFixed(digits));
 }
 
+function nullableRound(value, digits = 4) {
+  if (value === null || value === undefined || value === "") return null;
+  return round(Number(value), digits);
+}
+
 function buildDensity(assignments, columns = 4, rows = 4) {
   const points = assignments
     .map((assignment) => assignment.coordinates)
@@ -111,6 +116,25 @@ function axisSummary(pcaStatements, statements, key) {
   };
 }
 
+function normalizedProfileShape(spread, xSpan, ySpan) {
+  const varianceX = Math.max(0, Number(spread?.varianceX) || 0) / (xSpan * xSpan);
+  const varianceY = Math.max(0, Number(spread?.varianceY) || 0) / (ySpan * ySpan);
+  const covariance = -(Number(spread?.covarianceXY) || 0) / (xSpan * ySpan);
+  const difference = varianceX - varianceY;
+  const root = Math.sqrt(
+    Math.max(0, difference * difference + 4 * covariance * covariance),
+  );
+  const majorVariance = Math.max(0, (varianceX + varianceY + root) / 2);
+  const minorVariance = Math.max(0, (varianceX + varianceY - root) / 2);
+  const clampRadius = (value) => Math.min(0.3, Math.max(0.06, value));
+
+  return {
+    radiusMajor: round(clampRadius(1.5 * Math.sqrt(majorVariance))),
+    radiusMinor: round(clampRadius(1.5 * Math.sqrt(minorVariance))),
+    rotation: round(0.5 * Math.atan2(2 * covariance, difference) * 180 / Math.PI, 1),
+  };
+}
+
 function tendencyProfiles(result, source) {
   const tendencies = result.opinionTendencies;
   if (!tendencies?.profiles?.length) return [];
@@ -183,10 +207,66 @@ function tendencyProfiles(result, source) {
         x: round((profile.centroid[0] - domain.xMinimum) / xSpan),
         y: round(1 - (profile.centroid[1] - domain.yMinimum) / ySpan),
       },
+      shape: normalizedProfileShape(profile.spread, xSpan, ySpan),
       priorities,
       distinctive,
     };
   });
+}
+
+function reliabilitySummary(diagnostics) {
+  const stability = diagnostics.statementBootstrapStability || {};
+  const guardrails = diagnostics.publicationGuardrails || {};
+  const clustering = diagnostics.clustering || {};
+  const bootstrapThreshold = (
+    guardrails.checks?.statementBootstrapMedianAdjustedRand?.threshold
+    ?? 0.70
+  );
+  const records = (stability.records || []).map((record) => ({
+    selectedK: Number(record.selectedK),
+    adjustedRand: nullableRound(record.adjustedRand),
+  })).filter((record) => (
+    Number.isInteger(record.selectedK)
+    && Number.isFinite(record.adjustedRand)
+  ));
+  const eligibilitySensitivity = (
+    diagnostics.eligibilitySensitivity || []
+  ).map((item) => ({
+    minimumVotes: Number(item.minimumVotes),
+    eligibleParticipants: Number(item.eligibleParticipantCount),
+    excludedParticipants: Number(item.excludedParticipantCount),
+    selectedK: Number.isInteger(item.selectedK) ? item.selectedK : null,
+    silhouette: nullableRound(item.silhouette),
+  }));
+
+  return {
+    method: stability.method || "",
+    hardGroupStatus: (
+      guardrails.recommendation || "withhold-group-claims"
+    ),
+    guardrailLabel: guardrails.label || "",
+    selectedK: Number.isInteger(clustering.selectedK)
+      ? clustering.selectedK
+      : null,
+    selectedSilhouette: nullableRound(clustering.selectedSilhouette),
+    bootstrapReplicatesRequested: Number(stability.replicatesRequested || 0),
+    bootstrapReplicatesCompleted: Number(stability.replicatesCompleted || 0),
+    bootstrapMedianAdjustedRand: nullableRound(
+      stability.adjustedRand?.median,
+    ),
+    bootstrapSameKRate: nullableRound(stability.sameKRate),
+    bootstrapSelectedKFrequency: stability.selectedKFrequency || {},
+    bootstrapThreshold: nullableRound(bootstrapThreshold),
+    bootstrapPassCount: records.filter(
+      (record) => record.adjustedRand >= bootstrapThreshold
+    ).length,
+    bootstrapRuns: records,
+    observedSelectedKRange: diagnostics.observedSelectedKRange || {
+      minimum: null,
+      maximum: null,
+    },
+    eligibilitySensitivity,
+  };
 }
 
 function buildPublicResult(source, options) {
@@ -235,6 +315,7 @@ function buildPublicResult(source, options) {
       axisSummary(pcaStatements, statements, "pc1Loading"),
       axisSummary(pcaStatements, statements, "pc2Loading"),
     ],
+    reliability: reliabilitySummary(diagnostics),
     density,
     tendencies: {
       count: profiles.length,
@@ -266,9 +347,13 @@ try {
     Math.max(2, Math.ceil(statementCount * 0.3)),
   );
   const result = buildPublicResult(request.source, {
-    bootstrapReplicates: 0,
+    bootstrapReplicates: 100,
     minimumVotes,
-    sensitivityThresholds: [minimumVotes],
+    sensitivityThresholds: [...new Set([
+      minimumVotes,
+      Math.min(statementCount, Math.max(minimumVotes, 10)),
+      Math.min(statementCount, Math.max(minimumVotes, 12)),
+    ])],
   });
   process.stdout.write(JSON.stringify(result));
 } catch (error) {

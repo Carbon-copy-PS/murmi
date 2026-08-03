@@ -27,6 +27,7 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
                 "headline": "A grounded headline",
                 "standfirst": "A grounded summary.",
                 "overviewEvidenceStatementIds": ["s1", "invented"],
+                "keyStatementIds": ["s2", "invented", "s2", "s1"],
                 "takeaways": [
                     {
                         "title": "Supported",
@@ -37,6 +38,48 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
                         "title": "Unsupported",
                         "explanation": "No valid evidence.",
                         "evidenceStatementIds": ["invented"],
+                    },
+                ],
+                "principles": [
+                    {
+                        "title": f"Principle {index}",
+                        "explanation": "Grounded principle.",
+                        "evidenceStatementIds": ["s1"],
+                    }
+                    for index in range(5)
+                ],
+                "actionAreas": [
+                    {
+                        "title": f"Action {index}",
+                        "explanation": "Grounded action.",
+                        "evidenceStatementIds": ["s2"],
+                    }
+                    for index in range(7)
+                ] + [
+                    {
+                        "title": "Unsupported action",
+                        "explanation": "No valid evidence.",
+                        "evidenceStatementIds": ["invented"],
+                    }
+                ],
+                "overlapPairs": [
+                    {
+                        "title": "A real both-and",
+                        "leftStatementId": "s1",
+                        "rightStatementId": "s2",
+                        "explanation": "The approaches can reinforce each other.",
+                    },
+                    {
+                        "title": "Duplicate reversed",
+                        "leftStatementId": "s2",
+                        "rightStatementId": "s1",
+                        "explanation": "Should be discarded.",
+                    },
+                    {
+                        "title": "Invented pair",
+                        "leftStatementId": "s1",
+                        "rightStatementId": "invented",
+                        "explanation": "Should be discarded.",
                     },
                 ],
                 "dimensions": [
@@ -71,6 +114,22 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
                         "evidenceStatementIds": ["s1"],
                     },
                 ],
+                "implications": [
+                    {
+                        "title": f"Implication {index}",
+                        "explanation": "Grounded implication.",
+                        "evidenceStatementIds": ["s1"],
+                    }
+                    for index in range(6)
+                ],
+                "limitations": [
+                    {
+                        "title": f"Limitation {index}",
+                        "explanation": "Grounded limitation.",
+                        "evidenceStatementIds": ["s2"],
+                    }
+                    for index in range(6)
+                ],
             },
             self.evidence,
         )
@@ -83,7 +142,17 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
             narrative["overviewEvidenceStatementIds"],
             ["s1"],
         )
+        self.assertEqual(narrative["keyStatementIds"], ["s2", "s1"])
+        self.assertEqual(len(narrative["overlapPairs"]), 1)
+        self.assertEqual(
+            narrative["overlapPairs"][0]["leftStatementId"],
+            "s1",
+        )
         self.assertEqual(len(narrative["takeaways"]), 1)
+        self.assertEqual(len(narrative["principles"]), 3)
+        self.assertEqual(len(narrative["actionAreas"]), 5)
+        self.assertEqual(len(narrative["implications"]), 4)
+        self.assertEqual(len(narrative["limitations"]), 4)
         self.assertEqual([item["axis"] for item in narrative["dimensions"]], [1])
         self.assertEqual(
             [item["tendencyId"] for item in narrative["tendencies"]],

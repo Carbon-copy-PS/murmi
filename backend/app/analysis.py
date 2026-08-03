@@ -99,6 +99,12 @@ Rules:
 - Never invent percentages, participant counts, quotations, themes, or causal explanations.
 - Opinion tendencies are overlapping patterns, not fixed, mutually exclusive, or opposing camps.
 - Describe PCA dimensions as variations in emphasis. Do not use technical language such as eigenvector, loading, fuzzy c-means, silhouette, or cluster in reader-facing copy.
+- Treat observed neutral responses separately from missing responses. Never guess why somebody selected neutral.
+- Treat lower response coverage as weaker evidence, not as disagreement.
+- Select 6-8 key statements that represent the strongest shared signals, different policy approaches, and at least one important neutral or lower-reach caveat. Do not simply rank by support.
+- Organise the evidence into exactly three cross-cutting process principles and up to five concrete action areas when the evidence supports them. Principles should describe how policy should be made (for example participation, evidence, review, or safeguards); action areas should describe what policy could address. Do not repeat the same idea in both lists.
+- Select up to three "both-and" statement pairs that are often framed as competing approaches but that many of the same respondents supported together. Choose semantically meaningful trade-offs, not merely two popular statements.
+- Flag question-shaped, ambiguous, or otherwise non-votable prompt wording as a limitation. Do not interpret agreement with a question as support for a policy position.
 - Do not imply that an AI-written synthesis was endorsed by participants.
 - Prefer plain, specific language. Avoid inflated claims and generic facilitation language.
 - Titles should state the insight, not name the chart.
@@ -109,11 +115,23 @@ Respond ONLY with JSON:
   "headline": "6-14 word editorial headline",
   "standfirst": "two-sentence overview",
   "overviewEvidenceStatementIds": ["id"],
+  "keyStatementIds": ["6-8 representative statement IDs"],
   "takeaways": [
     {"title": "short finding", "explanation": "why it matters", "evidenceStatementIds": ["id"]}
   ],
   "principles": [
     {"title": "short principle", "explanation": "how the votes support it", "evidenceStatementIds": ["id"]}
+  ],
+  "actionAreas": [
+    {"title": "short area for action", "explanation": "what the evidence suggests doing or testing", "evidenceStatementIds": ["id"]}
+  ],
+  "overlapPairs": [
+    {
+      "title": "short both-and label",
+      "leftStatementId": "id",
+      "rightStatementId": "id",
+      "explanation": "why these approaches are often treated as a trade-off"
+    }
   ],
   "dimensions": [
     {
@@ -138,10 +156,13 @@ Respond ONLY with JSON:
   ],
   "implications": [
     {"title": "short practical implication", "explanation": "one cautious next step", "evidenceStatementIds": ["id"]}
+  ],
+  "limitations": [
+    {"title": "short evidence limitation", "explanation": "what should not be concluded yet", "evidenceStatementIds": ["id"]}
   ]
 }
 
-Return no more than 3 takeaways, 4 principles, 2 dimensions, 3 tendencies, 4 open questions, and 3 implications."""
+Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 3 tendencies, 4 open questions, 4 implications, and 4 limitations."""
 
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
@@ -474,6 +495,19 @@ class AnalysisService:
                     result.append(statement_id)
             return result[:5]
 
+        def statement_ids(values, limit: int) -> list[str]:
+            result = []
+            for value in values or []:
+                statement_id = str(value)
+                if (
+                    statement_id in allowed_statement_ids
+                    and statement_id not in result
+                ):
+                    result.append(statement_id)
+                if len(result) == limit:
+                    break
+            return result
+
         overview_evidence_ids = references({
             "evidenceStatementIds": (
                 data.get("overviewEvidenceStatementIds") or []
@@ -552,16 +586,51 @@ class AnalysisService:
             if len(tendencies) == 3:
                 break
 
+        overlap_pairs = []
+        seen_pairs = set()
+        for item in data.get("overlapPairs") or []:
+            if not isinstance(item, dict):
+                continue
+            left_id = str(item.get("leftStatementId") or "")
+            right_id = str(item.get("rightStatementId") or "")
+            pair_key = tuple(sorted((left_id, right_id)))
+            title = str(item.get("title") or "").strip()
+            explanation = str(item.get("explanation") or "").strip()
+            if (
+                left_id not in allowed_statement_ids
+                or right_id not in allowed_statement_ids
+                or left_id == right_id
+                or pair_key in seen_pairs
+                or not title
+                or not explanation
+            ):
+                continue
+            seen_pairs.add(pair_key)
+            overlap_pairs.append({
+                "title": title,
+                "leftStatementId": left_id,
+                "rightStatementId": right_id,
+                "explanation": explanation,
+            })
+            if len(overlap_pairs) == 3:
+                break
+
         return {
             "headline": headline,
             "standfirst": standfirst,
             "overviewEvidenceStatementIds": overview_evidence_ids,
+            "keyStatementIds": statement_ids(
+                data.get("keyStatementIds"), 8
+            ),
             "takeaways": items("takeaways", 3),
-            "principles": items("principles", 4),
+            "principles": items("principles", 3),
+            "actionAreas": items("actionAreas", 5),
+            "overlapPairs": overlap_pairs,
             "dimensions": dimensions,
             "tendencies": tendencies,
             "openQuestions": items("openQuestions", 4),
-            "implications": items("implications", 3),
+            "implications": items("implications", 4),
+            "limitations": items("limitations", 4),
         }
 
     async def _live_tension_statements(

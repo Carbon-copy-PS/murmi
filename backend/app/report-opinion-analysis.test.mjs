@@ -59,7 +59,26 @@ test("publishes aggregate tendencies without participant-level fields", async ()
   assert.equal(result.eligibleParticipants, 30);
   assert.ok(result.tendencies.profiles.length >= 2);
   assert.ok(result.tendencies.profiles.every((profile) => profile.membershipMass >= 5));
+  assert.ok(result.tendencies.profiles.every((profile) => (
+    Number.isFinite(profile.shape.radiusMajor)
+    && Number.isFinite(profile.shape.radiusMinor)
+    && Number.isFinite(profile.shape.rotation)
+    && profile.shape.radiusMajor >= 0.06
+    && profile.shape.radiusMajor <= 0.3
+    && profile.shape.radiusMinor >= 0.06
+    && profile.shape.radiusMinor <= 0.3
+  )));
   assert.ok(result.density.cells.every((cell) => cell.count >= 5));
+  assert.equal(result.reliability.bootstrapReplicatesRequested, 100);
+  assert.equal(result.reliability.bootstrapReplicatesCompleted, 100);
+  assert.equal(result.reliability.bootstrapRuns.length, 100);
+  assert.ok(["publishable", "withhold-group-claims"].includes(
+    result.reliability.hardGroupStatus,
+  ));
+  assert.ok(result.reliability.bootstrapRuns.every((run) => (
+    Number.isInteger(run.selectedK)
+    && Number.isFinite(run.adjustedRand)
+  )));
 
   const serialized = JSON.stringify(result);
   for (const forbidden of [
