@@ -20,6 +20,48 @@ const LIKERT_CLS = {
   strongly_agree: 'sa',
 }
 
+const BINARY_VOTE_KEYS = ['agree', 'disagree', 'neutral']
+
+const BINARY_VOTE_LABELS = {
+  agree: 'Agree',
+  disagree: 'Disagree',
+  neutral: 'Neutral',
+}
+
+function voteOptionKeys(voteType = 'binary') {
+  return voteType === 'likert' ? LIKERT_KEYS : BINARY_VOTE_KEYS
+}
+
+function voteOptionLabel(key, voteType = 'binary', tr) {
+  if (typeof tr === 'function') {
+    if (voteType === 'likert' && LIKERT_LABEL_KEYS[key]) {
+      return tr(LIKERT_LABEL_KEYS[key], LIKERT_LABELS[key])
+    }
+    if (voteType !== 'likert' && BINARY_VOTE_LABELS[key]) {
+      return tr(`common.${key === 'neutral' ? 'neutral' : key}`, BINARY_VOTE_LABELS[key])
+    }
+  }
+  if (voteType === 'likert') return LIKERT_LABELS[key] || key
+  return BINARY_VOTE_LABELS[key] || key
+}
+
+function emptyVoteCounts(voteType = 'binary') {
+  return Object.fromEntries(voteOptionKeys(voteType).map((k) => [k, 0]))
+}
+
+function aggregateVotesByStatement(statements, voters, voteType = 'binary') {
+  const keys = voteOptionKeys(voteType)
+  return (statements || []).map((stmt) => {
+    const counts = emptyVoteCounts(voteType)
+    for (const voter of voters || []) {
+      const vote = voter.votes?.[stmt.id]
+      if (vote && keys.includes(vote)) counts[vote] += 1
+    }
+    const total = keys.reduce((sum, key) => sum + counts[key], 0)
+    return { id: stmt.id, text: stmt.text, counts, total }
+  })
+}
+
 function pct(part, whole) {
   return whole ? Math.round((part / whole) * 100) : 0
 }
@@ -446,12 +488,13 @@ function statementBlock(s, voteType, tr) {
   return `<li><p>${esc(s.text)}</p>${chart}</li>`
 }
 
-const LOGO_SVG = `<svg viewBox="0 0 512 512" width="26" height="26" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <g fill="none" stroke-linecap="round">
-    <g stroke="#12b76a"><path d="M201 351.26 A 110 110 0 0 1 201 160.74" stroke-width="30"/><path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" stroke-width="30" stroke-opacity="0.5"/></g>
-    <g stroke="#f04438"><path d="M311 160.74 A 110 110 0 0 1 311 351.26" stroke-width="30"/><path d="M338.5 113.1 A 165 165 0 0 1 338.5 398.9" stroke-width="30" stroke-opacity="0.5"/></g>
-  </g>
-  <circle cx="256" cy="256" r="46" fill="#fff"/>
+const LOGO_SVG = `<svg viewBox="0 0 64 64" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="36" r="18" fill="#C4A35A"/>
+  <circle cx="20" cy="20" r="9" fill="#A8843F"/>
+  <circle cx="44" cy="20" r="9" fill="#A8843F"/>
+  <circle cx="26" cy="34" r="3" fill="#1a1630"/>
+  <circle cx="38" cy="34" r="3" fill="#1a1630"/>
+  <ellipse cx="32" cy="42" rx="5" ry="3.5" fill="#8B6A32"/>
 </svg>`
 
 export function buildPrintableHTML(ctx) {
@@ -666,5 +709,70 @@ export function downloadFile(filename, content, mime) {
 
 export function exportFilename(sessionId, ext) {
   const stamp = new Date().toISOString().slice(0, 10)
-  return `hear-the-room-${sessionId || 'session'}-${stamp}.${ext}`
+  return `murmi-${sessionId || 'session'}-${stamp}.${ext}`
+}
+
+export function exportVotesFilename(sessionId, kind, ext) {
+  const stamp = new Date().toISOString().slice(0, 10)
+  return `murmi-${sessionId || 'session'}-${kind}-${stamp}.${ext}`
+}
+
+export function buildRawVotesCSV(ctx) {
+  const { topic, sessionId, results, voteType = 'binary' } = ctx
+  const tr = makeTr(ctx.t)
+  const lines = []
+  const row = (...cells) => lines.push(cells.map(csvCell).join(','))
+  const likert = voteType === 'likert'
+  const optionKeys = voteOptionKeys(voteType)
+
+  row(`${APP_NAME} — Raw votes`)
+  row('Topic', topic || 'Untitled session')
+  if (sessionId) row('Session', sessionId)
+  row('Vote type', likert ? 'Likert (5-point)' : 'Binary')
+
+  const statements = results?.statements || []
+  const voters = results?.voters || []
+  if (!statements.length || !voters.length) {
+    lines.push('')
+    row('Note', 'No vote data available')
+    return lines.join('\n')
+  }
+
+  const rows = aggregateVotesByStatement(statements, voters, voteType)
+  lines.push('')
+  row(
+    'Statement ID',
+    'Statement',
+    ...optionKeys.map((key) => voteOptionLabel(key, voteType, tr)),
+    'Total',
+  )
+  for (const entry of rows) {
+    row(
+      entry.id,
+      entry.text,
+      ...optionKeys.map((key) => entry.counts[key]),
+      entry.total,
+    )
+  }
+
+  return lines.join('\n')
+}
+
+export function buildRawVotesJSON(ctx) {
+  const { topic, sessionId, results, voteType = 'binary' } = ctx
+  const statements = results?.statements || []
+  const voters = results?.voters || []
+  const rows = aggregateVotesByStatement(statements, voters, voteType)
+  const data = {
+    topic: topic || null,
+    session: sessionId || null,
+    voteType: voteType === 'likert' ? 'likert' : 'binary',
+    statements: rows.map(({ id, text, counts, total }) => ({
+      id,
+      text,
+      votes: counts,
+      total,
+    })),
+  }
+  return JSON.stringify(data, null, 2)
 }

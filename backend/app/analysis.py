@@ -112,11 +112,43 @@ Method:
 Respond ONLY with JSON:
 {"tensions": ["statement 1", "statement 2", ...]}"""
 
+RECOMMENDATIONS_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript, vote results, and opinion groups, produce three kinds of recommendations for the facilitator.
+
+1. UNEXPLORED TOPICS — substantive themes raised in the transcript that are NOT yet covered by existing votable statements. Short bullets (one sentence each). Do not invent topics absent from the discussion.
+
+2. DIVISIVE ISSUES — fresh, sharply framed votable propositions that would split the room roughly down the middle. These must:
+   - Surface the deeper disagreement driving current vote splits
+   - NOT paraphrase, reword, or merge any existing statement or any already-published tension statement
+   - NOT restate settled consensus
+   - Be specific to this discussion; never invent positions unsupported by the data
+   - Each must be materially different from every other output in this category
+
+3. PROPOSED SOLUTIONS — concrete bridging or compromise ideas grounded in consensus and divisive vote data. Short facilitator-facing suggestions, NOT phrased as agree/disagree votable claims.
+
+Respond ONLY with JSON:
+{
+  "unexploredTopics": ["topic 1", "topic 2", ...],
+  "divisiveIssues": ["votable statement 1", "votable statement 2", ...],
+  "proposedSolutions": ["bridging idea 1", "bridging idea 2", ...]
+}"""
+
 MOCK_TENSIONS = [
     "Switzerland should adopt a horizontal federal AI law rather than relying mainly on sector-specific rules.",
     "Mandatory AI transparency should apply to every consumer-facing system, not only high-risk use cases.",
     "Sensitive Swiss data must be processed only on infrastructure located in Switzerland.",
 ]
+
+MOCK_RECOMMENDATIONS = {
+    "unexploredTopics": [
+        "How liability should be allocated when AI systems cause harm in regulated sectors.",
+        "Whether open-source AI models should face the same transparency rules as commercial products.",
+    ],
+    "divisiveIssues": MOCK_TENSIONS,
+    "proposedSolutions": [
+        "Adopt a lightweight federal AI baseline focused on transparency, paired with sector-specific rules where risk is highest.",
+        "Pilot federal rules in health and finance first, then evaluate expansion based on compliance burden.",
+    ],
+}
 
 MOCK_COMMON_GROUND = {
     "basic": {
@@ -310,19 +342,25 @@ class AnalysisService:
 
         return await self._live_extract_turn(turn_entry, existing_statements, topic, language)
 
-    async def generate_tension_statements(
+    async def generate_recommendations(
         self,
         analysis: dict,
-        count: int = 3,
+        divisive_count: int = 3,
         topic: Optional[str] = None,
         language: Optional[str] = None,
-    ) -> list[str]:
-        count = max(1, min(5, int(count or 3)))
+    ) -> Optional[dict]:
+        divisive_count = max(1, min(5, int(divisive_count or 3)))
         if self._mock:
             existing = set(analysis.get("existingStatements") or [])
-            return [t for t in MOCK_TENSIONS if t not in existing][:count]
+            existing |= set(analysis.get("existingTensions") or [])
+            divisive = [t for t in MOCK_TENSIONS if t not in existing][:divisive_count]
+            return {
+                "unexploredTopics": list(MOCK_RECOMMENDATIONS["unexploredTopics"]),
+                "divisiveIssues": divisive,
+                "proposedSolutions": list(MOCK_RECOMMENDATIONS["proposedSolutions"]),
+            }
 
-        return await self._live_tension_statements(analysis, count, topic, language)
+        return await self._live_recommendations(analysis, divisive_count, topic, language)
 
     async def generate_common_ground(
         self,
@@ -379,20 +417,44 @@ class AnalysisService:
             result["groupNotes"] = group_notes
         return result
 
-    async def _live_tension_statements(
+    def _normalize_recommendations(self, data: dict, divisive_count: int) -> Optional[dict]:
+        unexplored = [
+            s.strip() for s in (data.get("unexploredTopics") or [])
+            if isinstance(s, str) and s.strip()
+        ]
+        proposed = [
+            s.strip() for s in (data.get("proposedSolutions") or [])
+            if isinstance(s, str) and s.strip()
+        ]
+        raw_divisive = data.get("divisiveIssues")
+        if not isinstance(raw_divisive, list):
+            raw_divisive = next(
+                (v for k, v in data.items() if k != "unexploredTopics" and k != "proposedSolutions" and isinstance(v, list)),
+                [],
+            )
+        divisive = [s.strip() for s in raw_divisive if isinstance(s, str) and s.strip()]
+        if not divisive and not unexplored and not proposed:
+            return None
+        return {
+            "unexploredTopics": unexplored[:6],
+            "divisiveIssues": divisive[:divisive_count + 4],
+            "proposedSolutions": proposed[:6],
+        }
+
+    async def _live_recommendations(
         self,
         analysis: dict,
-        count: int,
+        divisive_count: int,
         topic: Optional[str] = None,
         language: Optional[str] = None,
-    ) -> list[str]:
-        request_count = count + 4
+    ) -> Optional[dict]:
+        request_count = divisive_count + 4
         parts = []
         parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
         parts.append(
-            f"\nYou MUST return at least {count} open-tension statement(s). "
-            f"Generate {request_count} distinct candidates, ordered strongest first, so the {count} best can be kept. "
-            f"Never return fewer than {count} — if the data is thin, dig into finer-grained trade-offs and edge cases to reach the count."
+            f"\nDivisive issues requested: {divisive_count}. "
+            f"Generate {request_count} distinct divisive-issue candidates, ordered strongest first. "
+            f"Also provide 2-4 unexplored topics and 2-3 proposed solutions."
         )
 
         transcript = analysis.get("transcript") or []
@@ -406,8 +468,14 @@ class AnalysisService:
 
         existing = analysis.get("existingStatements") or []
         if existing:
-            parts.append("\nExisting statements — your tensions must NOT restate or paraphrase any of these:")
+            parts.append("\nExisting statements — divisive issues must NOT restate or paraphrase any of these:")
             for s in existing:
+                parts.append(f"- {s}")
+
+        existing_tensions = analysis.get("existingTensions") or []
+        if existing_tensions:
+            parts.append("\nAlready-published tension statements — divisive issues must NOT restate or paraphrase these:")
+            for s in existing_tensions:
                 parts.append(f"- {s}")
 
         divisive = analysis.get("divisive") or []
@@ -422,11 +490,26 @@ class AnalysisService:
 
         consensus = analysis.get("consensus") or []
         if consensus:
-            parts.append("\nStatements with broad agreement (for context — tensions should contrast with these):")
+            parts.append("\nStatements with broad agreement (for context — divisive issues should contrast with these):")
             for s in consensus:
                 parts.append(f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree)")
 
+        groups = analysis.get("groups") or []
+        if groups:
+            parts.append("\nOpinion groups:")
+            for g in groups:
+                parts.append(f"Group {g.get('letter', '?')} ({g.get('size', 0)} people):")
+                for t in (g.get("stronglyAgree") or []):
+                    parts.append(f"  strongly agrees: \"{t}\"")
+                for t in (g.get("agree") or []):
+                    parts.append(f"  tends to agree: \"{t}\"")
+                for t in (g.get("stronglyDisagree") or []):
+                    parts.append(f"  strongly disagrees: \"{t}\"")
+                for t in (g.get("disagree") or []):
+                    parts.append(f"  tends to disagree: \"{t}\"")
+
         user_message = "\n".join(parts)
+        dedupe_against = list(existing) + list(existing_tensions)
 
         try:
             loop = asyncio.get_event_loop()
@@ -438,35 +521,36 @@ class AnalysisService:
                     temperature=0.45,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": TENSION_PROMPT + _language_rule(language)},
+                        {"role": "system", "content": RECOMMENDATIONS_PROMPT + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            raw = data.get("tensions")
-            if not isinstance(raw, list):
-                raw = next((v for v in data.values() if isinstance(v, list)), [])
-            tensions = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
-            filtered = _dedupe_tensions(tensions, existing)
-            if len(filtered) < count:
-                existing_set = {s.strip().lower() for s in existing}
+            normalized = self._normalize_recommendations(data, divisive_count)
+            if not normalized:
+                return None
+
+            filtered = _dedupe_tensions(normalized["divisiveIssues"], dedupe_against)
+            if len(filtered) < divisive_count:
+                existing_set = {s.strip().lower() for s in dedupe_against}
                 seen = {t.lower() for t in filtered}
-                for t in tensions:
-                    if len(filtered) >= count:
+                for t in normalized["divisiveIssues"]:
+                    if len(filtered) >= divisive_count:
                         break
                     key = t.lower()
                     if key in seen or key in existing_set:
                         continue
                     filtered.append(t)
                     seen.add(key)
-            return (filtered or tensions)[:count]
+            normalized["divisiveIssues"] = (filtered or normalized["divisiveIssues"])[:divisive_count]
+            return normalized
         except (json.JSONDecodeError, KeyError, IndexError) as e:
-            print(f"Tension parse error: {e}")
-            return []
+            print(f"Recommendations parse error: {e}")
+            return None
         except Exception as e:
-            print(f"Tension generation error: {e}")
-            return []
+            print(f"Recommendations generation error: {e}")
+            return None
 
     async def _live_common_ground(
         self,

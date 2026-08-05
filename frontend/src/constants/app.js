@@ -1,1 +1,1 @@
-export const APP_NAME = 'HearTheRoom'
+export const APP_NAME = 'Murmi'

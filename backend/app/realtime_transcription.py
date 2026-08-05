@@ -289,13 +289,28 @@ class RealtimeTranscriptionSession:
                     self._reset_turn_audio()
                     self.bytes_since_commit = 0
 
+                elif event_type == "conversation.item.input_audio_transcription.failed":
+                    error = event.get("error") or {}
+                    code = error.get("code") or error.get("type") or ""
+                    message = error.get("message") or "Realtime transcription failed"
+                    if code in ("credit_balance_exhausted", "insufficient_quota"):
+                        await self.on_error(
+                            self.session_id,
+                            message,
+                            "openaiQuotaExhausted",
+                        )
+                    else:
+                        await self.on_error(self.session_id, message, "captionsUnavailable")
+                    self.closed = True
+
                 elif event_type == "error":
                     error = event.get("error") or {}
-                    code = error.get("code") or ""
+                    code = error.get("code") or error.get("type") or ""
                     message = error.get("message") or "Realtime transcription error"
                     if code == "input_audio_buffer_commit_empty" or "buffer too small" in message.lower():
                         continue
-                    await self.on_error(self.session_id, message, "captionsUnavailable")
+                    error_code = "openaiQuotaExhausted" if code in ("credit_balance_exhausted", "insufficient_quota") else "captionsUnavailable"
+                    await self.on_error(self.session_id, message, error_code)
         except asyncio.CancelledError:
             raise
         except Exception as exc:

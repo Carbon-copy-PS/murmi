@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -46,6 +47,8 @@ class SessionRow(Base):
     voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
+    common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    common_ground_depth: Mapped[str] = mapped_column(String(16), default="extended", server_default="extended")
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -100,6 +103,7 @@ class VoteRow(Base):
     )
     participant_id: Mapped[str] = mapped_column(String(64))
     vote: Mapped[str] = mapped_column(String(16))
+    voted_at: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
 
 
 class ParticipantRow(Base):
@@ -113,7 +117,7 @@ class ParticipantRow(Base):
     client_id: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(120))
     language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    auto_approve: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    auto_approve: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_host: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
@@ -147,7 +151,11 @@ class Database:
             await conn.run_sync(Base.metadata.create_all)
             await conn.execute(text(
                 "ALTER TABLE participants "
-                "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT true"
+                "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT false"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE participants "
+                "ALTER COLUMN auto_approve SET DEFAULT false"
             ))
             await conn.execute(text(
                 "ALTER TABLE participants "
@@ -189,6 +197,18 @@ class Database:
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
                 "ON sessions (public_id)"
             ))
+            await conn.execute(text(
+                "ALTER TABLE votes "
+                "ADD COLUMN IF NOT EXISTS voted_at double precision NOT NULL DEFAULT 0"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_history jsonb"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_depth varchar(16) NOT NULL DEFAULT 'extended'"
+            ))
         return True
 
     async def disconnect(self):
@@ -215,6 +235,8 @@ class Database:
             "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
+            "common_ground_history": getattr(session, "common_ground_history", []) or [],
+            "common_ground_depth": getattr(session, "common_ground_depth", "extended") or "extended",
         }
 
     async def _ensure_session(self, db, session):
@@ -249,6 +271,21 @@ class Database:
             return
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
+            await db.commit()
+
+    async def save_common_ground(self, session):
+        if not self.enabled or session is None:
+            return
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    common_ground_history=getattr(session, "common_ground_history", []) or [],
+                    common_ground_depth=getattr(session, "common_ground_depth", "extended") or "extended",
+                )
+            )
             await db.commit()
 
     async def update_round(self, session_id: str, current_round: int):
@@ -363,6 +400,7 @@ class Database:
     async def save_vote(self, session, statement, participant_id: str, vote: str):
         if not self.enabled or statement is None:
             return
+        now = time.time()
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
             await self._ensure_statement(db, session.id, statement)
@@ -374,10 +412,11 @@ class Database:
                     statement_id=statement.id,
                     participant_id=participant_id,
                     vote=vote,
+                    voted_at=now,
                 )
                 .on_conflict_do_update(
                     index_elements=["statement_id", "participant_id"],
-                    set_={"vote": vote},
+                    set_={"vote": vote, "voted_at": now},
                 )
             )
             await db.commit()
@@ -463,8 +502,33 @@ class Database:
         )).scalars().all()
 
         votes_by_statement: dict[str, dict[str, str]] = {}
+        vote_times_by_statement: dict[str, dict[str, float]] = {}
         for v in votes:
             votes_by_statement.setdefault(v.statement_id, {})[v.participant_id] = v.vote
+            voted_at = float(getattr(v, "voted_at", 0) or 0)
+            if voted_at > 0:
+                vote_times_by_statement.setdefault(v.statement_id, {})[v.participant_id] = voted_at
+
+        statement_payloads = []
+        for s in statements:
+            stmt_votes = votes_by_statement.get(s.id, {})
+            vote_times = vote_times_by_statement.get(s.id, {})
+            last_vote_at = max(vote_times.values()) if vote_times else 0.0
+            if stmt_votes and not last_vote_at:
+                last_vote_at = float(s.created_at or 0)
+            statement_payloads.append({
+                "id": s.id,
+                "text": s.text,
+                "round": s.round,
+                "approved": s.approved,
+                "custom": s.custom,
+                "tension": getattr(s, "tension", False),
+                "edited": getattr(s, "edited", False),
+                "created_at": s.created_at,
+                "votes": stmt_votes,
+                "vote_times": vote_times,
+                "last_vote_at": last_vote_at,
+            })
 
         return {
             "id": row.id,
@@ -479,21 +543,10 @@ class Database:
             "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
+            "common_ground_history": getattr(row, "common_ground_history", None) or [],
+            "common_ground_depth": getattr(row, "common_ground_depth", None) or "extended",
             "transcript": [t.payload for t in transcript],
-            "statements": [
-                {
-                    "id": s.id,
-                    "text": s.text,
-                    "round": s.round,
-                    "approved": s.approved,
-                    "custom": s.custom,
-                    "tension": getattr(s, "tension", False),
-                    "edited": getattr(s, "edited", False),
-                    "created_at": s.created_at,
-                    "votes": votes_by_statement.get(s.id, {}),
-                }
-                for s in statements
-            ],
+            "statements": statement_payloads,
             "members": {
                 p.client_id: {
                     "participant_id": p.id,
