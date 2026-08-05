@@ -58,7 +58,9 @@
     "cgFailed": "Gemeinsamer Nenner konnte nicht erstellt werden.",
     "cgTimeout": "Zeitüberschreitung beim Erstellen des gemeinsamen Nenners. Bitte erneut versuchen.",
     "tensionsFailed": "Spannungen konnten nicht erstellt werden.",
-    "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen."
+    "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen.",
+    "recommendationsFailed": "Empfehlungen konnten nicht erstellt werden.",
+    "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen."
   },
   "confirm": {
     "revokeHostTitle": "Host-Zugriff entziehen?",
@@ -423,6 +425,34 @@
     "searchPlaceholder": "Sprachen suchen…",
     "noMatch": "Keine Sprachen passen zu „{{query}}“"
   },
+  "recommendations": {
+    "title": "Empfehlungen",
+    "progressAria": "Fortschritt",
+    "ready": "{{count}} bereit",
+    "lead": "KI-Vorschläge aus Diskussion und Stimmensplits — veröffentliche umstrittene Punkte als neue Aussagen zur Abstimmung.",
+    "stepConfigure": "1 · Konfigurieren",
+    "stepReview": "2 · Prüfen",
+    "stepGoLive": "3 · Live gehen",
+    "mostDivisive": "Am umstrittensten im Raum",
+    "currentTensions": "Aktuelle Spannungs-Aussagen",
+    "split": "{{pct}}% geteilt",
+    "howMany": "Wie viele umstrittene Punkte?",
+    "numberOf": "Anzahl umstrittener Punkte",
+    "generating": "Wird erstellt…",
+    "generate_one": "{{count}} Empfehlung erstellen",
+    "generate_other": "{{count}} Empfehlungen erstellen",
+    "drafting": "Die KI erstellt Empfehlungen aus Diskussion und Stimmensplits…",
+    "reviewTitle": "Empfehlungen prüfen",
+    "regenerate": "Neu erstellen",
+    "unexploredTopics": "Unerschlossene Themen",
+    "divisiveIssues": "Umstrittene Punkte",
+    "proposedSolutions": "Lösungsvorschläge",
+    "emptyCategory": "Keine Einträge in dieser Kategorie.",
+    "tag": "Spannung",
+    "removeDraft": "Entwurf entfernen",
+    "discard": "Verwerfen",
+    "pushToLive": "{{count}} live schalten"
+  },
   "tension": {
     "surface": "Offene Spannungen aufzeigen",
     "progressAria": "Fortschritt",
@@ -432,6 +462,7 @@
     "stepReview": "2 · Prüfen",
     "stepGoLive": "3 · Live gehen",
     "mostDivisive": "Am umstrittensten im Raum",
+    "currentTensions": "Aktuelle Spannungs-Aussagen",
     "split": "{{pct}}% geteilt",
     "howMany": "Wie viele Spannungen?",
     "numberOf": "Anzahl der Spannungen",

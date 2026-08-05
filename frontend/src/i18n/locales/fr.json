@@ -58,7 +58,9 @@
     "cgFailed": "Impossible de générer un terrain d'entente.",
     "cgTimeout": "Délai dépassé lors de la génération du terrain d'entente. Veuillez réessayer.",
     "tensionsFailed": "Impossible de générer les tensions.",
-    "tensionsTimeout": "Délai dépassé lors de la génération des tensions. Veuillez réessayer."
+    "tensionsTimeout": "Délai dépassé lors de la génération des tensions. Veuillez réessayer.",
+    "recommendationsFailed": "Impossible de générer les recommandations.",
+    "recommendationsTimeout": "Délai dépassé lors de la génération des recommandations. Veuillez réessayer."
   },
   "confirm": {
     "revokeHostTitle": "Retirer l'accès hôte ?",
@@ -423,6 +425,34 @@
     "searchPlaceholder": "Rechercher des langues…",
     "noMatch": "Aucune langue ne correspond à « {{query}} »"
   },
+  "recommendations": {
+    "title": "Recommandations",
+    "progressAria": "Progression",
+    "ready": "{{count}} prêtes",
+    "lead": "Suggestions de l'IA à partir de la discussion et des votes — publiez les points divisifs comme nouvelles affirmations à voter.",
+    "stepConfigure": "1 · Configurer",
+    "stepReview": "2 · Examiner",
+    "stepGoLive": "3 · Mettre en ligne",
+    "mostDivisive": "Les plus divisifs dans la salle",
+    "currentTensions": "Affirmations de tension actuelles",
+    "split": "{{pct}}% de division",
+    "howMany": "Combien de points divisifs ?",
+    "numberOf": "Nombre de points divisifs",
+    "generating": "Génération…",
+    "generate_one": "Générer {{count}} recommandation",
+    "generate_other": "Générer {{count}} recommandations",
+    "drafting": "L'IA prépare des recommandations à partir de la discussion et des votes…",
+    "reviewTitle": "Examiner les recommandations",
+    "regenerate": "Regénérer",
+    "unexploredTopics": "Sujets inexplorés",
+    "divisiveIssues": "Points divisifs",
+    "proposedSolutions": "Solutions proposées",
+    "emptyCategory": "Aucun élément dans cette catégorie.",
+    "tag": "Tension",
+    "removeDraft": "Supprimer le brouillon",
+    "discard": "Annuler",
+    "pushToLive": "Publier {{count}} en direct"
+  },
   "tension": {
     "surface": "Faire émerger les tensions ouvertes",
     "progressAria": "Progression",
@@ -432,6 +462,7 @@
     "stepReview": "2 · Réviser",
     "stepGoLive": "3 · Mettre en ligne",
     "mostDivisive": "Les plus clivants de la salle",
+    "currentTensions": "Énoncés de tension actuels",
     "split": "{{pct}}% divisés",
     "howMany": "Combien de tensions ?",
     "numberOf": "Nombre de tensions",

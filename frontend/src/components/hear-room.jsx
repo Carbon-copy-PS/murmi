@@ -109,7 +109,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [votingActivity, setVotingActivity] = useState([])
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
-  const [autoApprove, setAutoApprove] = useState(true)
+  const [autoApprove, setAutoApprove] = useState(false)
   const [canAddStatement, setCanAddStatement] = useState(true)
   const [defaultCanAddStatement, setDefaultCanAddStatement] = useState(true)
   const [statementSubmitted, setStatementSubmitted] = useState(false)
@@ -121,9 +121,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [cgError, setCgError] = useState(null)
   const [cgPopup, setCgPopup] = useState(null)
   const cgSeenIdsRef = useRef(new Set())
-  const [tensionsPending, setTensionsPending] = useState(false)
-  const [tensionsError, setTensionsError] = useState(null)
-  const [tensionDrafts, setTensionDrafts] = useState(null)
+  const [recommendationsPending, setRecommendationsPending] = useState(false)
+  const [recommendationsError, setRecommendationsError] = useState(null)
+  const [recommendationDrafts, setRecommendationDrafts] = useState(null)
   const [participants, setParticipants] = useState([])
   const [presence, setPresence] = useState({ here: 0, votingNow: 0 })
   const [displayName, setDisplayName] = useState(userName)
@@ -138,7 +138,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   const approveTimersRef = useRef(new Map())
   const cgTimeoutRef = useRef(null)
-  const tensionsTimeoutRef = useRef(null)
+  const recommendationsTimeoutRef = useRef(null)
 
   const tabsWrapRef = useRef(null)
   const tabsScrollRef = useRef(null)
@@ -257,7 +257,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
       if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
-      if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
+      if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
     }
   }, [])
 
@@ -485,19 +485,23 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setCgPendingDepth(null)
           setCgError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.cgFailed')))
           break
-        case 'tensions_pending':
-          setTensionsPending(true)
-          setTensionsError(null)
+        case 'recommendations_pending':
+          setRecommendationsPending(true)
+          setRecommendationsError(null)
           break
-        case 'tensions_draft':
-          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-          setTensionsPending(false)
-          setTensionDrafts(msg.tensions || [])
+        case 'recommendations_draft':
+          if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+          setRecommendationsPending(false)
+          setRecommendationDrafts({
+            unexploredTopics: msg.unexploredTopics || [],
+            divisiveIssues: msg.divisiveIssues || [],
+            proposedSolutions: msg.proposedSolutions || [],
+          })
           break
-        case 'tensions_error':
-          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-          setTensionsPending(false)
-          setTensionsError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.tensionsFailed')))
+        case 'recommendations_error':
+          if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+          setRecommendationsPending(false)
+          setRecommendationsError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.recommendationsFailed')))
           break
       }
   }
@@ -852,27 +856,27 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     })
   }
 
-  function requestTensions(count, analysis) {
+  function requestRecommendations(count, analysis) {
     if (!analysis) return
-    if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-    setTensionsPending(true)
-    setTensionsError(null)
-    wsRef.current?.send(JSON.stringify({ type: 'generate_tensions', count, analysis }))
-    tensionsTimeoutRef.current = setTimeout(() => {
-      setTensionsPending(false)
-      setTensionsError(t('errors.tensionsTimeout'))
+    if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+    setRecommendationsPending(true)
+    setRecommendationsError(null)
+    wsRef.current?.send(JSON.stringify({ type: 'generate_recommendations', count, analysis }))
+    recommendationsTimeoutRef.current = setTimeout(() => {
+      setRecommendationsPending(false)
+      setRecommendationsError(t('errors.recommendationsTimeout'))
     }, 60000)
   }
 
-  function publishTensions(texts) {
+  function publishRecommendations(texts) {
     wsRef.current?.send(JSON.stringify({ type: 'publish_tensions', texts }))
-    setTensionDrafts(null)
-    setTensionsError(null)
+    setRecommendationDrafts(null)
+    setRecommendationsError(null)
   }
 
-  function clearTensionDrafts() {
-    setTensionDrafts(null)
-    setTensionsError(null)
+  function clearRecommendationDrafts() {
+    setRecommendationDrafts(null)
+    setRecommendationsError(null)
   }
 
   function handleHold(statementId) {
@@ -1154,12 +1158,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onGenerateCommonGround={tourActive ? noop : requestCommonGround}
           onDismissCommonGround={tourActive ? noop : dismissCommonGround}
           onVoteCommonGround={tourActive ? noop : voteCommonGround}
-          tensionsPending={tourActive ? false : tensionsPending}
-          tensionsError={tourActive ? null : tensionsError}
-          tensionDrafts={tourActive ? null : tensionDrafts}
-          onGenerateTensions={tourActive ? noop : requestTensions}
-          onPublishTensions={tourActive ? noop : publishTensions}
-          onClearTensionDrafts={tourActive ? noop : clearTensionDrafts}
+          recommendationsPending={tourActive ? false : recommendationsPending}
+          recommendationsError={tourActive ? null : recommendationsError}
+          recommendationDrafts={tourActive ? null : recommendationDrafts}
+          onGenerateRecommendations={tourActive ? noop : requestRecommendations}
+          onPublishRecommendations={tourActive ? noop : publishRecommendations}
+          onClearRecommendationDrafts={tourActive ? noop : clearRecommendationDrafts}
         />
       )}
       {view === 'participants' && isHost && (

@@ -58,7 +58,9 @@
     "cgFailed": "Could not generate common ground.",
     "cgTimeout": "Timed out generating common ground. Please try again.",
     "tensionsFailed": "Could not generate tensions.",
-    "tensionsTimeout": "Timed out generating tensions. Please try again."
+    "tensionsTimeout": "Timed out generating tensions. Please try again.",
+    "recommendationsFailed": "Could not generate recommendations.",
+    "recommendationsTimeout": "Timed out generating recommendations. Please try again."
   },
   "confirm": {
     "revokeHostTitle": "Revoke host access?",
@@ -423,6 +425,34 @@
     "searchPlaceholder": "Search languages…",
     "noMatch": "No languages match “{{query}}”"
   },
+  "recommendations": {
+    "title": "Recommendations",
+    "progressAria": "Progress",
+    "ready": "{{count}} ready",
+    "lead": "AI suggestions from the discussion and vote splits — publish divisive issues as new statements for the room to vote on.",
+    "stepConfigure": "1 · Configure",
+    "stepReview": "2 · Review",
+    "stepGoLive": "3 · Go live",
+    "mostDivisive": "Most divisive in the room",
+    "currentTensions": "Current tension statements",
+    "split": "{{pct}}% split",
+    "howMany": "How many divisive issues?",
+    "numberOf": "Number of divisive issues",
+    "generating": "Generating…",
+    "generate_one": "Generate {{count}} recommendation",
+    "generate_other": "Generate {{count}} recommendations",
+    "drafting": "AI is drafting recommendations from the discussion and vote splits…",
+    "reviewTitle": "Review recommendations",
+    "regenerate": "Regenerate",
+    "unexploredTopics": "Unexplored topics",
+    "divisiveIssues": "Divisive issues",
+    "proposedSolutions": "Proposed solutions",
+    "emptyCategory": "No items in this category.",
+    "tag": "Tension",
+    "removeDraft": "Remove draft",
+    "discard": "Discard",
+    "pushToLive": "Push {{count}} to live"
+  },
   "tension": {
     "surface": "Surface open tensions",
     "progressAria": "Progress",
@@ -432,6 +462,7 @@
     "stepReview": "2 · Review",
     "stepGoLive": "3 · Go live",
     "mostDivisive": "Most divisive in the room",
+    "currentTensions": "Current tension statements",
     "split": "{{pct}}% split",
     "howMany": "How many tensions?",
     "numberOf": "Number of tensions",

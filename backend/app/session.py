@@ -165,6 +165,7 @@ class SessionManager:
         )
         session.transcript = list(data.get("transcript", []))
         session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
+        session.common_ground_history = list(data.get("common_ground_history") or [])
         if "default_can_add_statement" in data:
             session.default_can_add_statement = bool(data["default_can_add_statement"])
         if "voting_open" in data and data["voting_open"] is not None:
@@ -708,12 +709,12 @@ class SessionManager:
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
         if not session:
-            return True
+            return False
         participant = session.participants.get(participant_id)
         client_id = participant.client_id if participant else None
         if not client_id:
-            return True
-        return session.auto_approve_prefs.get(client_id, True)
+            return False
+        return session.auto_approve_prefs.get(client_id, False)
 
     def set_auto_approve(self, session_id: str, participant_id: str, value: bool) -> Optional[str]:
         session = self.sessions.get(session_id)

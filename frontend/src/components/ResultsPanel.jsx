@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
-import TensionGenerator from './tension-generator'
-import { canGenerateTensions } from '../utils/tension-stats'
+import RecommendationsPanel from './tension-generator'
+import { canGenerateRecommendations } from '../utils/recommendations-payload'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
 import {
   buildCSV,
@@ -441,6 +441,27 @@ function CgSharedTensions({ shared = [], tensions = [], id }) {
   )
 }
 
+function CgGroupAnalysis({ data }) {
+  const { t } = useTranslation()
+  if (!Array.isArray(data.groupAnalysis) || !data.groupAnalysis.length) return null
+  return (
+    <div className="cg-group-analysis" data-testid={`cg-group-analysis-${data.id}`}>
+      <span className="cg-group-analysis-label">{t('cg.groupAnalysis')}</span>
+      <ul className="cg-group-analysis-list">
+        {data.groupAnalysis.map((g, i) => (
+          <li key={`${data.id}-ga-${g.group || i}`} className="cg-group-analysis-item">
+            <span className="cg-group-analysis-title">
+              {t('results.groupLabel', { letter: g.group })}
+              {g.title ? ` · ${g.title}` : ''}
+            </span>
+            <p>{g.description}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 function CgExtrasCollapsible({ data }) {
   const { t } = useTranslation()
   const extras = [
@@ -449,12 +470,14 @@ function CgExtrasCollapsible({ data }) {
     { key: 'trade', title: t('cg.tradeoffs'), items: data.tradeoffs },
   ].filter((e) => e.items?.length)
   const hasGroups = data.groupNotes?.length > 0
-  if (!extras.length && !hasGroups) return null
+  const hasGroupAnalysis = Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0
+  if (!extras.length && !hasGroups && !hasGroupAnalysis) return null
 
   return (
     <details className="cg-extras-toggle" data-testid="cg-extras-toggle">
       <summary className="cg-extras-summary">{t('cg.moreAnalysis')}</summary>
       <div className="cg-extras-body">
+        <CgGroupAnalysis data={data} />
         {extras.map((e) => (
           <CgExtraList key={e.key} title={e.title} items={e.items} testId={`cg-${e.key}`} />
         ))}
@@ -650,23 +673,6 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
         {data.groupStatement}
       </blockquote>
 
-      {Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0 && (
-        <div className="cg-group-analysis" data-testid={`cg-group-analysis-${data.id}`}>
-          <span className="cg-group-analysis-label">{t('cg.groupAnalysis')}</span>
-          <ul className="cg-group-analysis-list">
-            {data.groupAnalysis.map((g, i) => (
-              <li key={`${data.id}-ga-${g.group || i}`} className="cg-group-analysis-item">
-                <span className="cg-group-analysis-title">
-                  {t('results.groupLabel', { letter: g.group })}
-                  {g.title ? ` · ${g.title}` : ''}
-                </span>
-                <p>{g.description}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <CgSharedTensions
         id={data.id}
         shared={data.commonGround}
@@ -723,12 +729,13 @@ function CommonGroundSection({
   onDismiss,
   onVote,
   statements = [],
-  tensionsPending = false,
-  tensionsError = null,
-  tensionDrafts = null,
-  onGenerateTensions,
-  onPublishTensions,
-  onClearTensionDrafts,
+  recommendationsPending = false,
+  recommendationsError = null,
+  recommendationDrafts = null,
+  onGenerateRecommendations,
+  onPublishRecommendations,
+  onClearRecommendationDrafts,
+  cluster = null,
   hideVote = false,
 }) {
   const { t } = useTranslation()
@@ -847,17 +854,18 @@ function CommonGroundSection({
         />
       )}
 
-      {isHost && onGenerateTensions && canGenerateTensions(statements) && (
-        <div className="cg-tensions" data-testid="cg-tensions">
-          <div className="section-divider"><span>{t('cg.surfaceTensions')}</span></div>
-          <TensionGenerator
+      {isHost && onGenerateRecommendations && canGenerateRecommendations(statements) && (
+        <div className="cg-tensions" data-testid="recommendations-section">
+          <div className="section-divider"><span>{t('tension.surface')}</span></div>
+          <RecommendationsPanel
             statements={statements}
-            pending={tensionsPending}
-            error={tensionsError}
-            drafts={tensionDrafts}
-            onGenerate={onGenerateTensions}
-            onPublish={onPublishTensions}
-            onClearDrafts={onClearTensionDrafts}
+            cluster={cluster}
+            pending={recommendationsPending}
+            error={recommendationsError}
+            drafts={recommendationDrafts}
+            onGenerate={onGenerateRecommendations}
+            onPublish={onPublishRecommendations}
+            onClearDrafts={onClearRecommendationDrafts}
           />
         </div>
       )}
@@ -880,12 +888,12 @@ export default function ResultsPanel({
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
   onVoteCommonGround = () => {},
-  tensionsPending = false,
-  tensionsError = null,
-  tensionDrafts = null,
-  onGenerateTensions,
-  onPublishTensions,
-  onClearTensionDrafts,
+  recommendationsPending = false,
+  recommendationsError = null,
+  recommendationDrafts = null,
+  onGenerateRecommendations,
+  onPublishRecommendations,
+  onClearRecommendationDrafts,
   publicView = false,
 }) {
   const { t, i18n } = useTranslation()
@@ -937,12 +945,13 @@ export default function ResultsPanel({
       onDismiss={onDismissCommonGround}
       onVote={onVoteCommonGround}
       statements={statements}
-      tensionsPending={tensionsPending}
-      tensionsError={tensionsError}
-      tensionDrafts={tensionDrafts}
-      onGenerateTensions={onGenerateTensions}
-      onPublishTensions={onPublishTensions}
-      onClearTensionDrafts={onClearTensionDrafts}
+      recommendationsPending={recommendationsPending}
+      recommendationsError={recommendationsError}
+      recommendationDrafts={recommendationDrafts}
+      onGenerateRecommendations={onGenerateRecommendations}
+      onPublishRecommendations={onPublishRecommendations}
+      onClearRecommendationDrafts={onClearRecommendationDrafts}
+      cluster={cluster}
       hideVote={publicView}
     />
   )

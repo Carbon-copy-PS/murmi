@@ -58,7 +58,9 @@
     "cgFailed": "Impossibile generare un terreno comune.",
     "cgTimeout": "Tempo scaduto nella generazione del terreno comune. Riprova.",
     "tensionsFailed": "Impossibile generare le tensioni.",
-    "tensionsTimeout": "Tempo scaduto nella generazione delle tensioni. Riprova."
+    "tensionsTimeout": "Tempo scaduto nella generazione delle tensioni. Riprova.",
+    "recommendationsFailed": "Impossibile generare le raccomandazioni.",
+    "recommendationsTimeout": "Tempo scaduto nella generazione delle raccomandazioni. Riprova."
   },
   "confirm": {
     "revokeHostTitle": "Revocare l'accesso host?",
@@ -423,6 +425,34 @@
     "searchPlaceholder": "Cerca lingue…",
     "noMatch": "Nessuna lingua corrisponde a “{{query}}”"
   },
+  "recommendations": {
+    "title": "Raccomandazioni",
+    "progressAria": "Progresso",
+    "ready": "{{count}} pronte",
+    "lead": "Suggerimenti dell'IA dalla discussione e dai voti — pubblica i punti divisivi come nuove affermazioni votabili.",
+    "stepConfigure": "1 · Configura",
+    "stepReview": "2 · Rivedi",
+    "stepGoLive": "3 · Vai live",
+    "mostDivisive": "I più divisivi nella stanza",
+    "currentTensions": "Affermazioni di tensione attuali",
+    "split": "{{pct}}% diviso",
+    "howMany": "Quanti punti divisivi?",
+    "numberOf": "Numero di punti divisivi",
+    "generating": "Generazione…",
+    "generate_one": "Genera {{count}} raccomandazione",
+    "generate_other": "Genera {{count}} raccomandazioni",
+    "drafting": "L'IA sta preparando raccomandazioni da discussione e voti…",
+    "reviewTitle": "Rivedi le raccomandazioni",
+    "regenerate": "Rigenera",
+    "unexploredTopics": "Temi inesplorati",
+    "divisiveIssues": "Punti divisivi",
+    "proposedSolutions": "Soluzioni proposte",
+    "emptyCategory": "Nessun elemento in questa categoria.",
+    "tag": "Tensione",
+    "removeDraft": "Rimuovi bozza",
+    "discard": "Scarta",
+    "pushToLive": "Pubblica {{count}} in live"
+  },
   "tension": {
     "surface": "Fai emergere le tensioni aperte",
     "progressAria": "Avanzamento",
@@ -432,6 +462,7 @@
     "stepReview": "2 · Rivedi",
     "stepGoLive": "3 · Vai in diretta",
     "mostDivisive": "Più divisivi nella stanza",
+    "currentTensions": "Affermazioni di tensione attuali",
     "split": "{{pct}}% divisi",
     "howMany": "Quante tensioni?",
     "numberOf": "Numero di tensioni",

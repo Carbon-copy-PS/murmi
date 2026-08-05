@@ -351,7 +351,7 @@ async def run_analysis(session_id: str):
 
 
 COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
-TENSION_TIMEOUT_SECONDS = float(os.environ.get("TENSION_TIMEOUT_SECONDS", "45"))
+RECOMMENDATIONS_TIMEOUT_SECONDS = float(os.environ.get("RECOMMENDATIONS_TIMEOUT_SECONDS", os.environ.get("TENSION_TIMEOUT_SECONDS", "45")))
 TENSION_TRANSCRIPT_MAX_TURNS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_TURNS", "80"))
 TENSION_TRANSCRIPT_MAX_CHARS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_CHARS", "12000"))
 
@@ -379,7 +379,7 @@ def build_transcript_excerpt(session) -> list[dict]:
     return trimmed
 
 
-async def run_tensions(
+async def run_recommendations(
     session_id: str,
     participant_id: str,
     payload: dict,
@@ -392,21 +392,21 @@ async def run_tensions(
     if not participant:
         return
 
-    await participant.websocket.send_json({"type": "tensions_pending"})
+    await participant.websocket.send_json({"type": "recommendations_pending"})
 
     payload = dict(payload)
     payload["transcript"] = build_transcript_excerpt(session)
 
-    tensions: list[str] = []
+    result: dict | None = None
     try:
-        tensions = await asyncio.wait_for(
-            analysis.generate_tension_statements(payload, count, topic, language),
-            timeout=TENSION_TIMEOUT_SECONDS,
+        result = await asyncio.wait_for(
+            analysis.generate_recommendations(payload, count, topic, language),
+            timeout=RECOMMENDATIONS_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        print("Tension generation timed out")
+        print("Recommendations generation timed out")
     except Exception as e:
-        print(f"Tension task error: {e}")
+        print(f"Recommendations task error: {e}")
 
     if not sessions.exists(session_id):
         return
@@ -415,16 +415,21 @@ async def run_tensions(
     if not participant:
         return
 
-    if tensions:
+    if result and (result.get("divisiveIssues") or result.get("unexploredTopics") or result.get("proposedSolutions")):
         await participant.websocket.send_json({
-            "type": "tensions_draft",
-            "tensions": [{"id": f"t{i}", "text": t} for i, t in enumerate(tensions)],
+            "type": "recommendations_draft",
+            "unexploredTopics": result.get("unexploredTopics") or [],
+            "divisiveIssues": [
+                {"id": f"d{i}", "text": t}
+                for i, t in enumerate(result.get("divisiveIssues") or [])
+            ],
+            "proposedSolutions": result.get("proposedSolutions") or [],
         })
     else:
         await participant.websocket.send_json({
-            "type": "tensions_error",
-            "message": "Could not generate tension statements. Try again.",
-            "code": "tensionsFailed",
+            "type": "recommendations_error",
+            "message": "Could not generate recommendations. Try again.",
+            "code": "recommendationsFailed",
         })
 
 
@@ -474,6 +479,7 @@ async def run_common_ground(
             "statementCount": payload.get("statementCount"),
         }
         added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
+        await _safe_db(db.save_common_ground(sessions.get(session_id)))
         await broadcast_common_ground_history(
             session_id,
             added_id=added.get("id") if added else None,
@@ -884,7 +890,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     **sessions.vote_matrix(session_id, participant_id),
                 })
 
-            elif msg_type == "generate_tensions":
+            elif msg_type == "generate_recommendations":
                 if not sessions.is_host(session_id, participant_id):
                     continue
                 payload = data.get("analysis")
@@ -895,7 +901,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
                 asyncio.create_task(
-                    run_tensions(session_id, participant_id, payload, count, topic, language)
+                    run_recommendations(session_id, participant_id, payload, count, topic, language)
                 )
 
             elif msg_type == "publish_tensions":
@@ -1007,6 +1013,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 )
                 if ok:
                     await broadcast_common_ground_history(session_id)
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
             elif msg_type == "dismiss_common_ground":
                 if not sessions.is_host(session_id, participant_id):
@@ -1015,6 +1022,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 if not cg_id or not sessions.remove_common_ground(session_id, cg_id):
                     continue
                 await broadcast_common_ground_history(session_id)
+                await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
             elif msg_type == "approve_statement":
                 if not sessions.is_host(session_id, participant_id):
@@ -1134,6 +1142,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     continue
                 depth = sessions.set_common_ground_depth(session_id, data.get("depth"))
                 if depth:
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
                     await sessions.broadcast(session_id, {
                         "type": "common_ground_depth_updated",
                         "depth": depth,

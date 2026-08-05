@@ -47,6 +47,8 @@ class SessionRow(Base):
     voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
+    common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    common_ground_depth: Mapped[str] = mapped_column(String(16), default="extended", server_default="extended")
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -115,7 +117,7 @@ class ParticipantRow(Base):
     client_id: Mapped[str] = mapped_column(String(64), index=True)
     name: Mapped[str] = mapped_column(String(120))
     language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    auto_approve: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    auto_approve: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_host: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
@@ -149,7 +151,11 @@ class Database:
             await conn.run_sync(Base.metadata.create_all)
             await conn.execute(text(
                 "ALTER TABLE participants "
-                "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT true"
+                "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT false"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE participants "
+                "ALTER COLUMN auto_approve SET DEFAULT false"
             ))
             await conn.execute(text(
                 "ALTER TABLE participants "
@@ -195,6 +201,14 @@ class Database:
                 "ALTER TABLE votes "
                 "ADD COLUMN IF NOT EXISTS voted_at double precision NOT NULL DEFAULT 0"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_history jsonb"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_depth varchar(16) NOT NULL DEFAULT 'extended'"
+            ))
         return True
 
     async def disconnect(self):
@@ -221,6 +235,8 @@ class Database:
             "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
+            "common_ground_history": getattr(session, "common_ground_history", []) or [],
+            "common_ground_depth": getattr(session, "common_ground_depth", "extended") or "extended",
         }
 
     async def _ensure_session(self, db, session):
@@ -255,6 +271,21 @@ class Database:
             return
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
+            await db.commit()
+
+    async def save_common_ground(self, session):
+        if not self.enabled or session is None:
+            return
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    common_ground_history=getattr(session, "common_ground_history", []) or [],
+                    common_ground_depth=getattr(session, "common_ground_depth", "extended") or "extended",
+                )
+            )
             await db.commit()
 
     async def update_round(self, session_id: str, current_round: int):
@@ -512,6 +543,8 @@ class Database:
             "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
+            "common_ground_history": getattr(row, "common_ground_history", None) or [],
+            "common_ground_depth": getattr(row, "common_ground_depth", None) or "extended",
             "transcript": [t.payload for t in transcript],
             "statements": statement_payloads,
             "members": {
