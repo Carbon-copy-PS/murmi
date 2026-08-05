@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "generatorVersion": "1.14.0",
+  "locale": "en",
+  "session": "479D4D",
+  "topic": "Generating and distributing AI content unsuitable for children and young people",
+  "aggregateOnly": true,
+  "counts": {
+    "participantsWithVotes": 71,
+    "statements": 24,
+    "responses": 1028,
+    "support": 785,
+    "neutral": 159,
+    "oppose": 84
+  },
+  "opinionGroupAnalysis": {
+    "method": "Pol.is-inspired static analysis; not official Pol.is output",
+    "status": "withheld",
+    "eligibleParticipants": 54,
+    "excludedParticipants": 17,
+    "minimumVotes": 7,
+    "explainedVariancePct": 28.06266099666552,
+    "pcaAxisVariancePct": [
+      14.503772940520884,
+      13.558888056144639
+    ],
+    "softTendencyMethod": "Deterministic fuzzy c-means on the first two PCA dimensions",
+    "softTendencyCount": 3,
+    "softTendencyOverlapThreshold": 0.2,
+    "participantsWithMultipleSoftTendencies": 15,
+    "statementBootstrapMedianAdjustedRand": 0.22473175202517198,
+    "statementBootstrapReplicates": 100,
+    "statementBootstrapThresholdPasses": 0
+  },
+  "files": [
+    {
+      "file": "index.html",
+      "bytes": 109192,
+      "sha256": "5e8144d275846c56233ad99d470b49dba3b015f83ffbc1221f1e1641419df601"
+    },
+    {
+      "file": "README.txt",
+      "bytes": 758,
+      "sha256": "57c5bd8681eea528447900597f057e2bc78dcadfd1548483c03bfab2b5a350fd"
+    },
+    {
+      "file": "assets/01-key-statements.svg",
+      "bytes": 11257,
+      "sha256": "4d9b412808824945ec691497619a87f773e2ad801fd48f1a4e7defec4326f707"
+    },
+    {
+      "file": "assets/01-key-statements.png",
+      "bytes": 145196,
+      "sha256": "592d4f56b04752b392473aaf50dd501a564555f191764a3858c59a63b5603318"
+    },
+    {
+      "file": "assets/02-pause-map.svg",
+      "bytes": 6055,
+      "sha256": "332ad26343efc6826eb4d8bcd8dae7452e5627754735b42c8b4c76f81e692d15"
+    },
+    {
+      "file": "assets/02-pause-map.png",
+      "bytes": 129814,
+      "sha256": "a37b4020346aebdb91f1764b1a8a22b67e9992e2b12bd12caf497f61d44dc4af"
+    },
+    {
+      "file": "assets/03-theme-map.svg",
+      "bytes": 9304,
+      "sha256": "7c81e7b50d10065a16533bd71bd8c054add610aa27ce2a76a2e0e4368230e22e"
+    },
+    {
+      "file": "assets/03-theme-map.png",
+      "bytes": 145247,
+      "sha256": "5e8ab02dfe1c32362c321d40a64b604ed2a66c11bfafb5929f2fc1597fb63dd1"
+    },
+    {
+      "file": "assets/04-overlap-mosaics.svg",
+      "bytes": 5986,
+      "sha256": "ac7ba2b16ad5aae8f0b94bb8ccdeff6bffd1daed33580dc1d85d434f454b510c"
+    },
+    {
+      "file": "assets/04-overlap-mosaics.png",
+      "bytes": 158342,
+      "sha256": "6f7166ecd67ae4bb3efbd8c3fb572bcf87e0694b57a886809052d6d4676746ff"
+    },
+    {
+      "file": "assets/05-response-coverage.svg",
+      "bytes": 9559,
+      "sha256": "62a66632b4e352ba20b73f798d3b131b024d2b257b73dc030ab24c8473de6c10"
+    },
+    {
+      "file": "assets/05-response-coverage.png",
+      "bytes": 92840,
+      "sha256": "74263b3076d6aa914e6d2e0a33a1b677a5f71e9db70cd23cf5873d635b787046"
+    },
+    {
+      "file": "assets/06-opinion-landscape.svg",
+      "bytes": 8144,
+      "sha256": "659c4770b7be0a97bfe26aaae05931cceb5dd33ae17d6b46e30352557da22418"
+    },
+    {
+      "file": "assets/06-opinion-landscape.png",
+      "bytes": 165966,
+      "sha256": "db8dc21e97782d315ff9255b5dd7cec8803f6d7b3f8f9fe3aa461b2677c58260"
+    }
+  ]
+}

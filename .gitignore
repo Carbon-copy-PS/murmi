@@ -6,3 +6,20 @@ dist/
 .venv/
 venv/
 *.egg-info/
+
+# Local analysis data contains participant identifiers and individual vote
+# patterns. Keep the reproducible tooling tracked, but never commit session data.
+data-analysis/sessions/
+data-analysis/reports/*
+!data-analysis/reports/479D4D/
+!data-analysis/reports/479D4D/**
+
+# Local review output and source exports are not publication artifacts.
+artifacts/
+data-analysis/screenshots/
+docs/polis-example/
+frontend/public/recovered-ramen-report.html
+
+# Keep locally licensed font binaries out of Git. Published reports use
+# repository-safe system font stacks and do not embed these files.
+data-analysis/fonts/
