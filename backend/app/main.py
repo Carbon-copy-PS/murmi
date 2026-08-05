@@ -130,7 +130,7 @@ async def lifespan(_app: FastAPI):
         await db.disconnect()
 
 
-app = FastAPI(title="HearTheRoom", lifespan=lifespan)
+app = FastAPI(title="Murmi", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -1257,22 +1257,23 @@ def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
     import html as _html
 
     title = _html.escape(topic) if topic else "Live results"
-    full_title = f"{title} · HearTheRoom"
+    full_title = f"{title} · Murmi"
     desc = "See the live opinion map, common ground and open tensions from this conversation."
     url = f"/r/{_html.escape(public_id, quote=True)}"
+    default_desc = "Better group decisions at the speed of conversation. Murmi turns live discussion into clear claims and shared understanding."
 
     replacements = {
-        '<meta property="og:title" content="HearTheRoom" />':
+        '<meta property="og:title" content="Murmi" />':
             f'<meta property="og:title" content="{full_title}" />',
-        '<meta property="og:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta property="og:description" content="{default_desc}" />':
             f'<meta property="og:description" content="{desc}" />',
-        '<meta name="twitter:title" content="HearTheRoom" />':
+        '<meta name="twitter:title" content="Murmi" />':
             f'<meta name="twitter:title" content="{full_title}" />',
-        '<meta name="twitter:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta name="twitter:description" content="{default_desc}" />':
             f'<meta name="twitter:description" content="{desc}" />',
-        '<meta name="description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta name="description" content="{default_desc}" />':
             f'<meta name="description" content="{desc}" />',
-        "<title>HearTheRoom</title>":
+        "<title>Murmi</title>":
             f"<title>{full_title}</title>",
     }
     for old, new in replacements.items():

@@ -85,7 +85,7 @@ function EditIcon() {
   )
 }
 
-export default function HearRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
+export default function SessionRoom({ sessionId, userName, userLanguage, wantsHost, onLeave }) {
   const { t, i18n } = useTranslation()
   const [connStatus, setConnStatus] = useState('connecting')
   const connected = connStatus === 'live'

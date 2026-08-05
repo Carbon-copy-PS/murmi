@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import i18n from './i18n'
 import SessionJoin from './components/SessionJoin'
-import HearRoom from './components/hear-room'
+import SessionRoom from './components/session-room'
 import { getSavedSession, saveSession, clearSession } from './identity'
 
 export default function App() {
@@ -26,7 +26,7 @@ export default function App() {
   }
 
   return (
-    <HearRoom
+    <SessionRoom
       sessionId={session.sessionId}
       userName={session.userName}
       userLanguage={session.userLanguage}
