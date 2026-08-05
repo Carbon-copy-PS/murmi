@@ -89,7 +89,7 @@ const FEATURES = [
   {
     icon: '🔒',
     title: 'Anonymous voting',
-    text: 'Individual votes are never tied to a name. Results only ever show as group patterns.',
+    text: 'Individual votes are shown as group patterns in results. Export vote counts per statement from the Results tab.',
   },
   {
     icon: '🌍',

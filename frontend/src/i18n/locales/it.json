@@ -51,11 +51,16 @@
   },
   "errors": {
     "captionsUnavailable": "Sottotitoli in tempo reale non disponibili",
+    "openaiQuotaExhausted": "La trascrizione non è disponibile perché i crediti OpenAI di questo server sono esauriti. Aggiungi crediti su platform.openai.com oppure usa trascrizioni mock per i test locali.",
     "micBlocked": "L'accesso al microfono è bloccato per il registratore host.",
+    "micBlockedHelp": "L'accesso al microfono è bloccato. Fai clic sull'icona del lucchetto o delle impostazioni nella barra degli indirizzi, consenti il microfono per questo sito, poi premi di nuovo Registra.",
+    "micMuted": "Il microfono è disattivato. Riattivalo nelle impostazioni di sistema o nel browser, poi premi di nuovo Registra.",
     "cgFailed": "Impossibile generare un terreno comune.",
     "cgTimeout": "Tempo scaduto nella generazione del terreno comune. Riprova.",
     "tensionsFailed": "Impossibile generare le tensioni.",
-    "tensionsTimeout": "Tempo scaduto nella generazione delle tensioni. Riprova."
+    "tensionsTimeout": "Tempo scaduto nella generazione delle tensioni. Riprova.",
+    "recommendationsFailed": "Impossibile generare le raccomandazioni.",
+    "recommendationsTimeout": "Tempo scaduto nella generazione delle raccomandazioni. Riprova."
   },
   "confirm": {
     "revokeHostTitle": "Revocare l'accesso host?",
@@ -104,7 +109,18 @@
     "emptyList": "Gli enunciati appariranno con il procedere della discussione",
     "live": "In diretta",
     "allCaughtUp": "Tutto aggiornato — in attesa di altri enunciati",
-    "yourVotes": "I tuoi voti"
+    "yourVotes": "I tuoi voti",
+    "allStatements": "Tutti gli enunciati",
+    "voteOnStatements": "Vota sugli enunciati",
+    "voteCount": "{{agrees}} d'accordo · {{disagrees}} in disaccordo · {{total}} voti",
+    "deleteStatement": "Elimina enunciato",
+    "deleteConfirmTitle": "Eliminare questo enunciato?",
+    "deleteConfirmMessage": "Questo enunciato verrà rimosso per tutti i partecipanti.",
+    "deleteConfirmWithVotes": "Questo enunciato ha {{count}} voti. Eliminandolo, verranno rimossi per tutti.",
+    "searchPlaceholder": "Cerca testo, autore, tag, voti…",
+    "searchAria": "Cerca enunciati",
+    "clearSearch": "Cancella ricerca",
+    "noSearchResults": "Nessun enunciato corrisponde"
   },
   "swipe": {
     "of": "di {{total}}",
@@ -206,7 +222,12 @@
     "vote": "Voto",
     "voteQuestion": "I partecipanti sono d'accordo con questo terreno comune?",
     "agreePct": "{{count}} a favore ({{pct}}%)",
-    "disagreePct": "{{count}} contrari ({{pct}}%)"
+    "disagreePct": "{{count}} contrari ({{pct}}%)",
+    "rawVotesTitle": "Dati di voto grezzi",
+    "rawVotesHint": "Una riga per affermazione con conteggi per opzione di voto",
+    "rawVotesEmpty": "Carica i risultati per esportare i voti grezzi",
+    "rawVotesCsv": "Voti grezzi CSV",
+    "rawVotesJson": "Voti grezzi JSON"
   },
   "cg": {
     "title": "Terreno comune IA",
@@ -404,6 +425,34 @@
     "searchPlaceholder": "Cerca lingue…",
     "noMatch": "Nessuna lingua corrisponde a “{{query}}”"
   },
+  "recommendations": {
+    "title": "Raccomandazioni",
+    "progressAria": "Progresso",
+    "ready": "{{count}} pronte",
+    "lead": "Suggerimenti dell'IA dalla discussione e dai voti — pubblica i punti divisivi come nuove affermazioni votabili.",
+    "stepConfigure": "1 · Configura",
+    "stepReview": "2 · Rivedi",
+    "stepGoLive": "3 · Vai live",
+    "mostDivisive": "I più divisivi nella stanza",
+    "currentTensions": "Affermazioni di tensione attuali",
+    "split": "{{pct}}% diviso",
+    "howMany": "Quanti punti divisivi?",
+    "numberOf": "Numero di punti divisivi",
+    "generating": "Generazione…",
+    "generate_one": "Genera {{count}} raccomandazione",
+    "generate_other": "Genera {{count}} raccomandazioni",
+    "drafting": "L'IA sta preparando raccomandazioni da discussione e voti…",
+    "reviewTitle": "Rivedi le raccomandazioni",
+    "regenerate": "Rigenera",
+    "unexploredTopics": "Temi inesplorati",
+    "divisiveIssues": "Punti divisivi",
+    "proposedSolutions": "Soluzioni proposte",
+    "emptyCategory": "Nessun elemento in questa categoria.",
+    "tag": "Tensione",
+    "removeDraft": "Rimuovi bozza",
+    "discard": "Scarta",
+    "pushToLive": "Pubblica {{count}} in live"
+  },
   "tension": {
     "surface": "Fai emergere le tensioni aperte",
     "progressAria": "Avanzamento",
@@ -413,6 +462,7 @@
     "stepReview": "2 · Rivedi",
     "stepGoLive": "3 · Vai in diretta",
     "mostDivisive": "Più divisivi nella stanza",
+    "currentTensions": "Affermazioni di tensione attuali",
     "split": "{{pct}}% divisi",
     "howMany": "Quante tensioni?",
     "numberOf": "Numero di tensioni",

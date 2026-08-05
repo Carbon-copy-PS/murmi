@@ -51,11 +51,16 @@
   },
   "errors": {
     "captionsUnavailable": "Echtzeit-Untertitel nicht verfügbar",
+    "openaiQuotaExhausted": "Transkription ist nicht verfügbar, weil das OpenAI-Guthaben dieses Servers aufgebraucht ist. Guthaben auf platform.openai.com aufladen oder Mock-Transkripte für lokale Tests verwenden.",
     "micBlocked": "Mikrofonzugriff ist für den Host-Recorder blockiert.",
+    "micBlockedHelp": "Mikrofonzugriff ist blockiert. Klicke auf das Schloss- oder Einstellungssymbol in der Adressleiste, erlaube das Mikrofon für diese Seite und drücke erneut Aufnahme.",
+    "micMuted": "Dein Mikrofon ist stummgeschaltet. Schalte es in den Systemeinstellungen oder im Browser ein und drücke erneut Aufnahme.",
     "cgFailed": "Gemeinsamer Nenner konnte nicht erstellt werden.",
     "cgTimeout": "Zeitüberschreitung beim Erstellen des gemeinsamen Nenners. Bitte erneut versuchen.",
     "tensionsFailed": "Spannungen konnten nicht erstellt werden.",
-    "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen."
+    "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen.",
+    "recommendationsFailed": "Empfehlungen konnten nicht erstellt werden.",
+    "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen."
   },
   "confirm": {
     "revokeHostTitle": "Host-Zugriff entziehen?",
@@ -104,7 +109,18 @@
     "emptyList": "Aussagen erscheinen im Verlauf der Diskussion",
     "live": "Live",
     "allCaughtUp": "Alles erledigt — warte auf weitere Aussagen",
-    "yourVotes": "Deine Stimmen"
+    "yourVotes": "Deine Stimmen",
+    "allStatements": "Alle Aussagen",
+    "voteOnStatements": "Über Aussagen abstimmen",
+    "voteCount": "{{agrees}} zustimmend · {{disagrees}} ablehnend · {{total}} Stimmen",
+    "deleteStatement": "Aussage löschen",
+    "deleteConfirmTitle": "Diese Aussage löschen?",
+    "deleteConfirmMessage": "Diese Aussage wird für alle in der Sitzung entfernt.",
+    "deleteConfirmWithVotes": "Diese Aussage hat {{count}} Stimmen. Beim Löschen werden diese für alle entfernt.",
+    "searchPlaceholder": "Text, Autor, Tags, Stimmen suchen…",
+    "searchAria": "Aussagen suchen",
+    "clearSearch": "Suche löschen",
+    "noSearchResults": "Keine passenden Aussagen"
   },
   "swipe": {
     "of": "von {{total}}",
@@ -206,7 +222,12 @@
     "vote": "Abstimmung",
     "voteQuestion": "Stimmen die Teilnehmenden diesem gemeinsamen Nenner zu?",
     "agreePct": "{{count}} dafür ({{pct}}%)",
-    "disagreePct": "{{count}} dagegen ({{pct}}%)"
+    "disagreePct": "{{count}} dagegen ({{pct}}%)",
+    "rawVotesTitle": "Rohstimmdaten",
+    "rawVotesHint": "Eine Zeile pro Aussage mit Stimmenzahlen pro Option",
+    "rawVotesEmpty": "Ergebnisse laden, um Rohstimmen zu exportieren",
+    "rawVotesCsv": "Rohstimmen CSV",
+    "rawVotesJson": "Rohstimmen JSON"
   },
   "cg": {
     "title": "KI-Nenner",
@@ -404,6 +425,34 @@
     "searchPlaceholder": "Sprachen suchen…",
     "noMatch": "Keine Sprachen passen zu „{{query}}“"
   },
+  "recommendations": {
+    "title": "Empfehlungen",
+    "progressAria": "Fortschritt",
+    "ready": "{{count}} bereit",
+    "lead": "KI-Vorschläge aus Diskussion und Stimmensplits — veröffentliche umstrittene Punkte als neue Aussagen zur Abstimmung.",
+    "stepConfigure": "1 · Konfigurieren",
+    "stepReview": "2 · Prüfen",
+    "stepGoLive": "3 · Live gehen",
+    "mostDivisive": "Am umstrittensten im Raum",
+    "currentTensions": "Aktuelle Spannungs-Aussagen",
+    "split": "{{pct}}% geteilt",
+    "howMany": "Wie viele umstrittene Punkte?",
+    "numberOf": "Anzahl umstrittener Punkte",
+    "generating": "Wird erstellt…",
+    "generate_one": "{{count}} Empfehlung erstellen",
+    "generate_other": "{{count}} Empfehlungen erstellen",
+    "drafting": "Die KI erstellt Empfehlungen aus Diskussion und Stimmensplits…",
+    "reviewTitle": "Empfehlungen prüfen",
+    "regenerate": "Neu erstellen",
+    "unexploredTopics": "Unerschlossene Themen",
+    "divisiveIssues": "Umstrittene Punkte",
+    "proposedSolutions": "Lösungsvorschläge",
+    "emptyCategory": "Keine Einträge in dieser Kategorie.",
+    "tag": "Spannung",
+    "removeDraft": "Entwurf entfernen",
+    "discard": "Verwerfen",
+    "pushToLive": "{{count}} live schalten"
+  },
   "tension": {
     "surface": "Offene Spannungen aufzeigen",
     "progressAria": "Fortschritt",
@@ -413,6 +462,7 @@
     "stepReview": "2 · Prüfen",
     "stepGoLive": "3 · Live gehen",
     "mostDivisive": "Am umstrittensten im Raum",
+    "currentTensions": "Aktuelle Spannungs-Aussagen",
     "split": "{{pct}}% geteilt",
     "howMany": "Wie viele Spannungen?",
     "numberOf": "Anzahl der Spannungen",

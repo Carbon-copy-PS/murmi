@@ -51,11 +51,16 @@
   },
   "errors": {
     "captionsUnavailable": "Realtime captions unavailable",
+    "openaiQuotaExhausted": "Transcription is unavailable because the OpenAI API credits for this server are exhausted. Add credits at platform.openai.com, or use mock transcript injection for local testing.",
     "micBlocked": "Microphone access is blocked for the host recorder.",
+    "micBlockedHelp": "Microphone access is blocked. Click the lock or tune icon in your browser’s address bar, allow the microphone for this site, then press Record again.",
+    "micMuted": "Your microphone is muted. Unmute it in system settings or your browser, then press Record again.",
     "cgFailed": "Could not generate common ground.",
     "cgTimeout": "Timed out generating common ground. Please try again.",
     "tensionsFailed": "Could not generate tensions.",
-    "tensionsTimeout": "Timed out generating tensions. Please try again."
+    "tensionsTimeout": "Timed out generating tensions. Please try again.",
+    "recommendationsFailed": "Could not generate recommendations.",
+    "recommendationsTimeout": "Timed out generating recommendations. Please try again."
   },
   "confirm": {
     "revokeHostTitle": "Revoke host access?",
@@ -104,7 +109,18 @@
     "emptyList": "Statements will appear as the discussion progresses",
     "live": "Live",
     "allCaughtUp": "All caught up — waiting for more statements",
-    "yourVotes": "Your votes"
+    "yourVotes": "Your votes",
+    "allStatements": "All statements",
+    "voteOnStatements": "Vote on statements",
+    "voteCount": "{{agrees}} agree · {{disagrees}} disagree · {{total}} votes",
+    "deleteStatement": "Delete statement",
+    "deleteConfirmTitle": "Delete this statement?",
+    "deleteConfirmMessage": "This statement will be removed for everyone in the session.",
+    "deleteConfirmWithVotes": "This statement has {{count}} votes. Deleting it will remove those votes for everyone.",
+    "searchPlaceholder": "Search text, author, tags, votes…",
+    "searchAria": "Search statements",
+    "clearSearch": "Clear search",
+    "noSearchResults": "No statements match your search"
   },
   "swipe": {
     "of": "of {{total}}",
@@ -206,7 +222,12 @@
     "vote": "Vote",
     "voteQuestion": "Do participants agree with this common ground?",
     "agreePct": "{{count}} agree ({{pct}}%)",
-    "disagreePct": "{{count}} disagree ({{pct}}%)"
+    "disagreePct": "{{count}} disagree ({{pct}}%)",
+    "rawVotesTitle": "Raw vote data",
+    "rawVotesHint": "One row per statement with vote counts per option",
+    "rawVotesEmpty": "Load results to export raw votes",
+    "rawVotesCsv": "Raw votes CSV",
+    "rawVotesJson": "Raw votes JSON"
   },
   "cg": {
     "title": "AI common ground",
@@ -404,6 +425,34 @@
     "searchPlaceholder": "Search languages…",
     "noMatch": "No languages match “{{query}}”"
   },
+  "recommendations": {
+    "title": "Recommendations",
+    "progressAria": "Progress",
+    "ready": "{{count}} ready",
+    "lead": "AI suggestions from the discussion and vote splits — publish divisive issues as new statements for the room to vote on.",
+    "stepConfigure": "1 · Configure",
+    "stepReview": "2 · Review",
+    "stepGoLive": "3 · Go live",
+    "mostDivisive": "Most divisive in the room",
+    "currentTensions": "Current tension statements",
+    "split": "{{pct}}% split",
+    "howMany": "How many divisive issues?",
+    "numberOf": "Number of divisive issues",
+    "generating": "Generating…",
+    "generate_one": "Generate {{count}} recommendation",
+    "generate_other": "Generate {{count}} recommendations",
+    "drafting": "AI is drafting recommendations from the discussion and vote splits…",
+    "reviewTitle": "Review recommendations",
+    "regenerate": "Regenerate",
+    "unexploredTopics": "Unexplored topics",
+    "divisiveIssues": "Divisive issues",
+    "proposedSolutions": "Proposed solutions",
+    "emptyCategory": "No items in this category.",
+    "tag": "Tension",
+    "removeDraft": "Remove draft",
+    "discard": "Discard",
+    "pushToLive": "Push {{count}} to live"
+  },
   "tension": {
     "surface": "Surface open tensions",
     "progressAria": "Progress",
@@ -413,6 +462,7 @@
     "stepReview": "2 · Review",
     "stepGoLive": "3 · Go live",
     "mostDivisive": "Most divisive in the room",
+    "currentTensions": "Current tension statements",
     "split": "{{pct}}% split",
     "howMany": "How many tensions?",
     "numberOf": "Number of tensions",

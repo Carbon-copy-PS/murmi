@@ -29,8 +29,6 @@ const noop = () => {}
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
-const SPEECH_RMS_THRESHOLD = 0.008
-const TRAILING_SILENCE_FRAMES = 7
 const AUTO_APPROVE_MS = 5000
 
 function resampleBuffer(buffer, inputRate, outputRate) {
@@ -72,13 +70,6 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary)
 }
 
-function rmsLevel(samples) {
-  if (!samples.length) return 0
-  let sum = 0
-  for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i]
-  return Math.sqrt(sum / samples.length)
-}
-
 function EditIcon() {
   return (
     <svg className="field-edit-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
@@ -118,7 +109,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [votingActivity, setVotingActivity] = useState([])
   const [showShare, setShowShare] = useState(false)
   const [confirm, setConfirm] = useState(null)
-  const [autoApprove, setAutoApprove] = useState(true)
+  const [autoApprove, setAutoApprove] = useState(false)
   const [canAddStatement, setCanAddStatement] = useState(true)
   const [defaultCanAddStatement, setDefaultCanAddStatement] = useState(true)
   const [statementSubmitted, setStatementSubmitted] = useState(false)
@@ -130,9 +121,9 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   const [cgError, setCgError] = useState(null)
   const [cgPopup, setCgPopup] = useState(null)
   const cgSeenIdsRef = useRef(new Set())
-  const [tensionsPending, setTensionsPending] = useState(false)
-  const [tensionsError, setTensionsError] = useState(null)
-  const [tensionDrafts, setTensionDrafts] = useState(null)
+  const [recommendationsPending, setRecommendationsPending] = useState(false)
+  const [recommendationsError, setRecommendationsError] = useState(null)
+  const [recommendationDrafts, setRecommendationDrafts] = useState(null)
   const [participants, setParticipants] = useState([])
   const [presence, setPresence] = useState({ here: 0, votingNow: 0 })
   const [displayName, setDisplayName] = useState(userName)
@@ -147,7 +138,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
 
   const approveTimersRef = useRef(new Map())
   const cgTimeoutRef = useRef(null)
-  const tensionsTimeoutRef = useRef(null)
+  const recommendationsTimeoutRef = useRef(null)
 
   const tabsWrapRef = useRef(null)
   const tabsScrollRef = useRef(null)
@@ -158,12 +149,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
   onLeaveRef.current = onLeave
   const streamRef = useRef(null)
   const audioContextRef = useRef(null)
+  const audioCleanupRef = useRef(null)
+  const ensureMicPipelineRef = useRef(async () => {})
   const recordingRef = useRef(false)
   const participantIdRef = useRef(null)
   const isHostRef = useRef(false)
   const isRecorderRef = useRef(false)
-  const silenceFramesRef = useRef(0)
-  const speechStartedRef = useRef(false)
 
   const unvotedCount = statements.filter((s) => s.approved && !s.hasVoted).length
   const pendingCount = statements.filter((s) => !s.approved).length
@@ -266,7 +257,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
       timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
       if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
-      if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
+      if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
     }
   }, [])
 
@@ -317,6 +308,11 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           if (msg.recording) {
             setRecording(true)
             recordingRef.current = true
+            if (recorder) {
+              ensureMicPipelineRef.current().catch(() => {
+                setCaptionError(t('errors.micBlockedHelp'))
+              })
+            }
           }
           break
         }
@@ -381,16 +377,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setRecording(true)
           setVoteTypeLocked(true)
           recordingRef.current = true
-          speechStartedRef.current = false
-          silenceFramesRef.current = 0
-          setCaptionError('')
+          if (isRecorderRef.current) {
+            ensureMicPipelineRef.current().catch(() => {
+              setCaptionError(t('errors.micBlockedHelp'))
+            })
+          }
           notify(APP_NAME, t('notify.recordingStarted'), { tag: 'recording', duration: 4000 })
           break
         case 'recording_stopped':
           setRecording(false)
           recordingRef.current = false
-          speechStartedRef.current = false
-          silenceFramesRef.current = 0
           setPartialCaption(null)
           notify(APP_NAME, t('notify.recordingStopped'), { tag: 'recording', duration: 4000 })
           break
@@ -441,7 +437,16 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setStatements((prev) =>
             prev.map((s) =>
               s.id === msg.statementId
-                ? { ...s, agrees: msg.agrees, disagrees: msg.disagrees, hasVoted: msg.hasVoted, myVote: msg.myVote }
+                ? {
+                    ...s,
+                    agrees: msg.agrees,
+                    disagrees: msg.disagrees,
+                    hasVoted: msg.hasVoted,
+                    myVote: msg.myVote,
+                    lastVoteAt: typeof msg.lastVoteAt === 'number'
+                      ? msg.lastVoteAt
+                      : (s.lastVoteAt || Date.now() / 1000),
+                  }
                 : s
             )
           )
@@ -480,19 +485,23 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           setCgPendingDepth(null)
           setCgError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.cgFailed')))
           break
-        case 'tensions_pending':
-          setTensionsPending(true)
-          setTensionsError(null)
+        case 'recommendations_pending':
+          setRecommendationsPending(true)
+          setRecommendationsError(null)
           break
-        case 'tensions_draft':
-          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-          setTensionsPending(false)
-          setTensionDrafts(msg.tensions || [])
+        case 'recommendations_draft':
+          if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+          setRecommendationsPending(false)
+          setRecommendationDrafts({
+            unexploredTopics: msg.unexploredTopics || [],
+            divisiveIssues: msg.divisiveIssues || [],
+            proposedSolutions: msg.proposedSolutions || [],
+          })
           break
-        case 'tensions_error':
-          if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-          setTensionsPending(false)
-          setTensionsError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.tensionsFailed')))
+        case 'recommendations_error':
+          if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+          setRecommendationsPending(false)
+          setRecommendationsError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.recommendationsFailed')))
           break
       }
   }
@@ -513,102 +522,124 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     }
   }, [sessionId])
 
-  useEffect(() => {
-    let cleanup = null
-    let disposed = false
-    async function initAudio() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        })
-        if (disposed) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
+  function teardownMic() {
+    audioCleanupRef.current?.()
+    audioCleanupRef.current = null
+    streamRef.current = null
+    audioContextRef.current = null
+  }
+
+  async function ensureMicPipeline() {
+    if (streamRef.current && audioContextRef.current) {
+      const track = streamRef.current.getAudioTracks()[0]
+      if (track?.readyState === 'live' && !track.muted) {
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume()
         }
-        streamRef.current = stream
-
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext
-        const audioContext = new AudioContextClass({ sampleRate: REALTIME_SAMPLE_RATE })
-        audioContextRef.current = audioContext
-        const source = audioContext.createMediaStreamSource(stream)
-        const analyser = audioContext.createAnalyser()
-        const processor = audioContext.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
-        const silentOutput = audioContext.createGain()
-        analyser.fftSize = 256
-        silentOutput.gain.value = 0
-        source.connect(analyser)
-        source.connect(processor)
-        processor.connect(silentOutput)
-        silentOutput.connect(audioContext.destination)
-
-        const dataArray = new Uint8Array(analyser.frequencyBinCount)
-        const interval = setInterval(() => {
-          analyser.getByteFrequencyData(dataArray)
-          const level = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({ type: 'audio_level', level }))
-          }
-        }, 200)
-
-        processor.onaudioprocess = (event) => {
-          if (!isRecorderRef.current) return
-          if (!recordingRef.current) return
-          if (wsRef.current?.readyState !== WebSocket.OPEN) return
-
-          const input = event.inputBuffer.getChannelData(0)
-          const resampled = resampleBuffer(input, audioContext.sampleRate, REALTIME_SAMPLE_RATE)
-          const rms = rmsLevel(resampled)
-          if (rms < SPEECH_RMS_THRESHOLD) {
-            if (!speechStartedRef.current) return
-            if (silenceFramesRef.current >= TRAILING_SILENCE_FRAMES) {
-              speechStartedRef.current = false
-              return
-            }
-            silenceFramesRef.current += 1
-          } else {
-            speechStartedRef.current = true
-            silenceFramesRef.current = 0
-          }
-          const pcm16 = encodePcm16(resampled)
-          wsRef.current.send(JSON.stringify({
-            type: 'audio_frame',
-            audio: arrayBufferToBase64(pcm16),
-          }))
-        }
-
-        cleanup = () => {
-          clearInterval(interval)
-          processor.disconnect()
-          silentOutput.disconnect()
-          stream.getTracks().forEach((t) => t.stop())
-          audioContext.close()
-          streamRef.current = null
-          audioContextRef.current = null
-        }
-      } catch (err) {
-        console.error('Mic access denied:', err)
-        setCaptionError(t('errors.micBlocked'))
+        setCaptionError('')
+        return
       }
+      teardownMic()
     }
-    if (!isRecorder || !recording) return undefined
-    initAudio()
-    return () => {
-      disposed = true
-      cleanup?.()
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    })
+
+    const track = stream.getAudioTracks()[0]
+    if (!track || track.readyState !== 'live') {
+      stream.getTracks().forEach((t) => t.stop())
+      throw new Error('Microphone unavailable')
     }
-  }, [isRecorder, recording])
+
+    streamRef.current = stream
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    const audioContext = new AudioContextClass({ sampleRate: REALTIME_SAMPLE_RATE })
+    audioContextRef.current = audioContext
+    const source = audioContext.createMediaStreamSource(stream)
+    const analyser = audioContext.createAnalyser()
+    const processor = audioContext.createScriptProcessor(AUDIO_BUFFER_SIZE, 1, 1)
+    const silentOutput = audioContext.createGain()
+    analyser.fftSize = 256
+    silentOutput.gain.value = 0
+    source.connect(analyser)
+    source.connect(processor)
+    processor.connect(silentOutput)
+    silentOutput.connect(audioContext.destination)
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount)
+    const interval = setInterval(() => {
+      analyser.getByteFrequencyData(dataArray)
+      const level = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'audio_level', level }))
+      }
+    }, 200)
+
+    processor.onaudioprocess = (event) => {
+      if (!isRecorderRef.current) return
+      if (!recordingRef.current) return
+      if (wsRef.current?.readyState !== WebSocket.OPEN) return
+
+      const input = event.inputBuffer.getChannelData(0)
+      const resampled = resampleBuffer(input, audioContext.sampleRate, REALTIME_SAMPLE_RATE)
+      const pcm16 = encodePcm16(resampled)
+      wsRef.current.send(JSON.stringify({
+        type: 'audio_frame',
+        audio: arrayBufferToBase64(pcm16),
+      }))
+    }
+
+    track.onmute = () => setCaptionError(t('errors.micMuted'))
+    track.onunmute = () => {
+      if (recordingRef.current) setCaptionError('')
+    }
+
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume()
+    }
+
+    audioCleanupRef.current = () => {
+      clearInterval(interval)
+      track.onmute = null
+      track.onunmute = null
+      processor.disconnect()
+      silentOutput.disconnect()
+      stream.getTracks().forEach((t) => t.stop())
+      audioContext.close()
+    }
+
+    setCaptionError('')
+  }
+
+  ensureMicPipelineRef.current = ensureMicPipeline
+
+  useEffect(() => {
+    if (!isRecorder) {
+      teardownMic()
+    }
+  }, [isRecorder])
 
   async function toggleRecording() {
     if (!isRecorder) return
-    if (audioContextRef.current?.state === 'suspended') {
-      await audioContextRef.current.resume()
+    const nextRecording = !recording
+    if (nextRecording) {
+      try {
+        await ensureMicPipeline()
+      } catch (err) {
+        console.error('Failed to start microphone:', err)
+        setCaptionError(t('errors.micBlockedHelp'))
+        notify(APP_NAME, t('errors.micBlockedHelp'), { tag: 'mic-blocked', force: true })
+        return
+      }
     }
-    wsRef.current?.send(JSON.stringify({ type: 'set_recording', recording: !recording }))
+    wsRef.current?.send(JSON.stringify({ type: 'set_recording', recording: nextRecording }))
   }
 
   function handleVote(statementId, vote) {
@@ -809,27 +840,43 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
     wsRef.current?.send(JSON.stringify({ type: 'edit_statement', statementId, text }))
   }
 
-  function requestTensions(count, analysis) {
+  function handleDeleteStatement(statement) {
+    const voteTotal = (statement.agrees || 0) + (statement.disagrees || 0)
+    setConfirm({
+      title: t('statements.deleteConfirmTitle'),
+      message: voteTotal > 0
+        ? t('statements.deleteConfirmWithVotes', { count: voteTotal })
+        : t('statements.deleteConfirmMessage'),
+      confirmLabel: t('statements.deleteStatement'),
+      danger: true,
+      onConfirm: () => {
+        wsRef.current?.send(JSON.stringify({ type: 'delete_statement', statementId: statement.id }))
+        if (view === 'results') requestResults()
+      },
+    })
+  }
+
+  function requestRecommendations(count, analysis) {
     if (!analysis) return
-    if (tensionsTimeoutRef.current) clearTimeout(tensionsTimeoutRef.current)
-    setTensionsPending(true)
-    setTensionsError(null)
-    wsRef.current?.send(JSON.stringify({ type: 'generate_tensions', count, analysis }))
-    tensionsTimeoutRef.current = setTimeout(() => {
-      setTensionsPending(false)
-      setTensionsError(t('errors.tensionsTimeout'))
+    if (recommendationsTimeoutRef.current) clearTimeout(recommendationsTimeoutRef.current)
+    setRecommendationsPending(true)
+    setRecommendationsError(null)
+    wsRef.current?.send(JSON.stringify({ type: 'generate_recommendations', count, analysis }))
+    recommendationsTimeoutRef.current = setTimeout(() => {
+      setRecommendationsPending(false)
+      setRecommendationsError(t('errors.recommendationsTimeout'))
     }, 60000)
   }
 
-  function publishTensions(texts) {
+  function publishRecommendations(texts) {
     wsRef.current?.send(JSON.stringify({ type: 'publish_tensions', texts }))
-    setTensionDrafts(null)
-    setTensionsError(null)
+    setRecommendationDrafts(null)
+    setRecommendationsError(null)
   }
 
-  function clearTensionDrafts() {
-    setTensionDrafts(null)
-    setTensionsError(null)
+  function clearRecommendationDrafts() {
+    setRecommendationDrafts(null)
+    setRecommendationsError(null)
   }
 
   function handleHold(statementId) {
@@ -1083,6 +1130,7 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onApprove={tourActive ? noop : handleApprove}
           onReject={tourActive ? noop : handleReject}
           onEditStatement={tourActive ? noop : handleEditStatement}
+          onDeleteStatement={tourActive ? noop : handleDeleteStatement}
           onAddStatement={tourActive ? noop : handleAddStatement}
           canAddStatement={canAddStatement}
           statementSubmitted={statementSubmitted}
@@ -1110,12 +1158,12 @@ export default function HearRoom({ sessionId, userName, userLanguage, wantsHost,
           onGenerateCommonGround={tourActive ? noop : requestCommonGround}
           onDismissCommonGround={tourActive ? noop : dismissCommonGround}
           onVoteCommonGround={tourActive ? noop : voteCommonGround}
-          tensionsPending={tourActive ? false : tensionsPending}
-          tensionsError={tourActive ? null : tensionsError}
-          tensionDrafts={tourActive ? null : tensionDrafts}
-          onGenerateTensions={tourActive ? noop : requestTensions}
-          onPublishTensions={tourActive ? noop : publishTensions}
-          onClearTensionDrafts={tourActive ? noop : clearTensionDrafts}
+          recommendationsPending={tourActive ? false : recommendationsPending}
+          recommendationsError={tourActive ? null : recommendationsError}
+          recommendationDrafts={tourActive ? null : recommendationDrafts}
+          onGenerateRecommendations={tourActive ? noop : requestRecommendations}
+          onPublishRecommendations={tourActive ? noop : publishRecommendations}
+          onClearRecommendationDrafts={tourActive ? noop : clearRecommendationDrafts}
         />
       )}
       {view === 'participants' && isHost && (
