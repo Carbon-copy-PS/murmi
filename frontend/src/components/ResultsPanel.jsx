@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CG_VOTE_REASON_MAX } from '../constants/common-ground-depth'
+import { CG_VOTE_REASON_MAX, resolveCgMode, isPolicyCommonGround } from '../constants/common-ground-mode'
 import RecommendationsPanel from './tension-generator'
 import { canGenerateRecommendations } from '../utils/recommendations-payload'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
@@ -498,6 +498,116 @@ function CgExtrasCollapsible({ data }) {
   )
 }
 
+function itemText(item) {
+  if (typeof item === 'string') return item
+  if (item && typeof item === 'object') return item.text || ''
+  return ''
+}
+
+function itemEvidenceIds(item) {
+  if (item && typeof item === 'object' && Array.isArray(item.evidenceIds)) {
+    return item.evidenceIds.filter(Boolean)
+  }
+  return []
+}
+
+function CgExtraList({ title, items, testId, showEvidence = false }) {
+  if (!items?.length) return null
+  return (
+    <div className="cg-extra" data-testid={testId}>
+      <span className="cg-extra-label">{title}</span>
+      <ul className="cg-extra-list">
+        {items.map((item, i) => {
+          const text = itemText(item)
+          const evidence = showEvidence ? itemEvidenceIds(item) : []
+          const preserved = item && typeof item === 'object' && item.preserved
+          return (
+            <li key={`${testId}-${item?.id || i}`} data-testid={`${testId}-${i}`}>
+              <span className="cg-extra-text">{text}</span>
+              {preserved && <span className="cg-preserved-tag">preserved</span>}
+              {evidence.length > 0 && (
+                <span className="cg-evidence-ids" data-testid={`${testId}-evidence-${i}`}>
+                  {evidence.join(', ')}
+                </span>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+function CgPolicyBody({ data }) {
+  const { t } = useTranslation()
+  const sections = [
+    { key: 'recommendations', title: t('cg.recommendations'), items: data.recommendations },
+    { key: 'essentialConditions', title: t('cg.essentialConditions'), items: data.essentialConditions },
+    { key: 'tradeoffs', title: t('cg.tradeoffs'), items: data.tradeoffs },
+    { key: 'unresolvedQuestions', title: t('cg.unresolvedQuestions'), items: data.unresolvedQuestions },
+  ].filter((s) => s.items?.length)
+  const concerns = data.endorsement?.remainingConcerns?.filter((c) => c?.reason) || []
+
+  return (
+    <div className="cg-policy-body" data-testid="cg-policy-body">
+      {(data.status || data.changeSummary || data.previousVersionId) && (
+        <div className="cg-policy-meta" data-testid="cg-policy-meta">
+          {data.status && (
+            <span className={`cg-status-badge status-${data.status}`} data-testid="cg-status">
+              {data.status === 'endorsed' ? t('cg.statusEndorsed') : t('cg.statusDraft')}
+            </span>
+          )}
+          {data.previousVersionId && (
+            <span className="cg-prev-version" data-testid="cg-prev-version">
+              {t('cg.basedOnPrevious', { id: data.previousVersionId })}
+            </span>
+          )}
+          {data.changeSummary && (
+            <p className="cg-change-summary" data-testid="cg-change-summary">
+              <span className="cg-extra-label">{t('cg.changeSummary')}</span>
+              {data.changeSummary}
+            </p>
+          )}
+        </div>
+      )}
+      {data.endorsement?.summary && (
+        <div className="cg-endorsement" data-testid="cg-endorsement">
+          <strong>{data.endorsement.summary}</strong>
+          {concerns.length > 0 && (
+            <ul className="cg-extra-list">
+              {concerns.map((c, i) => (
+                <li key={`concern-${i}`}>{c.reason}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {sections.map((s) => (
+        <CgExtraList
+          key={s.key}
+          title={s.title}
+          items={s.items}
+          testId={`cg-${s.key}`}
+          showEvidence
+        />
+      ))}
+      {(Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0) && (
+        <details className="cg-extras-toggle" data-testid="cg-extras-toggle">
+          <summary className="cg-extras-summary">{t('cg.moreAnalysis')}</summary>
+          <div className="cg-extras-body">
+            <CgGroupAnalysis data={data} />
+          </div>
+        </details>
+      )}
+    </div>
+  )
+}
+
+function modeLabelFor(itemOrMode, t) {
+  const mode = resolveCgMode(itemOrMode)
+  return t(`cgMode.${mode}.label`, { defaultValue: mode })
+}
+
 function CgVersionPicker({ sorted, selectedId, onSelect }) {
   const { t } = useTranslation()
   if (sorted.length <= 1) return null
@@ -522,10 +632,13 @@ function CgVersionPicker({ sorted, selectedId, onSelect }) {
               <span className="cg-version-chip-top">
                 <span className="cg-version-chip-ver">v{versionNum}</span>
                 {isLatest && <span className="cg-version-chip-latest">{t('cg.latest')}</span>}
-                {item.depth && (
-                  <span className={`cg-version-chip-depth depth-${item.depth}`}>
-                    {t(`cgDepth.${item.depth}.label`)}
+                {resolveCgMode(item) && (
+                  <span className={`cg-version-chip-mode mode-${resolveCgMode(item)}`}>
+                    {modeLabelFor(item, t)}
                   </span>
+                )}
+                {item.status === 'endorsed' && (
+                  <span className="cg-version-chip-endorsed">{t('cg.statusEndorsed')}</span>
                 )}
               </span>
               <span className="cg-version-chip-time">{formatCgRelative(item.generatedAt, t)}</span>
@@ -627,12 +740,26 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   )
 }
 
-export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion = false, versionNum = null, hideVote = false }) {
+export function CommonGroundCard({
+  data,
+  isHost,
+  onDismiss,
+  onVote,
+  onEndorse,
+  multiVersion = false,
+  versionNum = null,
+  hideVote = false,
+  isLatest = false,
+}) {
   const { t } = useTranslation()
-  const depthLabel = data.depth ? t(`cgDepth.${data.depth}.label`) : null
+  const mode = resolveCgMode(data)
+  const modeLabel = modeLabelFor(data, t)
+  const policy = isPolicyCommonGround(data)
+  const endorsed = data.status === 'endorsed'
+  const canEndorse = isHost && policy && isLatest && !endorsed && typeof onEndorse === 'function'
 
   return (
-    <div className="cg-card" data-testid={`cg-card-${data.id}`}>
+    <div className={`cg-card ${policy ? 'cg-card-policy' : 'cg-card-generic'}${endorsed ? ' cg-card-endorsed' : ''}`} data-testid={`cg-card-${data.id}`}>
       <div className="cg-card-toolbar" data-testid="cg-card-toolbar">
         <div className="cg-card-toolbar-meta">
           {multiVersion && versionNum != null && (
@@ -640,7 +767,8 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
           )}
           <span className="cg-meta-time" data-testid="cg-meta-time">{formatCgTimestamp(data.generatedAt, t)}</span>
           <span className="cg-meta-relative">{formatCgRelative(data.generatedAt, t)}</span>
-          {depthLabel && <span className={`cg-depth-badge depth-${data.depth}`}>{depthLabel}</span>}
+          {modeLabel && <span className={`cg-mode-badge mode-${mode}`}>{modeLabel}</span>}
+          {endorsed && <span className="cg-status-badge status-endorsed">{t('cg.statusEndorsed')}</span>}
           {data.generatedByName && (
             <span className="cg-meta-host" data-testid="cg-meta-host">· {data.generatedByName}</span>
           )}
@@ -652,43 +780,61 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
             </span>
           )}
         </div>
-        {isHost && (
-          <button
-            type="button"
-            className="cg-remove-version-btn"
-            data-testid={`cg-remove-${data.id}`}
-            onClick={() => onDismiss(data.id)}
-            aria-label={t('cg.removeVersionAria')}
-          >
-            {t('cg.removeVersion')}
-          </button>
-        )}
+        <div className="cg-card-toolbar-actions">
+          {canEndorse && (
+            <button
+              type="button"
+              className="cg-endorse-btn"
+              data-testid={`cg-endorse-${data.id}`}
+              onClick={() => onEndorse(data.id)}
+            >
+              {t('cg.markFinal')}
+            </button>
+          )}
+          {isHost && (
+            <button
+              type="button"
+              className="cg-remove-version-btn"
+              data-testid={`cg-remove-${data.id}`}
+              onClick={() => onDismiss(data.id)}
+              aria-label={t('cg.removeVersionAria')}
+            >
+              {t('cg.removeVersion')}
+            </button>
+          )}
+        </div>
       </div>
 
       {!multiVersion && (
-        <CgVoteSummary votes={data.votes} compact testId={`cg-header-votes-${data.id}`} />
+        <CgVoteSummary votes={endorsed && data.endorsement ? data.endorsement : data.votes} compact testId={`cg-header-votes-${data.id}`} />
       )}
 
       <blockquote className="cg-statement" cite={`#cg-card-${data.id}`}>
         {data.groupStatement}
       </blockquote>
 
-      <CgSharedTensions
-        id={data.id}
-        shared={data.commonGround}
-        tensions={data.divides}
-      />
+      {policy ? (
+        <CgPolicyBody data={data} />
+      ) : (
+        <>
+          <CgSharedTensions
+            id={data.id}
+            shared={data.commonGround}
+            tensions={data.divides}
+          />
 
-      {data.bridgingProposal && (
-        <div className="cg-bridge">
-          <span className="cg-bridge-label">{t('cg.bridgingProposal')}</span>
-          <p>{data.bridgingProposal}</p>
-        </div>
+          {data.bridgingProposal && (
+            <div className="cg-bridge">
+              <span className="cg-bridge-label">{t('cg.bridgingProposal')}</span>
+              <p>{data.bridgingProposal}</p>
+            </div>
+          )}
+
+          <CgExtrasCollapsible data={data} />
+        </>
       )}
 
-      <CgExtrasCollapsible data={data} />
-
-      {!hideVote && (
+      {!hideVote && !endorsed && (
         <div className="cg-vote-panel">
           <CommonGroundVote
             cgId={data.id}
@@ -699,20 +845,11 @@ export function CommonGroundCard({ data, isHost, onDismiss, onVote, multiVersion
           />
         </div>
       )}
-    </div>
-  )
-}
-
-function CgExtraList({ title, items, testId }) {
-  if (!items?.length) return null
-  return (
-    <div className="cg-extra" data-testid={testId}>
-      <span className="cg-extra-label">{title}</span>
-      <ul className="cg-extra-list">
-        {items.map((item, i) => (
-          <li key={`${testId}-${i}`} data-testid={`${testId}-${i}`}>{item}</li>
-        ))}
-      </ul>
+      {!hideVote && endorsed && data.endorsement && (
+        <div className="cg-endorsement-frozen" data-testid="cg-endorsement-frozen">
+          <CgVoteSummary votes={data.endorsement} testId="cg-endorsement-votes" />
+        </div>
+      )}
     </div>
   )
 }
@@ -720,14 +857,15 @@ function CgExtraList({ title, items, testId }) {
 function CommonGroundSection({
   history,
   pending,
-  pendingDepth,
+  pendingMode,
   error,
   isHost,
   payload,
-  defaultDepth = 'extended',
+  defaultMode = 'generic',
   onGenerate,
   onDismiss,
   onVote,
+  onEndorse,
   statements = [],
   recommendationsPending = false,
   recommendationsError = null,
@@ -739,10 +877,12 @@ function CommonGroundSection({
   hideVote = false,
 }) {
   const { t } = useTranslation()
+  const hasGenericVotes = payload && (payload.consensus?.length > 0 || payload.divisive?.length > 0)
+  const hasAnyStatementVotes = (statements || []).some((s) => (s.agrees || 0) + (s.disagrees || 0) > 0)
   const canGenerate =
-    isHost && payload && (payload.consensus.length > 0 || payload.divisive.length > 0)
-  const depthLabel = pending && pendingDepth ? t(`cgDepth.${pendingDepth}.label`) : null
-  const defaultDepthLabel = t(`cgDepth.${defaultDepth}.label`)
+    isHost && (defaultMode === 'policy' ? hasAnyStatementVotes || hasGenericVotes : hasGenericVotes)
+  const pendingModeLabel = pending && pendingMode ? modeLabelFor(pendingMode, t) : null
+  const defaultModeLabel = modeLabelFor(defaultMode, t)
   const sorted = useMemo(
     () => [...(history || [])].sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0)),
     [history],
@@ -784,8 +924,8 @@ function CommonGroundSection({
             className="cg-new-version-btn"
             data-testid="cg-generate"
             disabled={!canGenerate || pending}
-            onClick={() => onGenerate(payload, defaultDepth)}
-            title={t('cg.generateTitle', { depth: defaultDepthLabel })}
+            onClick={() => onGenerate(payload, defaultMode)}
+            title={t('cg.generateTitle', { mode: defaultModeLabel })}
           >
             {t('cg.newVersion')}
           </button>
@@ -797,7 +937,7 @@ function CommonGroundSection({
           <div className="cg-loading-row">
             <span className="cg-spinner" />
             <div className="cg-loading-copy">
-              <strong>{depthLabel ? t('cg.analysis', { depth: depthLabel }) : t('cg.finding')}</strong>
+              <strong>{pendingModeLabel ? t('cg.analysis', { mode: pendingModeLabel }) : t('cg.finding')}</strong>
               <span>{t('cg.readingVotes')}</span>
             </div>
           </div>
@@ -826,13 +966,13 @@ function CommonGroundSection({
             className="cg-generate-cta"
             data-testid="cg-generate"
             disabled={!canGenerate || pending}
-            onClick={() => onGenerate(payload, defaultDepth)}
-            title={t('cg.generateTitle', { depth: defaultDepthLabel })}
+            onClick={() => onGenerate(payload, defaultMode)}
+            title={t('cg.generateTitle', { mode: defaultModeLabel })}
           >
             {t('cg.generate')}
           </button>
-          <span className="cg-depth-note" data-testid="cg-depth-note">
-            {t('cg.depthNote', { depth: defaultDepthLabel })}<span className="cg-depth-note-link">{t('cg.changeInSettings')}</span>
+          <span className="cg-mode-note" data-testid="cg-mode-note">
+            {t('cg.modeNote', { mode: defaultModeLabel })}<span className="cg-mode-note-link">{t('cg.changeInSettings')}</span>
           </span>
           {!canGenerate && (
             <p className="cg-hint">{t('cg.needsVotes')}</p>
@@ -848,8 +988,10 @@ function CommonGroundSection({
           isHost={isHost}
           multiVersion={multiVersion}
           versionNum={multiVersion ? sorted.length - sorted.findIndex((i) => i.id === selected.id) : null}
+          isLatest={selected.id === latestId}
           onDismiss={onDismiss}
           onVote={onVote}
+          onEndorse={onEndorse}
           hideVote={hideVote}
         />
       )}
@@ -882,12 +1024,13 @@ export default function ResultsPanel({
   voteType = 'binary',
   commonGroundHistory = [],
   cgPending = false,
-  cgPendingDepth = null,
+  cgPendingMode = null,
   cgError = null,
-  defaultDepth = 'extended',
+  defaultMode = 'generic',
   onGenerateCommonGround = () => {},
   onDismissCommonGround = () => {},
   onVoteCommonGround = () => {},
+  onEndorseCommonGround = () => {},
   recommendationsPending = false,
   recommendationsError = null,
   recommendationDrafts = null,
@@ -936,14 +1079,15 @@ export default function ResultsPanel({
     <CommonGroundSection
       history={commonGroundHistory}
       pending={cgPending}
-      pendingDepth={cgPendingDepth}
+      pendingMode={cgPendingMode}
       error={cgError}
       isHost={isHost}
       payload={cgPayload}
-      defaultDepth={defaultDepth}
+      defaultMode={defaultMode}
       onGenerate={onGenerateCommonGround}
       onDismiss={onDismissCommonGround}
       onVote={onVoteCommonGround}
+      onEndorse={onEndorseCommonGround}
       statements={statements}
       recommendationsPending={recommendationsPending}
       recommendationsError={recommendationsError}

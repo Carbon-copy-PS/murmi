@@ -60,7 +60,9 @@
     "tensionsFailed": "Could not generate tensions.",
     "tensionsTimeout": "Timed out generating tensions. Please try again.",
     "recommendationsFailed": "Could not generate recommendations.",
-    "recommendationsTimeout": "Timed out generating recommendations. Please try again."
+    "recommendationsTimeout": "Timed out generating recommendations. Please try again.",
+    "cgNeedsVotes": "Need approved arguments with votes before generating a policy draft.",
+    "cgEndorseFailed": "Could not endorse this version. Only the latest working draft can be marked Final."
   },
   "confirm": {
     "revokeHostTitle": "Revoke host access?",
@@ -234,14 +236,14 @@
     "hintMulti": "{{count}} versions — pick one to compare group sentiment",
     "hintSingle": "Synthesized from votes — refine as the discussion evolves",
     "newVersion": "+ New version",
-    "generateTitle": "Generate a {{depth}} version — change depth in Settings",
-    "analysis": "{{depth}} analysis",
+    "generateTitle": "Generate a {{mode}} version — change mode in Settings",
+    "analysis": "{{mode}} analysis",
     "finding": "Finding common ground",
     "readingVotes": "Reading votes and prior feedback…",
     "emptyTitle": "No common ground yet",
     "emptySub": "Generate a synthesis once the group has voted on a few statements.",
     "generate": "Generate common ground",
-    "depthNote": "{{depth}} depth · ",
+    "modeNote": "{{mode}} mode · ",
     "changeInSettings": "change in Settings",
     "needsVotes": "Needs votes on at least one statement before generating.",
     "sharedGround": "Shared ground",
@@ -251,6 +253,15 @@
     "altBridges": "Alternative bridges",
     "insights": "Insights",
     "tradeoffs": "Trade-offs",
+    "recommendations": "Recommendations",
+    "essentialConditions": "Essential conditions",
+    "unresolvedQuestions": "Unresolved questions",
+    "changeSummary": "What changed",
+    "statusDraft": "Working draft",
+    "statusEndorsed": "Final / endorsed",
+    "markFinal": "Mark as Final / endorsed",
+    "basedOnPrevious": "Based on previous version {{id}}",
+    "remainingConcerns": "Remaining concerns",
     "moreAnalysis": "More analysis",
     "groupPerspectives": "Group perspectives",
     "groupNote": "Group {{group}}:",
@@ -276,18 +287,14 @@
     "gotIt": "Got it",
     "viewInResults": "View in Results"
   },
-  "cgDepth": {
-    "basic": {
-      "label": "Basic",
-      "hint": "Quick consensus summary"
+  "cgMode": {
+    "generic": {
+      "label": "Generic",
+      "hint": "Shared positions, disagreements, and a bridge"
     },
-    "extended": {
-      "label": "Extended",
-      "hint": "More shared ground & tensions"
-    },
-    "comprehensive": {
-      "label": "Comprehensive",
-      "hint": "Full group-aware analysis"
+    "policy": {
+      "label": "Policy",
+      "hint": "Working policy proposal with recommendations"
     }
   },
   "settings": {
@@ -302,9 +309,8 @@
     "lifetimeHintAfter": " tab before then to keep it.",
     "spokenLanguage": "Spoken language",
     "spokenLanguageHint": "Language used to transcribe the session audio.",
-    "cgLevel": "AI common ground level",
-    "cgLevelHint": "Depth used when generating common ground from votes.",
-    "level": "Level {{tier}}",
+    "cgMode": "AI common ground mode",
+    "cgModeHint": "Mode used when generating common ground from votes.",
     "recommended": "Recommended",
     "letParticipantsAdd": "Let participants add arguments",
     "letParticipantsAddHint": "Default for people who join from now on. Existing participants keep their current access (manage them in Participants).",
@@ -537,7 +543,7 @@
     "manageTitle": "Manage the session",
     "manageDesc": "Track who has voted, hand over the mic, promote a co-host, or control who can add arguments.",
     "settingsTitle": "Session settings",
-    "settingsDesc": "Fine-tune the spoken language, AI analysis depth, statement moderation and the vote scale — all in one place.",
+    "settingsDesc": "Fine-tune the spoken language, AI common ground mode, statement moderation and the vote scale — all in one place.",
     "lifetimeTitle": "Session lifetime",
     "lifetimeDesc": "Every session auto-deletes when this timer runs out. Export the results before then to keep a copy.",
     "finishTitle": "You're all set 🎉",

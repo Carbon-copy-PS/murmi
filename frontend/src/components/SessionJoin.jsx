@@ -3,6 +3,31 @@ import { APP_NAME } from '../constants/app'
 import { LANGUAGE_SHOWCASE } from '../constants/languages'
 import { getSavedName, saveName } from '../identity'
 import LanguageSelect from './language-select'
+import ProductScreensCarousel from './product-screens-carousel'
+
+function MurmiMark({ className = 'ls-brand-mark' }) {
+  return (
+    <img
+      className={className}
+      src="/favicon.svg"
+      alt=""
+      width={32}
+      height={32}
+      decoding="async"
+    />
+  )
+}
+
+function scrollToSection(event, id) {
+  event.preventDefault()
+  const el = document.getElementById(id)
+  if (!el) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  if (window.history?.replaceState) {
+    window.history.replaceState(null, '', `#${id}`)
+  }
+}
 
 function LanguageShowcase() {
   return (
@@ -11,7 +36,7 @@ function LanguageShowcase() {
         <span className="ls-kicker">Languages</span>
         <h2 className="ls-h2">Built for Europe — and beyond</h2>
         <p className="ls-lead compact">
-          Every EU official language, plus Chinese. Participants choose their spoken language; transcription stays in that language.
+          Every EU official language, plus Chinese. Participants choose their spoken language; the conversation stays with them.
         </p>
       </div>
       <div className="ls-lang-grid">
@@ -41,60 +66,56 @@ function HostChevron() {
 const STEPS = [
   {
     num: '01',
-    icon: '✨',
-    title: 'Surfaces the conversation in real time',
-    text: 'As people speak, Murmi turns discussion into living captions — capturing what gets said and how people feel about it.',
+    title: 'Host a session',
+    text: 'Start in seconds, share a code, and invite the group — no sign-up, no setup.',
   },
   {
     num: '02',
-    icon: '🧭',
-    title: 'Finds what matters',
-    text: 'Key themes, patterns, and overlooked voices become clear, balanced claims you can actually react to.',
+    title: 'Speak & participate',
+    text: 'As people contribute, Murmi turns the discussion into clear claims everyone can engage with.',
   },
   {
     num: '03',
-    icon: '👆',
-    title: 'You vote',
-    text: 'Everyone can vote and express how they feel about the claims made in the conversation — anonymously, in real time.',
+    title: 'Vote together',
+    text: 'Everyone can react to claims anonymously, in real time — so quieter voices count too.',
   },
   {
     num: '04',
-    icon: '🤝',
-    title: 'Clarity emerges',
-    text: 'Structure better conversations and make collective decisions with confidence — from messy talk to shared understanding.',
+    title: 'Decide with clarity',
+    text: 'From messy talk to shared understanding — structure better conversations and move toward decisions.',
   },
 ]
 
 const FEATURES = [
   {
-    icon: '🎯',
-    title: 'Steers the conversation',
-    text: 'Keeps the group focused on claims that matter, so meetings and workshops move toward decisions instead of drift.',
+    icon: '◎',
+    title: 'Focus the discussion',
+    text: 'Keeps the group on claims that matter, so workshops and meetings move toward decisions instead of drift.',
   },
   {
-    icon: '👁️',
-    title: 'Highlights blind spots',
-    text: 'Surfaces voices and themes that often get overlooked, so the full picture of the group comes into view.',
+    icon: '◇',
+    title: 'Include overlooked voices',
+    text: 'Brings quieter themes and perspectives into the decision, so the whole group can weigh in fairly.',
   },
   {
-    icon: '⚖️',
-    title: 'Checks for balance and fairness',
+    icon: '☰',
+    title: 'Fair, anonymous voting',
     text: 'Opinion clusters and vote patterns show where people align or diverge — without singling anyone out.',
   },
   {
-    icon: '🌍',
+    icon: '◌',
     title: 'Multilingual',
     text: 'All 24 EU official languages plus Chinese — or auto-detect. Each participant picks their own.',
   },
   {
-    icon: '🤝',
+    icon: '✦',
     title: 'AI common ground',
     text: 'A mediator that drafts a shared statement bridging opposing clusters, inspired by Pol.is and the Habermas Machine.',
   },
   {
-    icon: '📊',
-    title: 'Opinion clusters',
-    text: 'A live map groups people by how they vote, so you can see the real shape of the disagreement.',
+    icon: '▦',
+    title: 'Opinion map',
+    text: 'A live map groups people by how they vote, so the shape of disagreement becomes something you can work with.',
   },
 ]
 
@@ -195,40 +216,57 @@ export default function SessionJoin({ onJoin }) {
     <div className="ls murmi-land" data-testid="landing">
       <div className="ls-topfold">
         <nav className="ls-nav">
-          <a className="ls-brand" href="#top">{APP_NAME}</a>
+          <a className="ls-brand" href="#top" onClick={(e) => scrollToSection(e, 'top')}>
+            <MurmiMark />
+            <span className="ls-brand-name">{APP_NAME}</span>
+          </a>
           <div className="ls-nav-center">
-            <a className="ls-nav-link" href="#how">How it works</a>
-            <a className="ls-nav-link" href="#features">Why Murmi</a>
-            <a className="ls-nav-link" href="#together">Use cases</a>
+            <a className="ls-nav-link" href="#how" onClick={(e) => scrollToSection(e, 'how')}>How it works</a>
+            <a className="ls-nav-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
+            <a className="ls-nav-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
+            <a className="ls-nav-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
           </div>
           <div className="ls-nav-actions">
-            <button type="button" className="ls-btn join" onClick={() => switchMode('join')} data-testid="nav-join">
+            <button type="button" className="ls-btn nav-join" onClick={() => switchMode('join')} data-testid="nav-join">
               Join
             </button>
-            <button type="button" className="ls-btn solid" onClick={() => switchMode('create')} data-testid="nav-host">
-              Host a session
+            <button type="button" className="ls-btn nav-host" onClick={() => switchMode('create')} data-testid="nav-host">
+              <span>Host a session</span>
+              <span className="ls-nav-host-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="12" height="12">
+                  <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             </button>
           </div>
         </nav>
 
         <header className="ls-hero" id="top">
+          <div className="ls-hero-scrim" aria-hidden="true" />
           <div className="ls-hero-copy">
+            <p className="ls-hero-brand">{APP_NAME}</p>
             <h1 className="ls-h1">
               Better group<br />
               decisions at the speed<br />
               of conversation.
             </h1>
+            <p className="ls-hero-lead">
+              Spin up a session, invite the room, and move from messy talk to shared understanding.
+            </p>
             <div className="ls-cta-row">
-              <button type="button" className="ls-btn host-pill" onClick={() => switchMode('create')} data-testid="hero-host">
+              <button type="button" className="ls-btn host-pill lg" onClick={() => switchMode('create')} data-testid="hero-host">
                 <span>Host a Session</span>
                 <HostChevron />
+              </button>
+              <button type="button" className="ls-btn ghost" onClick={() => switchMode('join')} data-testid="hero-join">
+                Join with a code
               </button>
             </div>
           </div>
           <div className="ls-hero-visual" aria-hidden="true">
             <img
               className="ls-hero-art"
-              src="/brand/hero-marmots-lg.jpg"
+              src="/brand/hero-gathering.jpg"
               alt=""
               width={1920}
               height={1080}
@@ -240,12 +278,12 @@ export default function SessionJoin({ onJoin }) {
       <div className="ls-sheet">
       <section className="ls-section ls-section-split" id="how">
         <div className="ls-section-media">
-          <img src="/brand/section-understanding.jpg" alt="" width={1672} height={941} />
+          <img src="/brand/section-together.jpg" alt="" width={1672} height={941} />
         </div>
         <div className="ls-section-copy">
           <span className="ls-kicker">How it works</span>
           <h2 className="ls-h2">From messy talks to shared understanding.</h2>
-          <p className="ls-lead compact">Groups go beyond opinions to real understanding.</p>
+          <p className="ls-lead compact">Groups go beyond opinions to decisions they can stand behind together.</p>
           <div className="ls-steps">
             {STEPS.map((s) => (
               <article className="ls-step" key={s.num}>
@@ -260,13 +298,14 @@ export default function SessionJoin({ onJoin }) {
         </div>
       </section>
 
+      <ProductScreensCarousel />
+
       <section className="ls-section" id="features">
         <div className="ls-section-head">
           <span className="ls-kicker">Why {APP_NAME}?</span>
           <h2 className="ls-h2">Think better together</h2>
           <p className="ls-lead compact">
-            {APP_NAME} doesn&apos;t replace people. It helps everyone participate, reveals what&apos;s
-            under the surface, and guides the group toward shared understanding.
+            {APP_NAME} doesn&apos;t replace people. It helps everyone join the decision and reach shared understanding.
           </p>
         </div>
         <div className="ls-features">
@@ -306,14 +345,15 @@ export default function SessionJoin({ onJoin }) {
 
       <section className="ls-final">
         <div className="ls-final-bg" aria-hidden="true">
-          <img src="/brand/cta-ready.jpg" alt="" width={2172} height={724} />
+          <img src="/brand/cta-invite.jpg" alt="" width={2172} height={724} />
         </div>
+        <div className="ls-final-scrim" aria-hidden="true" />
         <div className="ls-final-inner">
           <h2 className="ls-h2">Ready to think better together?</h2>
-          <p className="ls-lead">Try {APP_NAME}. Spin up a session in seconds — no sign-up, no setup.</p>
+          <p className="ls-lead">Host a session in seconds — no sign-up, no setup.</p>
           <div className="ls-cta-row center">
             <button type="button" className="ls-btn host-pill lg" onClick={() => switchMode('create')} data-testid="final-host">
-              <span>Try {APP_NAME}</span>
+              <span>Host a session</span>
               <HostChevron />
             </button>
             <button type="button" className="ls-btn join lg" onClick={() => switchMode('join')} data-testid="final-join">
@@ -324,10 +364,21 @@ export default function SessionJoin({ onJoin }) {
       </section>
 
       <footer className="ls-footer">
-        <a className="ls-brand" href="#top">{APP_NAME}</a>
-        <span className="ls-foot-note">
-          Born in the Swiss Alps — built with collective intelligence.
-        </span>
+        <div className="ls-footer-brand">
+          <a className="ls-brand" href="#top" onClick={(e) => scrollToSection(e, 'top')}>
+            <MurmiMark />
+            <span className="ls-brand-name">{APP_NAME}</span>
+          </a>
+          <span className="ls-foot-note">
+            Born in the Swiss Alps — built with collective intelligence.
+          </span>
+        </div>
+        <nav className="ls-footer-nav" aria-label="Footer">
+          <a className="ls-footer-link" href="#how" onClick={(e) => scrollToSection(e, 'how')}>How it works</a>
+          <a className="ls-footer-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
+          <a className="ls-footer-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
+          <a className="ls-footer-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+        </nav>
       </footer>
 
       {mode && (

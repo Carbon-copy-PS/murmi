@@ -60,7 +60,9 @@
     "tensionsFailed": "無法產生分歧點。",
     "tensionsTimeout": "產生分歧點逾時，請再試一次。",
     "recommendationsFailed": "無法產生建議。",
-    "recommendationsTimeout": "產生建議逾時，請再試一次。"
+    "recommendationsTimeout": "產生建議逾時，請再試一次。",
+    "cgNeedsVotes": "產生政策草稿前需要已核准且有投票的論點。",
+    "cgEndorseFailed": "無法認可此版本。僅最新工作草稿可標記為最終。"
   },
   "confirm": {
     "revokeHostTitle": "撤銷主持人權限？",
@@ -234,14 +236,13 @@
     "hintMulti": "{{count}} 個版本——選一個來比較團體的氛圍",
     "hintSingle": "由投票綜合而成——隨討論演進而優化",
     "newVersion": "＋ 新版本",
-    "generateTitle": "產生一個{{depth}}版本——可在設定中變更深度",
-    "analysis": "{{depth}}分析",
+    "generateTitle": "產生一個{{mode}}版本——可在設定中變更模式",
+    "analysis": "{{mode}}分析",
     "finding": "尋找共識中",
     "readingVotes": "正在讀取投票與先前回饋…",
     "emptyTitle": "尚無共識",
     "emptySub": "當團體對幾則陳述投票後，即可產生綜合結果。",
     "generate": "產生共識",
-    "depthNote": "{{depth}}深度 · ",
     "changeInSettings": "在設定中變更",
     "needsVotes": "產生前至少需要一則陳述已被投票。",
     "sharedGround": "共同基礎",
@@ -267,7 +268,17 @@
     "removeVersionAria": "移除此共識版本",
     "voters": "{{count}} 位投票者",
     "stmts": "{{count}} 則陳述",
-    "surfaceTensions": "呈現未解分歧"
+    "surfaceTensions": "呈現未解分歧",
+    "modeNote": "{{mode}}模式 · ",
+    "recommendations": "建議",
+    "essentialConditions": "必要條件",
+    "unresolvedQuestions": "未決問題",
+    "changeSummary": "變更說明",
+    "statusDraft": "工作草稿",
+    "statusEndorsed": "最終／已認可",
+    "markFinal": "標記為最終／已認可",
+    "basedOnPrevious": "基於上一版 {{id}}",
+    "remainingConcerns": "尚存疑慮"
   },
   "cgPopup": {
     "eyebrow": "新的 AI 共識",
@@ -275,20 +286,6 @@
     "note": "此摘要會隨對話演進而更新。你隨時可在「結果」頁面重新查看並更改你的反應。",
     "gotIt": "了解",
     "viewInResults": "在結果中查看"
-  },
-  "cgDepth": {
-    "basic": {
-      "label": "基本",
-      "hint": "快速的共識摘要"
-    },
-    "extended": {
-      "label": "延伸",
-      "hint": "更多共同點與分歧"
-    },
-    "comprehensive": {
-      "label": "完整",
-      "hint": "完整的分組分析"
-    }
   },
   "settings": {
     "expired": "已過期",
@@ -302,9 +299,6 @@
     "lifetimeHintAfter": " 分頁匯出副本以保留資料。",
     "spokenLanguage": "口說語言",
     "spokenLanguageHint": "用來轉錄場次聲音的語言。",
-    "cgLevel": "AI 共識層級",
-    "cgLevelHint": "由投票產生共識時所使用的深度。",
-    "level": "第 {{tier}} 級",
     "recommended": "建議",
     "letParticipantsAdd": "允許參與者新增論點",
     "letParticipantsAddHint": "適用於此後加入的人。既有參與者維持目前權限（可在「參與者」中管理）。",
@@ -343,7 +337,9 @@
       "resumed": "投票已恢復",
       "expired": "投票已自動關閉",
       "lifetime": "時長設為 {{duration}}"
-    }
+    },
+    "cgMode": "AI 共識模式",
+    "cgModeHint": "根據投票產生共識時使用的模式。"
   },
   "voting": {
     "closedTitle": "投票已關閉",
@@ -537,11 +533,21 @@
     "manageTitle": "管理場次",
     "manageDesc": "追蹤誰已投票、交出麥克風、提升共同主持人，或控制誰能新增論點。",
     "settingsTitle": "場次設定",
-    "settingsDesc": "微調口說語言、AI 分析深度、陳述審核與投票量表——全都在同一處。",
+    "settingsDesc": "微調口說語言、AI 共識模式、陳述審核與投票量表——全都在同一處。",
     "lifetimeTitle": "場次存續時間",
     "lifetimeDesc": "每個場次會在計時結束時自動刪除。請先匯出結果以保留副本。",
     "finishTitle": "一切就緒 🎉",
     "finishDesc_host": "導覽結束。準備好就開始錄音——場次會從對話中自行建立。",
     "finishDesc_guest": "就這樣！放手參與、對陳述投票，並隨時補充你自己的觀點。"
+  },
+  "cgMode": {
+    "generic": {
+      "label": "通用",
+      "hint": "共同立場、分歧與橋接方案"
+    },
+    "policy": {
+      "label": "政策",
+      "hint": "含具體建議的工作政策提案"
+    }
   }
 }

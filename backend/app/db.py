@@ -48,7 +48,7 @@ class SessionRow(Base):
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
     common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    common_ground_depth: Mapped[str] = mapped_column(String(16), default="extended", server_default="extended")
+    common_ground_mode: Mapped[str] = mapped_column(String(16), default="generic", server_default="generic")
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -209,6 +209,19 @@ class Database:
                 "ALTER TABLE sessions "
                 "ADD COLUMN IF NOT EXISTS common_ground_depth varchar(16) NOT NULL DEFAULT 'extended'"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_mode varchar(16) NOT NULL DEFAULT 'generic'"
+            ))
+            await conn.execute(text(
+                """
+                UPDATE sessions
+                SET common_ground_mode = 'generic'
+                WHERE common_ground_mode IS NULL
+                   OR common_ground_mode = ''
+                   OR common_ground_mode IN ('basic', 'extended', 'comprehensive')
+                """
+            ))
         return True
 
     async def disconnect(self):
@@ -236,7 +249,7 @@ class Database:
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
             "common_ground_history": getattr(session, "common_ground_history", []) or [],
-            "common_ground_depth": getattr(session, "common_ground_depth", "extended") or "extended",
+            "common_ground_mode": getattr(session, "common_ground_mode", "generic") or "generic",
         }
 
     async def _ensure_session(self, db, session):
@@ -283,7 +296,7 @@ class Database:
                 .where(SessionRow.id == session.id)
                 .values(
                     common_ground_history=getattr(session, "common_ground_history", []) or [],
-                    common_ground_depth=getattr(session, "common_ground_depth", "extended") or "extended",
+                    common_ground_mode=getattr(session, "common_ground_mode", "generic") or "generic",
                 )
             )
             await db.commit()
@@ -544,7 +557,9 @@ class Database:
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
             "common_ground_history": getattr(row, "common_ground_history", None) or [],
-            "common_ground_depth": getattr(row, "common_ground_depth", None) or "extended",
+            "common_ground_mode": getattr(row, "common_ground_mode", None)
+                or getattr(row, "common_ground_depth", None)
+                or "generic",
             "transcript": [t.payload for t in transcript],
             "statements": statement_payloads,
             "members": {

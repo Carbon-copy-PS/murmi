@@ -36,7 +36,7 @@ export const TOUR_RESULTS = {
 
 export const TOUR_COMMON_GROUND_HISTORY = [{
   id: 'tour-cg-1',
-  depth: 'basic',
+  mode: 'generic',
   generatedAt: Date.now() / 1000 - 3600,
   generatedByName: 'You',
   voterCountAtGeneration: 8,
@@ -45,6 +45,7 @@ export const TOUR_COMMON_GROUND_HISTORY = [{
   bridgingProposal: 'Pilot community-owned funding for one essential service and review the results together.',
   commonGround: ['Essentials like water and education matter to everyone.', 'Future generations deserve protection.'],
   divides: ['How to pay for it — public vs shared funding.'],
+  insights: ['Most of the room prioritizes essentials over how funding is framed.'],
   votes: { agree: 6, disagree: 2, total: 8 },
   myVote: null,
   myReason: '',
