@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from .session import SessionManager
+from .session import SessionManager, DEFAULT_COMMON_GROUND_MODE, normalize_common_ground_mode
 from .transcription import TranscriptionService
 from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
@@ -455,13 +455,13 @@ async def run_common_ground(
     payload: dict,
     topic: str | None,
     language: str | None,
-    depth: str = "basic",
+    mode: str = "generic",
     participant_id: str | None = None,
 ):
     result = None
     try:
         result = await asyncio.wait_for(
-            analysis.generate_common_ground(payload, topic, language, depth=depth),
+            analysis.generate_common_ground(payload, topic, language, mode=mode),
             timeout=COMMON_GROUND_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -475,7 +475,7 @@ async def run_common_ground(
     if result:
         result["generatedAt"] = time.time()
         snapshot = {
-            "voterCount": payload.get("voterCount"),
+            "voterCount": payload.get("voterCount") or payload.get("rosterSize"),
             "statementCount": payload.get("statementCount"),
         }
         added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
@@ -923,21 +923,57 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             elif msg_type == "get_common_ground":
                 if not sessions.is_host(session_id, participant_id):
                     continue
-                payload = data.get("analysis")
-                if not isinstance(payload, dict):
-                    continue
                 session = sessions.get(session_id)
-                depth = data.get("depth") or (session.common_ground_depth if session else "extended")
-                if depth not in ("basic", "extended", "comprehensive"):
-                    depth = "extended"
-                payload = dict(payload)
-                payload["previousFeedback"] = sessions.collect_common_ground_feedback(session_id)
+                raw_mode = data.get("mode") or data.get("depth") or (
+                    session.common_ground_mode if session else DEFAULT_COMMON_GROUND_MODE
+                )
+                mode = normalize_common_ground_mode(raw_mode)
+                client_analysis = data.get("analysis") if isinstance(data.get("analysis"), dict) else {}
+
+                if mode == "policy":
+                    if not session:
+                        continue
+                    from .policy_evidence import build_policy_evidence
+                    payload = build_policy_evidence(session)
+                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
+                        session_id, mode="policy"
+                    )
+                    if not payload.get("arguments"):
+                        await sessions.broadcast(session_id, {
+                            "type": "common_ground_error",
+                            "message": "Need approved arguments with votes before generating a policy draft.",
+                            "code": "cgNeedsVotes",
+                        })
+                        continue
+                else:
+                    payload = dict(client_analysis)
+                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
+                        session_id, mode="generic"
+                    )
+
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
-                await sessions.broadcast(session_id, {"type": "common_ground_pending", "depth": depth})
+                await sessions.broadcast(session_id, {"type": "common_ground_pending", "mode": mode})
                 asyncio.create_task(
-                    run_common_ground(session_id, payload, topic, language, depth, participant_id)
+                    run_common_ground(session_id, payload, topic, language, mode, participant_id)
                 )
+
+            elif msg_type == "endorse_common_ground":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                cg_id = data.get("id")
+                if not cg_id:
+                    continue
+                endorsed = sessions.endorse_common_ground(session_id, cg_id, participant_id)
+                if endorsed:
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
+                    await broadcast_common_ground_history(session_id)
+                else:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_error",
+                        "message": "Could not endorse this version. Only the latest working draft can be marked Final.",
+                        "code": "cgEndorseFailed",
+                    })
 
             elif msg_type == "set_auto_approve":
                 if not sessions.is_host(session_id, participant_id):
@@ -1137,15 +1173,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         "voteType": vote_type,
                     })
 
-            elif msg_type == "set_common_ground_depth":
+            elif msg_type == "set_common_ground_mode":
                 if not sessions.is_host(session_id, participant_id):
                     continue
-                depth = sessions.set_common_ground_depth(session_id, data.get("depth"))
-                if depth:
+                mode = sessions.set_common_ground_mode(session_id, data.get("mode"))
+                if mode:
                     await _safe_db(db.save_common_ground(sessions.get(session_id)))
                     await sessions.broadcast(session_id, {
-                        "type": "common_ground_depth_updated",
-                        "depth": depth,
+                        "type": "common_ground_mode_updated",
+                        "mode": mode,
                     })
 
             elif msg_type == "set_topic":

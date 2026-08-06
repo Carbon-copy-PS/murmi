@@ -66,7 +66,7 @@ class Session:
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
     vote_type: str = "binary"
-    common_ground_depth: str = "extended"
+    common_ground_mode: str = "generic"
     started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
@@ -93,8 +93,21 @@ DEFAULT_VOTING_LIFETIME_HOURS = 24.0
 MIN_VOTING_LIFETIME_HOURS = 1.0
 MAX_VOTING_LIFETIME_HOURS = 720.0
 VOTING_ACTIVITY_MAX = 100
-COMMON_GROUND_DEPTHS = ("basic", "extended", "comprehensive")
-DEFAULT_COMMON_GROUND_DEPTH = "extended"
+COMMON_GROUND_MODES = ("generic", "policy")
+DEFAULT_COMMON_GROUND_MODE = "generic"
+_LEGACY_DEPTH_TO_MODE = {
+    "basic": "generic",
+    "extended": "generic",
+    "comprehensive": "generic",
+}
+
+
+def normalize_common_ground_mode(mode: str | None) -> str:
+    if mode in COMMON_GROUND_MODES:
+        return mode
+    if mode in _LEGACY_DEPTH_TO_MODE:
+        return _LEGACY_DEPTH_TO_MODE[mode]
+    return DEFAULT_COMMON_GROUND_MODE
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
 VALID_LIKERT_VOTES = ("strongly_agree", "agree", "neutral", "disagree", "strongly_disagree")
 AGREE_VOTES = ("agree", "strongly_agree")
@@ -164,8 +177,12 @@ class SessionManager:
             expires_at=data.get("expires_at"),
         )
         session.transcript = list(data.get("transcript", []))
-        session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
+        raw_mode = data.get("common_ground_mode") or data.get("common_ground_depth")
+        session.common_ground_mode = normalize_common_ground_mode(raw_mode)
         session.common_ground_history = list(data.get("common_ground_history") or [])
+        for item in session.common_ground_history:
+            if isinstance(item, dict) and "mode" not in item:
+                item["mode"] = normalize_common_ground_mode(item.get("depth"))
         if "default_can_add_statement" in data:
             session.default_can_add_statement = bool(data["default_can_add_statement"])
         if "voting_open" in data and data["voting_open"] is not None:
@@ -290,7 +307,7 @@ class SessionManager:
             "votingLifetimeHours": session.voting_lifetime_hours,
             "votingExpiresAt": session.voting_expires_at,
             "votingActivity": session.voting_activity,
-            "commonGroundDepth": session.common_ground_depth,
+            "commonGroundMode": session.common_ground_mode,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
@@ -688,7 +705,7 @@ class SessionManager:
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
             "commonGroundHistory": history,
-            "commonGroundDepth": session.common_ground_depth,
+            "commonGroundMode": session.common_ground_mode,
         }
 
     def public_results(self, session_id: str) -> Optional[dict]:
@@ -801,6 +818,7 @@ class SessionManager:
         participant_votes = item.get("participantVotes") or {}
         mine = participant_votes.get(participant_id) or {}
         public = {k: v for k, v in item.items() if k != "participantVotes"}
+        public["mode"] = normalize_common_ground_mode(public.get("mode") or public.get("depth"))
         return {
             **public,
             "votes": self._cg_vote_tally(participant_votes),
@@ -836,8 +854,11 @@ class SessionManager:
             "generatedByName": self.get_participant_name(session_id, participant_id),
             "voterCountAtGeneration": snapshot.get("voterCount"),
             "statementCountAtGeneration": snapshot.get("statementCount"),
+            "status": payload.get("status") or "working_draft",
             "participantVotes": {},
         }
+        if normalize_common_ground_mode(item.get("mode")) == "policy" and "previousVersionId" not in item:
+            item["previousVersionId"] = None
         session.common_ground_history.append(item)
         return self.format_common_ground_item(item, participant_id)
 
@@ -865,6 +886,8 @@ class SessionManager:
         item = self._find_common_ground(session, cg_id)
         if not item:
             return False
+        if item.get("status") == "endorsed":
+            return False
         participant_votes = item.setdefault("participantVotes", {})
         if vote == "undo":
             participant_votes.pop(participant_id, None)
@@ -888,12 +911,24 @@ class SessionManager:
             return {"agree": 0, "disagree": 0, "total": 0}
         return self._cg_vote_tally(item.get("participantVotes") or {})
 
-    def collect_common_ground_feedback(self, session_id: str) -> list:
+    def collect_common_ground_feedback(self, session_id: str, mode: str | None = None) -> list:
         session = self.sessions.get(session_id)
         if not session:
             return []
+        target = normalize_common_ground_mode(mode) if mode else None
+        if target == "policy":
+            from .policy_evidence import build_anonymous_policy_feedback
+            history = [
+                item for item in session.common_ground_history
+                if normalize_common_ground_mode(item.get("mode") or item.get("depth")) == "policy"
+            ]
+            return build_anonymous_policy_feedback(history)
+
         feedback_history = []
         for item in session.common_ground_history:
+            item_mode = normalize_common_ground_mode(item.get("mode") or item.get("depth"))
+            if target and item_mode != target:
+                continue
             participant_votes = item.get("participantVotes") or {}
             reactions = []
             for entry in participant_votes.values():
@@ -904,12 +939,57 @@ class SessionManager:
             feedback_history.append({
                 "id": item.get("id"),
                 "generatedAt": item.get("generatedAt"),
-                "depth": item.get("depth", "basic"),
+                "mode": item_mode,
                 "groupStatement": item.get("groupStatement"),
                 "votes": self._cg_vote_tally(participant_votes),
                 "feedback": reactions,
             })
         return feedback_history
+
+    def endorse_common_ground(self, session_id: str, cg_id: str, participant_id: str) -> Optional[dict]:
+        """Mark a version as Final/endorsed and freeze the current reaction tally."""
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        item = self._find_common_ground(session, cg_id)
+        if not item:
+            return None
+        # Only endorse the latest version.
+        if not session.common_ground_history or session.common_ground_history[-1].get("id") != cg_id:
+            return None
+        if item.get("status") == "endorsed":
+            return self.format_common_ground_item(item, participant_id)
+
+        tally = self._cg_vote_tally(item.get("participantVotes") or {})
+        # Respondents = people who reacted; also remember roster size at endorsement.
+        roster = set(session.known_participants.values()) | set(session.participants.keys())
+        for s in session.statements:
+            if s.approved:
+                roster.update(s.votes.keys())
+        roster_size = max(len(roster), tally["total"])
+        item["status"] = "endorsed"
+        item["endorsedAt"] = time.time()
+        item["endorsedBy"] = participant_id
+        item["endorsedByName"] = self.get_participant_name(session_id, participant_id)
+        item["endorsement"] = {
+            "agree": tally["agree"],
+            "disagree": tally["disagree"],
+            "total": tally["total"],
+            "respondentCount": tally["total"],
+            "rosterSize": roster_size,
+            "summary": (
+                f"Endorsed as good enough by {tally['agree']} of "
+                f"{tally['total'] or roster_size} respondents"
+                if tally["total"]
+                else "Endorsed as final (no reactions recorded yet)"
+            ),
+            "remainingConcerns": [
+                {"reason": (entry.get("reason") or "").strip()}
+                for entry in (item.get("participantVotes") or {}).values()
+                if entry.get("vote") == "disagree" and (entry.get("reason") or "").strip()
+            ],
+        }
+        return self.format_common_ground_item(item, participant_id)
 
     def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)
@@ -1042,12 +1122,12 @@ class SessionManager:
         session.topic = (topic or "").strip()[:200] or None
         return session.topic
 
-    def set_common_ground_depth(self, session_id: str, depth: str) -> str | None:
+    def set_common_ground_mode(self, session_id: str, mode: str) -> str | None:
         session = self.sessions.get(session_id)
-        if not session or depth not in COMMON_GROUND_DEPTHS:
+        if not session or mode not in COMMON_GROUND_MODES:
             return None
-        session.common_ground_depth = depth
-        return depth
+        session.common_ground_mode = mode
+        return mode
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)

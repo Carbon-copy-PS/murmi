@@ -23,7 +23,7 @@ import {
 } from '../utils/room-tour'
 import { createRoomSocket } from '../utils/room-socket'
 import CommonGroundPopup from './common-ground-popup'
-import { DEFAULT_CG_DEPTH } from '../constants/common-ground-depth'
+import { DEFAULT_CG_MODE } from '../constants/common-ground-mode'
 
 const noop = () => {}
 
@@ -101,7 +101,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [publicId, setPublicId] = useState(null)
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
-  const [cgDepth, setCgDepth] = useState(DEFAULT_CG_DEPTH)
+  const [cgMode, setCgMode] = useState(DEFAULT_CG_MODE)
   const [expiresAt, setExpiresAt] = useState(null)
   const [votingOpen, setVotingOpen] = useState(true)
   const [votingLifetimeHours, setVotingLifetimeHours] = useState(24)
@@ -117,7 +117,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [results, setResults] = useState(null)
   const [commonGroundHistory, setCommonGroundHistory] = useState([])
   const [cgPending, setCgPending] = useState(false)
-  const [cgPendingDepth, setCgPendingDepth] = useState(null)
+  const [cgPendingMode, setCgPendingMode] = useState(null)
   const [cgError, setCgError] = useState(null)
   const [cgPopup, setCgPopup] = useState(null)
   const cgSeenIdsRef = useRef(new Set())
@@ -290,7 +290,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           setRoomLanguage(msg.recorderLanguage || 'en')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
-          if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
+          if (msg.commonGroundMode) setCgMode(msg.commonGroundMode)
+          else if (msg.commonGroundDepth) setCgMode(msg.commonGroundDepth === 'policy' ? 'policy' : 'generic')
           if (typeof msg.expiresAt === 'number') setExpiresAt(msg.expiresAt)
           if (typeof msg.votingOpen === 'boolean') setVotingOpen(msg.votingOpen)
           if (typeof msg.votingLifetimeHours === 'number') setVotingLifetimeHours(msg.votingLifetimeHours)
@@ -454,14 +455,15 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         case 'results':
           setResults({ statements: msg.statements, voters: msg.voters })
           if (msg.commonGroundHistory) setCommonGroundHistory(msg.commonGroundHistory)
-          if (msg.commonGroundDepth) setCgDepth(msg.commonGroundDepth)
+          if (msg.commonGroundMode) setCgMode(msg.commonGroundMode)
+          else if (msg.commonGroundDepth) setCgMode(msg.commonGroundDepth === 'policy' ? 'policy' : 'generic')
           break
-        case 'common_ground_depth_updated':
-          setCgDepth(msg.depth || DEFAULT_CG_DEPTH)
+        case 'common_ground_mode_updated':
+          setCgMode(msg.mode || DEFAULT_CG_MODE)
           break
         case 'common_ground_pending':
           setCgPending(true)
-          setCgPendingDepth(msg.depth || 'basic')
+          setCgPendingMode(msg.mode || msg.depth || DEFAULT_CG_MODE)
           setCgError(null)
           break
         case 'common_ground_history': {
@@ -476,13 +478,13 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           }
           setCommonGroundHistory(history)
           setCgPending(false)
-          setCgPendingDepth(null)
+          setCgPendingMode(null)
           break
         }
         case 'common_ground_error':
           if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
           setCgPending(false)
-          setCgPendingDepth(null)
+          setCgPendingMode(null)
           setCgError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.cgFailed')))
           break
         case 'recommendations_pending':
@@ -675,9 +677,9 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
     wsRef.current?.send(JSON.stringify({ type: 'set_auto_approve', autoApprove: value }))
   }
 
-  function handleSetCgDepth(depth) {
-    setCgDepth(depth)
-    wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_depth', depth }))
+  function handleSetCgMode(mode) {
+    setCgMode(mode)
+    wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_mode', mode }))
   }
 
   function handleToggleStatementPermission(targetId, allowed) {
@@ -793,18 +795,28 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
     wsRef.current?.send(JSON.stringify({ type: 'get_results' }))
   }
 
-  function requestCommonGround(analysis, depth = cgDepth) {
-    if (!analysis) return
+  function requestCommonGround(analysis, mode = cgMode) {
+    // Policy evidence is built on the server; generic still uses the Results cluster summary.
+    if (mode !== 'policy' && !analysis) return
     if (cgTimeoutRef.current) clearTimeout(cgTimeoutRef.current)
     setCgPending(true)
-    setCgPendingDepth(depth)
+    setCgPendingMode(mode)
     setCgError(null)
-    wsRef.current?.send(JSON.stringify({ type: 'get_common_ground', analysis, depth }))
+    const msg =
+      mode === 'policy'
+        ? { type: 'get_common_ground', mode }
+        : { type: 'get_common_ground', analysis, mode }
+    wsRef.current?.send(JSON.stringify(msg))
     cgTimeoutRef.current = setTimeout(() => {
       setCgPending(false)
-      setCgPendingDepth(null)
+      setCgPendingMode(null)
       setCgError(t('errors.cgTimeout'))
     }, 60000)
+  }
+
+  function endorseCommonGround(cgId) {
+    if (!cgId) return
+    wsRef.current?.send(JSON.stringify({ type: 'endorse_common_ground', id: cgId }))
   }
 
   function dismissCommonGround(cgId) {
@@ -1152,12 +1164,13 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           voteType={voteType}
           commonGroundHistory={tourActive ? TOUR_COMMON_GROUND_HISTORY : commonGroundHistory}
           cgPending={tourActive ? false : cgPending}
-          cgPendingDepth={tourActive ? null : cgPendingDepth}
+          cgPendingMode={tourActive ? null : cgPendingMode}
           cgError={tourActive ? null : cgError}
-          defaultDepth={cgDepth}
+          defaultMode={cgMode}
           onGenerateCommonGround={tourActive ? noop : requestCommonGround}
           onDismissCommonGround={tourActive ? noop : dismissCommonGround}
           onVoteCommonGround={tourActive ? noop : voteCommonGround}
+          onEndorseCommonGround={tourActive ? noop : endorseCommonGround}
           recommendationsPending={tourActive ? false : recommendationsPending}
           recommendationsError={tourActive ? null : recommendationsError}
           recommendationDrafts={tourActive ? null : recommendationDrafts}
@@ -1180,8 +1193,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         <SettingsPanel
           roomLanguage={roomLanguage}
           onLanguageChange={handleLanguageChange}
-          cgDepth={cgDepth}
-          onCgDepthChange={handleSetCgDepth}
+          cgMode={cgMode}
+          onCgModeChange={handleSetCgMode}
           autoApprove={autoApprove}
           onToggleAutoApprove={handleToggleAutoApprove}
           voteType={voteType}

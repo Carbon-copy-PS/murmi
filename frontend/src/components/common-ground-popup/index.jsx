@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { CommonGroundCard } from '../ResultsPanel'
+import { resolveCgMode } from '../../constants/common-ground-mode'
 
 const noop = () => {}
 
@@ -23,7 +24,8 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
 
   if (!item) return null
 
-  const depthLabel = item.depth ? t(`cgDepth.${item.depth}.label`) : item.depth
+  const mode = resolveCgMode(item)
+  const modeLabel = t(`cgMode.${mode}.label`, { defaultValue: mode })
 
   function react(next) {
     const value = vote === next ? 'undo' : next
@@ -61,7 +63,7 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             <span className="cg-popup-eyebrow">{t('cgPopup.eyebrow')}</span>
             <h3 className="cg-popup-title" id="cg-popup-title">{t('cgPopup.title')}</h3>
           </div>
-          {depthLabel && <span className={`cg-depth-badge depth-${item.depth}`}>{depthLabel}</span>}
+          {modeLabel && <span className={`cg-mode-badge mode-${mode}`}>{modeLabel}</span>}
         </div>
 
         <div className="cg-popup-scroll" data-testid="cg-popup-scroll">

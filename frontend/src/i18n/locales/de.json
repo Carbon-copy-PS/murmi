@@ -60,7 +60,9 @@
     "tensionsFailed": "Spannungen konnten nicht erstellt werden.",
     "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen.",
     "recommendationsFailed": "Empfehlungen konnten nicht erstellt werden.",
-    "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen."
+    "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen.",
+    "cgNeedsVotes": "Für einen Policy-Entwurf sind freigegebene Argumente mit Stimmen nötig.",
+    "cgEndorseFailed": "Version konnte nicht bestätigt werden. Nur der neueste Arbeitsentwurf kann final markiert werden."
   },
   "confirm": {
     "revokeHostTitle": "Host-Zugriff entziehen?",
@@ -234,14 +236,13 @@
     "hintMulti": "{{count}} Versionen — wähle eine, um die Gruppenstimmung zu vergleichen",
     "hintSingle": "Aus Stimmen synthetisiert — verfeinert sich mit der Diskussion",
     "newVersion": "+ Neue Version",
-    "generateTitle": "Eine {{depth}}-Version erstellen — Tiefe in den Einstellungen ändern",
-    "analysis": "{{depth}}-Analyse",
+    "generateTitle": "Eine {{mode}}-Version erstellen — Modus in den Einstellungen ändern",
+    "analysis": "{{mode}}-Analyse",
     "finding": "Gemeinsamen Nenner finden",
     "readingVotes": "Stimmen und bisheriges Feedback werden gelesen…",
     "emptyTitle": "Noch kein gemeinsamer Nenner",
     "emptySub": "Erstelle eine Synthese, sobald die Gruppe über einige Aussagen abgestimmt hat.",
     "generate": "Gemeinsamen Nenner erstellen",
-    "depthNote": "Tiefe {{depth}} · ",
     "changeInSettings": "in Einstellungen ändern",
     "needsVotes": "Benötigt Stimmen zu mindestens einer Aussage vor dem Erstellen.",
     "sharedGround": "Gemeinsame Basis",
@@ -267,7 +268,17 @@
     "removeVersionAria": "Diese Nenner-Version entfernen",
     "voters": "{{count}} Abstimmende",
     "stmts": "{{count}} Aussagen",
-    "surfaceTensions": "Offene Spannungen aufzeigen"
+    "surfaceTensions": "Offene Spannungen aufzeigen",
+    "modeNote": "Modus {{mode}} · ",
+    "recommendations": "Empfehlungen",
+    "essentialConditions": "Wesentliche Bedingungen",
+    "unresolvedQuestions": "Offene Fragen",
+    "changeSummary": "Was sich geändert hat",
+    "statusDraft": "Arbeitsentwurf",
+    "statusEndorsed": "Final / unterstützt",
+    "markFinal": "Als Final / unterstützt markieren",
+    "basedOnPrevious": "Basierend auf vorheriger Version {{id}}",
+    "remainingConcerns": "Verbleibende Bedenken"
   },
   "cgPopup": {
     "eyebrow": "Neuer KI-Nenner",
@@ -275,20 +286,6 @@
     "note": "Diese Zusammenfassung aktualisiert sich mit dem Gespräch. Du kannst sie jederzeit auf der Ergebnisseite erneut ansehen und deine Reaktion ändern.",
     "gotIt": "Verstanden",
     "viewInResults": "In Ergebnissen ansehen"
-  },
-  "cgDepth": {
-    "basic": {
-      "label": "Einfach",
-      "hint": "Schnelle Konsens-Zusammenfassung"
-    },
-    "extended": {
-      "label": "Erweitert",
-      "hint": "Mehr gemeinsame Basis & Spannungen"
-    },
-    "comprehensive": {
-      "label": "Umfassend",
-      "hint": "Vollständige gruppenbewusste Analyse"
-    }
   },
   "settings": {
     "expired": "Abgelaufen",
@@ -302,9 +299,6 @@
     "lifetimeHintAfter": ", um sie zu behalten.",
     "spokenLanguage": "Gesprochene Sprache",
     "spokenLanguageHint": "Sprache, in der der Session-Ton transkribiert wird.",
-    "cgLevel": "KI-Nenner-Stufe",
-    "cgLevelHint": "Tiefe bei der Erstellung des gemeinsamen Nenners aus Stimmen.",
-    "level": "Stufe {{tier}}",
     "recommended": "Empfohlen",
     "letParticipantsAdd": "Teilnehmende Argumente hinzufügen lassen",
     "letParticipantsAddHint": "Standard für alle, die ab jetzt beitreten. Bestehende Teilnehmende behalten ihren aktuellen Zugriff (verwalte sie unter Teilnehmende).",
@@ -343,7 +337,9 @@
       "resumed": "Abstimmung fortgesetzt",
       "expired": "Abstimmung automatisch beendet",
       "lifetime": "Dauer auf {{duration}} gesetzt"
-    }
+    },
+    "cgMode": "KI-Nenner-Modus",
+    "cgModeHint": "Modus beim Erzeugen des gemeinsamen Nenners aus Stimmen."
   },
   "voting": {
     "closedTitle": "Abstimmung ist geschlossen",
@@ -537,11 +533,21 @@
     "manageTitle": "Session verwalten",
     "manageDesc": "Verfolge, wer abgestimmt hat, gib das Mikrofon weiter, befördere eine/n Co-Host oder steuere, wer Argumente hinzufügen darf.",
     "settingsTitle": "Session-Einstellungen",
-    "settingsDesc": "Feinjustiere die gesprochene Sprache, die Tiefe der KI-Analyse, die Aussagen-Moderation und die Abstimmungsskala — alles an einem Ort.",
+    "settingsDesc": "Feinjustiere die gesprochene Sprache, den KI-Nenner-Modus, die Aussagen-Moderation und die Abstimmungsskala — alles an einem Ort.",
     "lifetimeTitle": "Sitzungsdauer",
     "lifetimeDesc": "Jede Sitzung wird automatisch gelöscht, wenn dieser Timer abläuft. Exportiere die Ergebnisse vorher, um eine Kopie zu behalten.",
     "finishTitle": "Alles bereit 🎉",
     "finishDesc_host": "Das war die Tour. Starte die Aufnahme, wann immer du bereit bist — die Session baut sich aus dem Gespräch auf.",
     "finishDesc_guest": "Das war's! Leg los, stimme über die Aussagen ab und bring jederzeit eigene Punkte ein."
+  },
+  "cgMode": {
+    "generic": {
+      "label": "Generisch",
+      "hint": "Gemeinsame Positionen, Meinungsverschiedenheiten und eine Brücke"
+    },
+    "policy": {
+      "label": "Politik",
+      "hint": "Arbeitsfähiger Policy-Vorschlag mit Empfehlungen"
+    }
   }
 }

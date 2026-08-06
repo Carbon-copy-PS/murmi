@@ -60,7 +60,9 @@
     "tensionsFailed": "Impossible de générer les tensions.",
     "tensionsTimeout": "Délai dépassé lors de la génération des tensions. Veuillez réessayer.",
     "recommendationsFailed": "Impossible de générer les recommandations.",
-    "recommendationsTimeout": "Délai dépassé lors de la génération des recommandations. Veuillez réessayer."
+    "recommendationsTimeout": "Délai dépassé lors de la génération des recommandations. Veuillez réessayer.",
+    "cgNeedsVotes": "Des arguments approuvés avec des votes sont requis avant de générer un brouillon politique.",
+    "cgEndorseFailed": "Impossible d’approuver cette version. Seul le dernier brouillon de travail peut être marqué Final."
   },
   "confirm": {
     "revokeHostTitle": "Retirer l'accès hôte ?",
@@ -234,14 +236,13 @@
     "hintMulti": "{{count}} versions — choisissez-en une pour comparer le sentiment du groupe",
     "hintSingle": "Synthétisé à partir des votes — s'affine au fil de la discussion",
     "newVersion": "+ Nouvelle version",
-    "generateTitle": "Générer une version {{depth}} — changez la profondeur dans les Paramètres",
-    "analysis": "Analyse {{depth}}",
+    "generateTitle": "Générer une version {{mode}} — changez le mode dans les Paramètres",
+    "analysis": "Analyse {{mode}}",
     "finding": "Recherche d'un terrain d'entente",
     "readingVotes": "Lecture des votes et des retours précédents…",
     "emptyTitle": "Pas encore de terrain d'entente",
     "emptySub": "Générez une synthèse une fois que le groupe a voté sur quelques énoncés.",
     "generate": "Générer un terrain d'entente",
-    "depthNote": "profondeur {{depth}} · ",
     "changeInSettings": "modifier dans les Paramètres",
     "needsVotes": "Nécessite des votes sur au moins un énoncé avant de générer.",
     "sharedGround": "Terrain commun",
@@ -267,7 +268,17 @@
     "removeVersionAria": "Supprimer cette version du terrain d'entente",
     "voters": "{{count}} votants",
     "stmts": "{{count}} énoncés",
-    "surfaceTensions": "Faire émerger les tensions ouvertes"
+    "surfaceTensions": "Faire émerger les tensions ouvertes",
+    "modeNote": "mode {{mode}} · ",
+    "recommendations": "Recommandations",
+    "essentialConditions": "Conditions essentielles",
+    "unresolvedQuestions": "Questions non résolues",
+    "changeSummary": "Ce qui a changé",
+    "statusDraft": "Brouillon de travail",
+    "statusEndorsed": "Final / approuvé",
+    "markFinal": "Marquer comme Final / approuvé",
+    "basedOnPrevious": "Basé sur la version précédente {{id}}",
+    "remainingConcerns": "Préoccupations restantes"
   },
   "cgPopup": {
     "eyebrow": "Nouveau terrain d'entente IA",
@@ -275,20 +286,6 @@
     "note": "Ce résumé se met à jour au fil de la conversation. Vous pouvez le revoir et changer votre réaction à tout moment sur la page Résultats.",
     "gotIt": "Compris",
     "viewInResults": "Voir dans les Résultats"
-  },
-  "cgDepth": {
-    "basic": {
-      "label": "Basique",
-      "hint": "Résumé rapide du consensus"
-    },
-    "extended": {
-      "label": "Étendu",
-      "hint": "Plus de terrain commun et de tensions"
-    },
-    "comprehensive": {
-      "label": "Complet",
-      "hint": "Analyse complète par groupe"
-    }
   },
   "settings": {
     "expired": "Expiré",
@@ -302,9 +299,6 @@
     "lifetimeHintAfter": " avant cela pour la conserver.",
     "spokenLanguage": "Langue parlée",
     "spokenLanguageHint": "Langue utilisée pour transcrire l'audio de la session.",
-    "cgLevel": "Niveau du terrain d'entente IA",
-    "cgLevelHint": "Profondeur utilisée pour générer le terrain d'entente à partir des votes.",
-    "level": "Niveau {{tier}}",
     "recommended": "Recommandé",
     "letParticipantsAdd": "Laisser les participants ajouter des arguments",
     "letParticipantsAddHint": "Par défaut pour les personnes qui rejoignent désormais. Les participants existants conservent leur accès actuel (gérez-les dans Participants).",
@@ -343,7 +337,9 @@
       "resumed": "Vote repris",
       "expired": "Vote fermé automatiquement",
       "lifetime": "Durée définie sur {{duration}}"
-    }
+    },
+    "cgMode": "Mode du terrain d'entente IA",
+    "cgModeHint": "Mode utilisé pour générer le terrain d'entente à partir des votes."
   },
   "voting": {
     "closedTitle": "Le vote est fermé",
@@ -537,11 +533,21 @@
     "manageTitle": "Gérer la session",
     "manageDesc": "Suivez qui a voté, passez le micro, promouvez un co-hôte ou contrôlez qui peut ajouter des arguments.",
     "settingsTitle": "Réglages de la session",
-    "settingsDesc": "Ajustez la langue parlée, la profondeur de l'analyse IA, la modération des énoncés et l'échelle de vote — au même endroit.",
+    "settingsDesc": "Ajustez la langue parlée, le mode de terrain d'entente IA, la modération des énoncés et l'échelle de vote — au même endroit.",
     "lifetimeTitle": "Durée de la session",
     "lifetimeDesc": "Chaque session est supprimée automatiquement à la fin de ce minuteur. Exportez les résultats avant pour en garder une copie.",
     "finishTitle": "Tout est prêt 🎉",
     "finishDesc_host": "Fin de la visite. Lancez l'enregistrement quand vous voulez — la session se construit à partir de la conversation.",
     "finishDesc_guest": "C'est tout ! Lancez-vous, votez sur les énoncés et ajoutez vos propres points à tout moment."
+  },
+  "cgMode": {
+    "generic": {
+      "label": "Générique",
+      "hint": "Positions partagées, désaccords et une passerelle"
+    },
+    "policy": {
+      "label": "Politique",
+      "hint": "Proposition politique opérationnelle avec recommandations"
+    }
   }
 }

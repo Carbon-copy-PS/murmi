@@ -60,7 +60,9 @@
     "tensionsFailed": "Impossibile generare le tensioni.",
     "tensionsTimeout": "Tempo scaduto nella generazione delle tensioni. Riprova.",
     "recommendationsFailed": "Impossibile generare le raccomandazioni.",
-    "recommendationsTimeout": "Tempo scaduto nella generazione delle raccomandazioni. Riprova."
+    "recommendationsTimeout": "Tempo scaduto nella generazione delle raccomandazioni. Riprova.",
+    "cgNeedsVotes": "Servono argomenti approvati con voti prima di generare una bozza di policy.",
+    "cgEndorseFailed": "Impossibile approvare questa versione. Solo l’ultima bozza di lavoro può essere segnata come Finale."
   },
   "confirm": {
     "revokeHostTitle": "Revocare l'accesso host?",
@@ -234,14 +236,13 @@
     "hintMulti": "{{count}} versioni — scegline una per confrontare il sentimento del gruppo",
     "hintSingle": "Sintetizzato dai voti — si affina con l'evolvere della discussione",
     "newVersion": "+ Nuova versione",
-    "generateTitle": "Genera una versione {{depth}} — cambia la profondità nelle Impostazioni",
-    "analysis": "Analisi {{depth}}",
+    "generateTitle": "Genera una versione {{mode}} — cambia la modalità nelle Impostazioni",
+    "analysis": "Analisi {{mode}}",
     "finding": "Ricerca del terreno comune",
     "readingVotes": "Lettura dei voti e dei feedback precedenti…",
     "emptyTitle": "Ancora nessun terreno comune",
     "emptySub": "Genera una sintesi quando il gruppo ha votato su alcuni enunciati.",
     "generate": "Genera terreno comune",
-    "depthNote": "profondità {{depth}} · ",
     "changeInSettings": "cambia nelle Impostazioni",
     "needsVotes": "Servono voti su almeno un enunciato prima di generare.",
     "sharedGround": "Base condivisa",
@@ -267,7 +268,17 @@
     "removeVersionAria": "Rimuovi questa versione del terreno comune",
     "voters": "{{count}} votanti",
     "stmts": "{{count}} enunc.",
-    "surfaceTensions": "Fai emergere le tensioni aperte"
+    "surfaceTensions": "Fai emergere le tensioni aperte",
+    "modeNote": "modalità {{mode}} · ",
+    "recommendations": "Raccomandazioni",
+    "essentialConditions": "Condizioni essenziali",
+    "unresolvedQuestions": "Domande irrisolte",
+    "changeSummary": "Cosa è cambiato",
+    "statusDraft": "Bozza di lavoro",
+    "statusEndorsed": "Finale / approvato",
+    "markFinal": "Segna come Finale / approvato",
+    "basedOnPrevious": "Basato sulla versione precedente {{id}}",
+    "remainingConcerns": "Preoccupazioni residue"
   },
   "cgPopup": {
     "eyebrow": "Nuovo terreno comune IA",
@@ -275,20 +286,6 @@
     "note": "Questo riepilogo si aggiorna con l'evolvere della conversazione. Puoi rivederlo e cambiare la tua reazione in qualsiasi momento nella pagina Risultati.",
     "gotIt": "Capito",
     "viewInResults": "Vedi nei Risultati"
-  },
-  "cgDepth": {
-    "basic": {
-      "label": "Base",
-      "hint": "Rapido riepilogo del consenso"
-    },
-    "extended": {
-      "label": "Esteso",
-      "hint": "Più base comune e tensioni"
-    },
-    "comprehensive": {
-      "label": "Completo",
-      "hint": "Analisi completa per gruppo"
-    }
   },
   "settings": {
     "expired": "Scaduto",
@@ -302,9 +299,6 @@
     "lifetimeHintAfter": " prima di allora per conservarla.",
     "spokenLanguage": "Lingua parlata",
     "spokenLanguageHint": "Lingua usata per trascrivere l'audio della sessione.",
-    "cgLevel": "Livello del terreno comune IA",
-    "cgLevelHint": "Profondità usata nel generare il terreno comune dai voti.",
-    "level": "Livello {{tier}}",
     "recommended": "Consigliato",
     "letParticipantsAdd": "Consenti ai partecipanti di aggiungere argomenti",
     "letParticipantsAddHint": "Predefinito per chi si unisce d'ora in poi. I partecipanti esistenti mantengono l'accesso attuale (gestiscili in Partecipanti).",
@@ -343,7 +337,9 @@
       "resumed": "Votazione ripresa",
       "expired": "Votazione chiusa automaticamente",
       "lifetime": "Durata impostata su {{duration}}"
-    }
+    },
+    "cgMode": "Modalità del terreno comune IA",
+    "cgModeHint": "Modalità usata per generare il terreno comune dai voti."
   },
   "voting": {
     "closedTitle": "La votazione è chiusa",
@@ -537,11 +533,21 @@
     "manageTitle": "Gestisci la sessione",
     "manageDesc": "Tieni traccia di chi ha votato, passa il microfono, promuovi un co-host o controlla chi può aggiungere argomenti.",
     "settingsTitle": "Impostazioni della sessione",
-    "settingsDesc": "Regola la lingua parlata, la profondità dell'analisi IA, la moderazione degli enunciati e la scala di voto — tutto in un unico posto.",
+    "settingsDesc": "Regola la lingua parlata, la modalità del terreno comune IA, la moderazione degli enunciati e la scala di voto — tutto in un unico posto.",
     "lifetimeTitle": "Durata della sessione",
     "lifetimeDesc": "Ogni sessione si elimina automaticamente allo scadere di questo timer. Esporta i risultati prima per conservarne una copia.",
     "finishTitle": "Tutto pronto 🎉",
     "finishDesc_host": "Fine del tour. Avvia la registrazione quando vuoi — la sessione si costruisce dalla conversazione.",
     "finishDesc_guest": "Ecco fatto! Buttati, vota gli enunciati e aggiungi i tuoi punti in qualsiasi momento."
+  },
+  "cgMode": {
+    "generic": {
+      "label": "Generico",
+      "hint": "Posizioni condivise, disaccordi e un ponte"
+    },
+    "policy": {
+      "label": "Policy",
+      "hint": "Proposta di policy operativa con raccomandazioni"
+    }
   }
 }
