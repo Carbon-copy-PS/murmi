@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../../constants/app'
+import { resolveUiLanguage } from '../../i18n'
 import ResultsPanel from '../ResultsPanel'
 import ThemeToggle from '../ThemeToggle'
+import FinalReportPage from '../final-report/FinalReportPage'
+import { getReportCopy } from '../final-report/report-copy'
 
 const POLL_INTERVAL_MS = 8000
 
@@ -27,7 +30,7 @@ function relativeTime(ts, t) {
 }
 
 export default function PublicResults({ publicId }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [data, setData] = useState(null)
   const [status, setStatus] = useState('loading')
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -71,6 +74,10 @@ export default function PublicResults({ publicId }) {
     const topic = data?.topic
     document.title = topic ? `${topic} · ${APP_NAME}` : `${t('public.title')} · ${APP_NAME}`
   }, [data?.topic, t])
+
+  useEffect(() => {
+    if (data) i18n.changeLanguage(resolveUiLanguage(data.language))
+  }, [data?.language, i18n])
 
   const results = useMemo(
     () => (data ? { statements: data.statements || [], voters: data.voters || [] } : null),
@@ -140,6 +147,10 @@ export default function PublicResults({ publicId }) {
 
   const participantCount = data?.participantCount || 0
   const hasResults = (data?.voters?.length || 0) > 0
+  const hasPublishedReport = Boolean(
+    data?.report && ['published', 'stale'].includes(data?.reportStatus),
+  )
+  const reportCopy = getReportCopy(data?.report?.sourceLanguage || data?.language || 'en')
 
   return (
     <div className="pub-shell" data-testid="public-results">
@@ -150,9 +161,9 @@ export default function PublicResults({ publicId }) {
             {APP_NAME}
           </a>
           <div className="pub-header-actions">
-            <span className="pub-live" data-testid="public-live">
-              <span className="pub-live-dot" />
-              {t('public.live')}
+            <span className={`pub-live ${hasPublishedReport ? 'is-final' : ''}`} data-testid="public-live">
+              {!hasPublishedReport && <span className="pub-live-dot" />}
+              {hasPublishedReport ? reportCopy.finalReport : t('public.live')}
             </span>
             <ThemeToggle />
           </div>
@@ -194,7 +205,9 @@ export default function PublicResults({ publicId }) {
       </header>
 
       <main className="pub-body">
-        {hasResults ? (
+        {hasPublishedReport ? (
+          <FinalReportPage report={data.report} />
+        ) : hasResults ? (
           <ResultsPanel
             statements={statements}
             results={results}

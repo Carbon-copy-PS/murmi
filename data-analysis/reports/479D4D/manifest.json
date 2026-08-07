@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatorVersion": "1.13.0",
+  "generatorVersion": "1.14.0",
   "locale": "zh-Hant-TW",
   "session": "479D4D",
   "topic": "AI 生成 / 散佈兒少不宜內容",
@@ -35,8 +35,8 @@
   "files": [
     {
       "file": "index.html",
-      "bytes": 653624,
-      "sha256": "916b706a47eabf830660ec69863d30c264785d2848ce365d6e1f6056462b4b6f"
+      "bytes": 105539,
+      "sha256": "d1c18c8af93f6d1d4608a75aaadf587fac80608f6c651a754a32757ae4a541f4"
     },
     {
       "file": "README.txt",
@@ -45,8 +45,8 @@
     },
     {
       "file": "assets/01-key-statements.svg",
-      "bytes": 89081,
-      "sha256": "27121edb0b7600a9daddbea7f54a4e3bd1fceaf637b05f675befc2814a417abd"
+      "bytes": 10801,
+      "sha256": "2ff083ef8bbe76c964e6ab4f500486032add59e9c959effa78f56f38f028674a"
     },
     {
       "file": "assets/01-key-statements.png",
@@ -55,8 +55,8 @@
     },
     {
       "file": "assets/02-pause-map.svg",
-      "bytes": 84029,
-      "sha256": "d490f16549d1663dfae0ab1bfaa86d42ce457b0ad3f3595130f5576a3998818d"
+      "bytes": 5749,
+      "sha256": "c5eea67ab0de88e109f7e918cce3c888f3ab60d3efde642f98088b30bb45269e"
     },
     {
       "file": "assets/02-pause-map.png",
@@ -65,8 +65,8 @@
     },
     {
       "file": "assets/03-theme-map.svg",
-      "bytes": 86624,
-      "sha256": "a5289976dedf9a9c2f89da0b3c2aff2aa5db0e5828ea3b62d3fee57a1441a518"
+      "bytes": 8344,
+      "sha256": "840fada863e7b2f848c57c4c7891a8664323001e4187311a6b0950855dabe3da"
     },
     {
       "file": "assets/03-theme-map.png",
@@ -75,8 +75,8 @@
     },
     {
       "file": "assets/04-overlap-mosaics.svg",
-      "bytes": 83908,
-      "sha256": "3afcc50c269c6f80750e6442e3ae40c79405c87ab7e1bb10ea8dd9afb291c223"
+      "bytes": 5628,
+      "sha256": "0bfddd930471ca3a1dcd576044be922b54190cb50c0e5dc5bbe5c11fe94ebc80"
     },
     {
       "file": "assets/04-overlap-mosaics.png",
@@ -85,8 +85,8 @@
     },
     {
       "file": "assets/05-response-coverage.svg",
-      "bytes": 87764,
-      "sha256": "2af03a96c99ca63762c59fb4729caa57d6c16ea45006b0932f41ea1506031db1"
+      "bytes": 9484,
+      "sha256": "6fc8cbf5368f58eedccc7d7acec27f05499fc0ba7d9524c53c6a7fd1194875a5"
     },
     {
       "file": "assets/05-response-coverage.png",
@@ -95,8 +95,8 @@
     },
     {
       "file": "assets/06-opinion-landscape.svg",
-      "bytes": 86266,
-      "sha256": "8f751f3bda2a5675a1e4d30f170e36e0358bcb32bd7513327d7fefd4e991bcff"
+      "bytes": 7986,
+      "sha256": "521650dbf18f1caf9464265002c9d6601ebeed6b85b80ac559f4d96312243615"
     },
     {
       "file": "assets/06-opinion-landscape.png",

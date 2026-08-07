@@ -37,6 +37,7 @@ class SessionRow(Base):
 
     id: Mapped[str] = mapped_column(String(12), primary_key=True)
     topic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    language: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     threshold: Mapped[int] = mapped_column(Integer, default=5)
     vote_type: Mapped[str] = mapped_column(String(16), default="likert", server_default="likert")
@@ -47,6 +48,13 @@ class SessionRow(Base):
     voting_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
+    report_status: Mapped[str] = mapped_column(
+        String(24), default="none", server_default="none"
+    )
+    report_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    finalized_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     common_ground_mode: Mapped[str] = mapped_column(String(16), default="policy", server_default="policy")
 
@@ -121,6 +129,37 @@ class ParticipantRow(Base):
     is_host: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
+class CommonGroundRow(Base):
+    __tablename__ = "common_ground_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ReportSnapshotRow(Base):
+    __tablename__ = "report_snapshots"
+    __table_args__ = (UniqueConstraint("session_id", "version"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    session_id: Mapped[str] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), index=True
+    )
+    version: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(24), default="draft_ready")
+    source_hash: Mapped[str] = mapped_column(String(64), index=True)
+    source_language: Mapped[str] = mapped_column(String(8), default="en")
+    analysis_version: Mapped[str] = mapped_column(String(32))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    published_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+
 class Database:
     """Postgres persistence with per-session isolation and TTL-based deletion."""
 
@@ -166,6 +205,20 @@ class Database:
                 "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'likert'"
             ))
             await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS language varchar(8)"
+            ))
+            await conn.execute(text(
+                "UPDATE sessions AS s SET language = host.language "
+                "FROM ("
+                "SELECT DISTINCT ON (session_id) session_id, language "
+                "FROM participants "
+                "WHERE is_host = true AND language IS NOT NULL "
+                "ORDER BY session_id, id"
+                ") AS host "
+                "WHERE s.id = host.session_id AND s.language IS NULL"
+            ))
+            await conn.execute(text(
                 "ALTER TABLE statements "
                 "ADD COLUMN IF NOT EXISTS tension boolean NOT NULL DEFAULT false"
             ))
@@ -192,6 +245,18 @@ class Database:
             await conn.execute(text(
                 "ALTER TABLE sessions "
                 "ADD COLUMN IF NOT EXISTS public_id varchar(24)"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS report_status varchar(24) NOT NULL DEFAULT 'none'"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS report_version integer NOT NULL DEFAULT 0"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS finalized_at timestamptz"
             ))
             await conn.execute(text(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ix_sessions_public_id "
@@ -238,6 +303,7 @@ class Database:
         return {
             "id": session.id,
             "topic": session.topic,
+            "language": getattr(session, "language", None),
             "current_round": 1,
             "threshold": 5,
             "vote_type": getattr(session, "vote_type", "likert"),
@@ -248,6 +314,13 @@ class Database:
             "voting_expires_at": datetime.fromtimestamp(voting_expires, timezone.utc) if voting_expires else None,
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
+            "report_status": getattr(session, "report_status", "none"),
+            "report_version": getattr(session, "report_version", 0),
+            "finalized_at": (
+                datetime.fromtimestamp(session.finalized_at, timezone.utc)
+                if getattr(session, "finalized_at", None)
+                else None
+            ),
             "common_ground_history": getattr(session, "common_ground_history", []) or [],
             "common_ground_mode": getattr(session, "common_ground_mode", "policy") or "policy",
         }
@@ -286,19 +359,75 @@ class Database:
             await self._ensure_session(db, session)
             await db.commit()
 
-    async def save_common_ground(self, session):
-        if not self.enabled or session is None:
+    async def save_common_ground(self, session_or_id, item=None):
+        """Persist common ground for a session.
+
+        Supports both call styles used across the codebase:
+        - save_common_ground(session) → mode + full history JSONB (+ upsert rows)
+        - save_common_ground(session_id, item) → upsert one CommonGroundRow item
+        """
+        if not self.enabled:
             return
+
+        # Item-style: save_common_ground(session_id: str, item: dict)
+        if item is not None:
+            session_id = session_or_id
+            if not item or not item.get("id"):
+                return
+            generated_at = float(item.get("generatedAt") or 0.0) or datetime.now(
+                timezone.utc
+            ).timestamp()
+            async with self._sessionmaker() as db:
+                await db.execute(
+                    pg_insert(CommonGroundRow)
+                    .values(
+                        id=item["id"],
+                        session_id=session_id,
+                        payload=item,
+                        created_at=datetime.fromtimestamp(generated_at, timezone.utc),
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={"payload": item},
+                    )
+                )
+                await db.commit()
+            return
+
+        session = session_or_id
+        if session is None:
+            return
+        history = getattr(session, "common_ground_history", []) or []
+        mode = getattr(session, "common_ground_mode", "policy") or "policy"
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
             await db.execute(
                 update(SessionRow)
                 .where(SessionRow.id == session.id)
                 .values(
-                    common_ground_history=getattr(session, "common_ground_history", []) or [],
-                    common_ground_mode=getattr(session, "common_ground_mode", "policy") or "policy",
+                    common_ground_history=history,
+                    common_ground_mode=mode,
                 )
             )
+            for entry in history:
+                if not isinstance(entry, dict) or not entry.get("id"):
+                    continue
+                generated_at = float(entry.get("generatedAt") or 0.0) or datetime.now(
+                    timezone.utc
+                ).timestamp()
+                await db.execute(
+                    pg_insert(CommonGroundRow)
+                    .values(
+                        id=entry["id"],
+                        session_id=session.id,
+                        payload=entry,
+                        created_at=datetime.fromtimestamp(generated_at, timezone.utc),
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={"payload": entry},
+                    )
+                )
             await db.commit()
 
     async def update_round(self, session_id: str, current_round: int):
@@ -364,6 +493,15 @@ class Database:
         async with self._sessionmaker() as db:
             await db.execute(
                 update(SessionRow).where(SessionRow.id == session_id).values(topic=topic)
+            )
+            await db.commit()
+
+    async def update_language(self, session_id: str, language: str | None):
+        if not self.enabled:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow).where(SessionRow.id == session_id).values(language=language)
             )
             await db.commit()
 
@@ -496,6 +634,96 @@ class Database:
             )
             await db.commit()
 
+    async def delete_common_ground(self, common_ground_id: str):
+        if not self.enabled or not common_ground_id:
+            return
+        async with self._sessionmaker() as db:
+            await db.execute(
+                delete(CommonGroundRow).where(
+                    CommonGroundRow.id == common_ground_id
+                )
+            )
+            await db.commit()
+
+    async def update_report_status(self, session):
+        if not self.enabled or session is None:
+            return
+        finalized_at = getattr(session, "finalized_at", None)
+        async with self._sessionmaker() as db:
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    report_status=getattr(session, "report_status", "none"),
+                    report_version=getattr(session, "report_version", 0),
+                    finalized_at=(
+                        datetime.fromtimestamp(finalized_at, timezone.utc)
+                        if finalized_at
+                        else None
+                    ),
+                )
+            )
+            await db.commit()
+
+    async def save_report_snapshot(self, session, snapshot: dict):
+        if not self.enabled or session is None or not snapshot:
+            return
+        created_at = float(snapshot.get("generatedAt") or time.time())
+        published_at = snapshot.get("publishedAt")
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                pg_insert(ReportSnapshotRow)
+                .values(
+                    id=uuid.uuid4().hex,
+                    session_id=session.id,
+                    version=int(snapshot["version"]),
+                    status=snapshot.get("status", "draft_ready"),
+                    source_hash=snapshot["sourceHash"],
+                    source_language=snapshot.get("sourceLanguage", "en"),
+                    analysis_version=snapshot.get("analysisVersion", "unknown"),
+                    payload=snapshot,
+                    created_at=datetime.fromtimestamp(created_at, timezone.utc),
+                    published_at=(
+                        datetime.fromtimestamp(float(published_at), timezone.utc)
+                        if published_at
+                        else None
+                    ),
+                )
+                .on_conflict_do_update(
+                    index_elements=["session_id", "version"],
+                    set_={
+                        "status": snapshot.get("status", "draft_ready"),
+                        "payload": snapshot,
+                        "published_at": (
+                            datetime.fromtimestamp(float(published_at), timezone.utc)
+                            if published_at
+                            else None
+                        ),
+                    },
+                )
+            )
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(
+                    voting_open=getattr(session, "voting_open", False),
+                    voting_expires_at=(
+                        datetime.fromtimestamp(
+                            float(session.voting_expires_at), timezone.utc
+                        )
+                        if getattr(session, "voting_expires_at", None)
+                        else None
+                    ),
+                    report_status=getattr(session, "report_status", "draft_ready"),
+                    report_version=getattr(session, "report_version", 0),
+                    finalized_at=datetime.fromtimestamp(
+                        float(session.finalized_at), timezone.utc
+                    ),
+                )
+            )
+            await db.commit()
+
     async def _build_session_dict(self, db, row: SessionRow) -> dict:
         transcript = (await db.execute(
             select(TranscriptRow)
@@ -513,6 +741,17 @@ class Database:
         participants = (await db.execute(
             select(ParticipantRow).where(ParticipantRow.session_id == row.id)
         )).scalars().all()
+        common_ground = (await db.execute(
+            select(CommonGroundRow)
+            .where(CommonGroundRow.session_id == row.id)
+            .order_by(CommonGroundRow.created_at)
+        )).scalars().all()
+        latest_report = (await db.execute(
+            select(ReportSnapshotRow)
+            .where(ReportSnapshotRow.session_id == row.id)
+            .order_by(ReportSnapshotRow.version.desc())
+            .limit(1)
+        )).scalar_one_or_none()
 
         votes_by_statement: dict[str, dict[str, str]] = {}
         vote_times_by_statement: dict[str, dict[str, float]] = {}
@@ -546,6 +785,7 @@ class Database:
         return {
             "id": row.id,
             "topic": row.topic,
+            "language": getattr(row, "language", None),
             "current_round": row.current_round,
             "threshold": row.threshold,
             "vote_type": row.vote_type,
@@ -556,7 +796,19 @@ class Database:
             "voting_expires_at": row.voting_expires_at.timestamp() if getattr(row, "voting_expires_at", None) else None,
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
-            "common_ground_history": getattr(row, "common_ground_history", None) or [],
+            "report_status": getattr(row, "report_status", "none"),
+            "report_version": getattr(row, "report_version", 0),
+            "finalized_at": (
+                row.finalized_at.timestamp()
+                if getattr(row, "finalized_at", None)
+                else None
+            ),
+            "report_snapshot": latest_report.payload if latest_report else None,
+            "common_ground_history": (
+                [item.payload for item in common_ground]
+                if common_ground
+                else (getattr(row, "common_ground_history", None) or [])
+            ),
             "common_ground_mode": getattr(row, "common_ground_mode", None)
                 or getattr(row, "common_ground_depth", None)
                 or "policy",
