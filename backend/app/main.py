@@ -22,6 +22,12 @@ from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
+from .reporting import (
+    build_opinion_landscape,
+    build_report_snapshot,
+    build_selected_overlaps,
+    narrative_evidence,
+)
 
 load_dotenv()
 
@@ -31,6 +37,9 @@ transcription = TranscriptionService()
 analysis = AnalysisService()
 
 SESSION_PURGE_INTERVAL_SECONDS = float(os.environ.get("SESSION_PURGE_INTERVAL_MINUTES", "15")) * 60
+REPORT_NARRATIVE_TIMEOUT_SECONDS = float(
+    os.environ.get("REPORT_NARRATIVE_TIMEOUT_SECONDS", "45")
+)
 
 
 async def _safe_db(coro):
@@ -140,6 +149,12 @@ app.add_middleware(
 )
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+EXAMPLE_REPORT_DIR = (
+    Path(__file__).resolve().parent.parent.parent
+    / "data-analysis"
+    / "reports"
+    / "479D4D"
+)
 realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
 realtime_unavailable: set[tuple[str, str]] = set()
 realtime_errors_seen: set[tuple[str, str]] = set()
@@ -176,18 +191,21 @@ GENERIC_ASR_HALLUCINATION_MARKERS = (
 class CreateSessionRequest(BaseModel):
     topic: Optional[str] = None
     voteType: Optional[str] = None
+    language: Optional[str] = None
 
 
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
     vote_type = req.voteType if req.voteType in ("binary", "likert") else "likert"
-    session_id = sessions.create(topic=topic, vote_type=vote_type)
+    language = normalize_language(req.language)
+    session_id = sessions.create(topic=topic, vote_type=vote_type, language=language)
     await persist_session(sessions.get(session_id))
     return {
         "sessionId": session_id,
         "topic": topic,
         "voteType": vote_type,
+        "language": language,
         "publicId": sessions.get(session_id).public_id,
     }
 
@@ -450,6 +468,75 @@ async def broadcast_common_ground_history(session_id: str, added_id: str | None 
             pass
 
 
+async def broadcast_report_state(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    for participant_id, participant in list(session.participants.items()):
+        try:
+            await participant.websocket.send_json({
+                "type": "report_status_updated",
+                **sessions.report_state(
+                    session_id,
+                    include_snapshot=sessions.is_host(
+                        session_id, participant_id
+                    ),
+                ),
+            })
+        except Exception:
+            pass
+
+
+async def run_report_generation(session_id: str):
+    session = sessions.get(session_id)
+    if not session:
+        return
+    try:
+        snapshot = build_report_snapshot(
+            session,
+            version=session.report_version + 1,
+        )
+        snapshot["opinionLandscape"] = await build_opinion_landscape(
+            session
+        )
+        try:
+            narrative = await asyncio.wait_for(
+                analysis.generate_report_narrative(
+                    narrative_evidence(snapshot),
+                    snapshot.get("sourceLanguage"),
+                ),
+                timeout=REPORT_NARRATIVE_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            narrative = None
+            print("Report narrative generation timed out")
+        except Exception as exc:
+            narrative = None
+            print(f"Report narrative generation failed: {exc}")
+        if narrative:
+            selected_overlaps = build_selected_overlaps(
+                session,
+                narrative.get("overlapPairs") or [],
+            )
+            if selected_overlaps:
+                snapshot["story"]["overlaps"] = selected_overlaps
+                snapshot["story"]["overlapSource"] = "editorial-both-and"
+            if narrative.get("keyStatementIds"):
+                snapshot["story"]["keyStatementIds"] = (
+                    narrative["keyStatementIds"]
+                )
+            snapshot["narrative"] = {
+                snapshot.get("sourceLanguage", "en"): narrative,
+            }
+        sessions.attach_report_snapshot(session_id, snapshot)
+        await _safe_db(db.save_report_snapshot(session, snapshot))
+    except Exception as exc:
+        print(f"Report generation error: {exc}")
+        session.report_status = "failed"
+        await _safe_db(db.update_report_status(session))
+    await broadcast_report_state(session_id)
+
+
 async def run_common_ground(
     session_id: str,
     payload: dict,
@@ -479,7 +566,16 @@ async def run_common_ground(
             "statementCount": payload.get("statementCount"),
         }
         added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
-        await _safe_db(db.save_common_ground(sessions.get(session_id)))
+        if added:
+            session = sessions.get(session_id)
+            stored = (
+                sessions._find_common_ground(session, added["id"])
+                if session
+                else None
+            )
+            if stored:
+                await _safe_db(db.save_common_ground(session_id, stored))
+            await _safe_db(db.save_common_ground(session))
         await broadcast_common_ground_history(
             session_id,
             added_id=added.get("id") if added else None,
@@ -779,6 +875,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         _restored = sessions.get(session_id)
         if _restored and _restored.public_id:
             await _safe_db(db.update_public_id(session_id, _restored.public_id))
+    session = sessions.get(session_id)
+    if session and sessions.is_host(session_id, participant_id) and not session.language and language:
+        sessions.set_session_language(session_id, language)
+        await _safe_db(db.update_language(session_id, language))
     await _safe_db(db.save_participant(
         sessions.get(session_id), participant_id, client_id, name, language,
         is_host=sessions.is_host(session_id, participant_id),
@@ -1000,11 +1100,48 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 actor = sessions.get_participant_name(session_id, participant_id)
                 if sessions.set_voting_open(session_id, is_open, actor):
                     session = sessions.get(session_id)
+                    if is_open and sessions.mark_report_stale(session_id):
+                        await _safe_db(
+                            db.save_report_snapshot(
+                                session, session.report_snapshot
+                            )
+                        )
                     await _safe_db(db.update_voting(session))
                     await sessions.broadcast(session_id, {
                         "type": "voting_status_updated",
                         **sessions.voting_status(session_id),
                     })
+                    if is_open:
+                        await broadcast_report_state(session_id)
+
+            elif msg_type in ("finalize_report", "regenerate_report"):
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                if not sessions.begin_report_generation(session_id):
+                    continue
+                session = sessions.get(session_id)
+                actor = sessions.get_participant_name(
+                    session_id, participant_id
+                )
+                sessions._log_voting_activity(session, "finalized", actor)
+                await _safe_db(db.update_voting(session))
+                await _safe_db(db.update_report_status(session))
+                await sessions.broadcast(session_id, {
+                    "type": "voting_status_updated",
+                    **sessions.voting_status(session_id),
+                })
+                await broadcast_report_state(session_id)
+                asyncio.create_task(run_report_generation(session_id))
+
+            elif msg_type == "publish_report":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                snapshot = sessions.publish_report(session_id)
+                if not snapshot:
+                    continue
+                session = sessions.get(session_id)
+                await _safe_db(db.save_report_snapshot(session, snapshot))
+                await broadcast_report_state(session_id)
 
             elif msg_type == "set_voting_lifetime":
                 if not sessions.is_host(session_id, participant_id):
@@ -1048,6 +1185,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     session_id, cg_id, participant_id, vote_value, reason=reason,
                 )
                 if ok:
+                    session = sessions.get(session_id)
+                    stored = (
+                        sessions._find_common_ground(session, cg_id)
+                        if session
+                        else None
+                    )
+                    if stored:
+                        await _safe_db(
+                            db.save_common_ground(session_id, stored)
+                        )
                     await broadcast_common_ground_history(session_id)
                     await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
@@ -1057,6 +1204,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 cg_id = data.get("id") or ""
                 if not cg_id or not sessions.remove_common_ground(session_id, cg_id):
                     continue
+                await _safe_db(db.delete_common_ground(cg_id))
                 await broadcast_common_ground_history(session_id)
                 await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
@@ -1211,6 +1359,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 recorder = session.participants.get(recorder_id)
                 if not recorder or not sessions.set_participant_language(session_id, recorder_id, language):
                     continue
+                sessions.set_session_language(session_id, language)
                 await _safe_db(db.save_participant(
                     session,
                     recorder_id,
@@ -1219,6 +1368,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     language,
                     is_host=sessions.is_host(session_id, recorder_id),
                 ))
+                await _safe_db(db.update_language(session_id, language))
                 await close_realtime_sessions(session_id, recorder_id)
                 await sessions.broadcast(session_id, {
                     "type": "language_updated",
@@ -1319,6 +1469,14 @@ def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
         f'    <meta property="og:url" content="{url}" />\n  </head>',
     )
     return html
+
+
+if EXAMPLE_REPORT_DIR.is_dir():
+    app.mount(
+        "/reports/ai-safety-governance-2026",
+        StaticFiles(directory=EXAMPLE_REPORT_DIR, html=True),
+        name="example-report",
+    )
 
 
 if FRONTEND_DIST.is_dir():

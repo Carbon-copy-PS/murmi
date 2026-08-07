@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" class="htr-chart" role="img" lang="en" xml:lang="en" aria-labelledby="core-tensions-en-title core-tensions-en-desc">
+<title id="core-tensions-en-title">Venn diagrams of support for three paired policy priorities</title>
+<desc id="core-tensions-en-desc">Three area-proportional Venn diagrams show how many joint respondents supported option A, option B, both options, or neither option.</desc>
+<style>
+
+.htr-chart text{font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;fill:#161616;font-weight:400}
+.htr-chart .title{font-family:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;font-size:44px;font-weight:400;letter-spacing:-.5px}
+.htr-chart .subtitle{font-size:22px;fill:#60656A}
+.htr-chart .section{font-size:26px;font-weight:500}
+.htr-chart .body{font-size:22px}
+.htr-chart .compact{font-size:19px}
+.htr-chart .small{font-size:18px;fill:#60656A}
+.htr-chart .tiny{font-size:16px;fill:#60656A}
+.htr-chart .value{font-size:20px;font-weight:500}
+.htr-chart .label{font-size:20px;font-weight:500}
+.htr-chart .point-number{font-size:12px;font-weight:500;fill:#161616;pointer-events:none}
+.htr-chart .grid{stroke:#D7D9D9;stroke-width:1}
+.htr-chart .axis{stroke:#60656A;stroke-width:1.5}
+.htr-chart .callout{font-weight:500}
+</style>
+<rect width="1440" height="900" fill="#FFFFFF"/>
+<g class="chart-title">
+<text x="72" y="72" class="title">Many respondents supported both sides of an apparent trade-off</text>
+<text x="72" y="112" class="subtitle">The overlap shows people who supported both statements in each pair.</text>
+</g>
+<line x1="72" x2="1368" y1="142" y2="142" class="grid"/>
+<text x="272" y="188" text-anchor="middle" class="section">Prevention + redress</text>
+<text x="272" y="220" text-anchor="middle" class="small">60 people answered both statements</text>
+<text x="164" y="274" text-anchor="middle" class="compact">A · Impact</text><text x="164" y="296" text-anchor="middle" class="compact">assessment</text>
+<text x="380" y="274" text-anchor="middle" class="compact">B · Victim support</text>
+<circle cx="237.17820101292125" cy="440" r="118" fill="#0E747E" fill-opacity="0.28" stroke="#0E747E" stroke-width="3"/>
+<circle cx="308.17041470662775" cy="440" r="116.65138428045101" fill="#6E6598" fill-opacity="0.26" stroke="#6E6598" stroke-width="3"/>
+<text x="272.6743078597745" y="416" text-anchor="middle" class="label">supported both</text>
+<text x="272.6743078597745" y="465" text-anchor="middle" style="font-size:42px;font-weight:500;fill:#161616">45%</text>
+<text x="272.6743078597745" y="494" text-anchor="middle" class="tiny">27 people</text>
+<text x="158" y="590" text-anchor="middle" class="small">A only 28.3%</text>
+<text x="386" y="590" text-anchor="middle" class="small">B only 26.7%</text>
+<text x="272" y="632" text-anchor="middle" class="small">Everyone supported at least one</text>
+<line x1="488" x2="488" y1="170" y2="650" class="grid"/>
+<text x="704" y="188" text-anchor="middle" class="section">Age + context</text>
+<text x="704" y="220" text-anchor="middle" class="small">36 people answered both statements</text>
+<text x="596" y="274" text-anchor="middle" class="compact">A · Age boundaries</text>
+<text x="812" y="274" text-anchor="middle" class="compact">B · Context</text><text x="812" y="296" text-anchor="middle" class="compact">matters</text>
+<circle cx="692.8387507345237" cy="440" r="118" fill="#0E747E" fill-opacity="0.28" stroke="#0E747E" stroke-width="3"/>
+<circle cx="726.426233284948" cy="440" r="106.73501598052833" fill="#6E6598" fill-opacity="0.26" stroke="#6E6598" stroke-width="3"/>
+<text x="709.6324920097359" y="416" text-anchor="middle" class="label">supported both</text>
+<text x="709.6324920097359" y="465" text-anchor="middle" style="font-size:42px;font-weight:500;fill:#161616">66.7%</text>
+<text x="709.6324920097359" y="494" text-anchor="middle" class="tiny">24 people</text>
+<text x="590" y="590" text-anchor="middle" class="small">A only 25%</text>
+<text x="818" y="590" text-anchor="middle" class="small">B only 8.3%</text>
+<text x="704" y="632" text-anchor="middle" class="small">Everyone supported at least one</text>
+<line x1="920" x2="920" y1="170" y2="650" class="grid"/>
+<text x="1136" y="188" text-anchor="middle" class="section">Rights + creative freedom</text>
+<text x="1136" y="220" text-anchor="middle" class="small">26 people answered both statements</text>
+<text x="1028" y="274" text-anchor="middle" class="compact">A · Limit</text><text x="1028" y="296" text-anchor="middle" class="compact">surveillance</text>
+<text x="1244" y="274" text-anchor="middle" class="compact">B · Creative</text><text x="1244" y="296" text-anchor="middle" class="compact">freedom</text>
+<circle cx="1118.0778352917255" cy="440" r="111.61682574537625" fill="#0E747E" fill-opacity="0.28" stroke="#0E747E" stroke-width="3"/>
+<circle cx="1147.5389904536507" cy="440" r="118" fill="#6E6598" fill-opacity="0.26" stroke="#6E6598" stroke-width="3"/>
+<text x="1132.8084128726882" y="416" text-anchor="middle" class="label">supported both</text>
+<text x="1132.8084128726882" y="465" text-anchor="middle" style="font-size:42px;font-weight:500;fill:#161616">57.7%</text>
+<text x="1132.8084128726882" y="494" text-anchor="middle" class="tiny">15 people</text>
+<text x="1022" y="590" text-anchor="middle" class="small">A only 7.7%</text>
+<text x="1250" y="590" text-anchor="middle" class="small">B only 15.4%</text>
+<text x="1136" y="632" text-anchor="middle" class="small">Outside both 19.2% · 5 people</text>
+<line x1="72" x2="1368" y1="682" y2="682" class="grid"/>
+<text x="72" y="724" text-anchor="start" class="small">Within each panel, circle and overlap areas are proportional to people. Panel sizes should not be compared. Support</text><text x="72" y="749" text-anchor="start" class="small">combines agree and strongly agree.</text>
+</svg>

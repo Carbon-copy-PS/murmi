@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960" class="htr-chart" role="img" lang="en" xml:lang="en" aria-labelledby="key-statements-en-title key-statements-en-desc">
+<title id="key-statements-en-title">Five-point distribution for key statements</title>
+<desc id="key-statements-en-desc">Distribution of strongly agree, agree, neutral, disagree and strongly disagree responses across seven key statements and Q24, with the response count for each prompt.</desc>
+<style>
+
+.htr-chart text{font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;fill:#161616;font-weight:400}
+.htr-chart .title{font-family:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;font-size:44px;font-weight:400;letter-spacing:-.5px}
+.htr-chart .subtitle{font-size:22px;fill:#60656A}
+.htr-chart .section{font-size:26px;font-weight:500}
+.htr-chart .body{font-size:22px}
+.htr-chart .compact{font-size:19px}
+.htr-chart .small{font-size:18px;fill:#60656A}
+.htr-chart .tiny{font-size:16px;fill:#60656A}
+.htr-chart .value{font-size:20px;font-weight:500}
+.htr-chart .label{font-size:20px;font-weight:500}
+.htr-chart .point-number{font-size:12px;font-weight:500;fill:#161616;pointer-events:none}
+.htr-chart .grid{stroke:#D7D9D9;stroke-width:1}
+.htr-chart .axis{stroke:#60656A;stroke-width:1.5}
+.htr-chart .callout{font-weight:500}
+</style>
+<rect width="1440" height="960" fill="#FFFFFF"/>
+<g class="chart-title">
+<text x="72" y="72" class="title">Common ground is clear; Q24 needs to be rewritten</text>
+<text x="72" y="112" class="subtitle">Bars show five-point responses among each prompt’s respondents; n appears at right.</text>
+</g>
+<rect x="390" y="142" width="24" height="24" rx="0" fill="#0D5C63"/>
+<text x="424" y="162" class="small">Strongly agree</text>
+<rect x="595" y="142" width="24" height="24" rx="0" fill="#45A0A8"/>
+<text x="629" y="162" class="small">Agree</text>
+<rect x="730" y="142" width="24" height="24" rx="0" fill="#CDD1D2"/>
+<text x="764" y="162" class="small">Neutral</text>
+<rect x="875" y="142" width="24" height="24" rx="0" fill="#C85842"/>
+<text x="909" y="162" class="small">Disagree</text>
+<rect x="1040" y="142" width="24" height="24" rx="0" fill="#8C3B2A"/>
+<text x="1074" y="162" class="small">Strongly disagree</text>
+<text x="72" y="213" text-anchor="start" class="label">Formally involve children and</text><text x="72" y="239" text-anchor="start" class="label">young people in policymaking</text>
+<rect x="500" y="198" width="254.76923076923077" height="38" fill="#0D5C63"/>
+<text x="627.3846153846154" y="225" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">35%</text>
+<rect x="754.7692307692307" y="198" width="398.7692307692308" height="38" fill="#45A0A8"/>
+<text x="954.1538461538461" y="225" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">55%</text>
+<rect x="1153.5384615384614" y="198" width="55.38461538461539" height="38" fill="#CDD1D2"/>
+<text x="1181.230769230769" y="225" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">8%</text>
+<rect x="1208.923076923077" y="198" width="11.076923076923078" height="38" fill="#C85842"/>
+<rect x="500" y="198" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="225" class="value">n = 65</text>
+<text x="72" y="299" text-anchor="start" class="label">Urgently research specific AI</text><text x="72" y="325" text-anchor="start" class="label">harms to children and young people</text>
+<rect x="500" y="284" width="291.06382978723406" height="38" fill="#0D5C63"/>
+<text x="645.531914893617" y="311" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">40%</text>
+<rect x="791.063829787234" y="284" width="352.3404255319149" height="38" fill="#45A0A8"/>
+<text x="967.2340425531914" y="311" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">49%</text>
+<rect x="1143.404255319149" y="284" width="61.276595744680854" height="38" fill="#CDD1D2"/>
+<text x="1174.0425531914893" y="311" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">9%</text>
+<rect x="1204.6808510638298" y="284" width="15.319148936170214" height="38" fill="#C85842"/>
+<rect x="500" y="284" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="311" class="value">n = 47</text>
+<text x="72" y="385" text-anchor="start" class="label">Age restrictions still provide</text><text x="72" y="411" text-anchor="start" class="label">useful boundaries</text>
+<rect x="500" y="370" width="166.15384615384613" height="38" fill="#0D5C63"/>
+<text x="583.0769230769231" y="397" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">23%</text>
+<rect x="666.1538461538462" y="370" width="443.0769230769231" height="38" fill="#45A0A8"/>
+<text x="887.6923076923077" y="397" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">62%</text>
+<rect x="1109.2307692307693" y="370" width="44.307692307692314" height="38" fill="#CDD1D2"/>
+<rect x="1153.5384615384617" y="370" width="66.46153846153845" height="38" fill="#C85842"/>
+<text x="1186.769230769231" y="397" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">9%</text>
+<rect x="500" y="370" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="397" class="value">n = 65</text>
+<text x="72" y="471" text-anchor="start" class="label">Provide annual parent–child AI</text><text x="72" y="497" text-anchor="start" class="label">safety education</text>
+<rect x="500" y="456" width="165.24590163934425" height="38" fill="#0D5C63"/>
+<text x="582.6229508196722" y="483" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">23%</text>
+<rect x="665.2459016393443" y="456" width="389.5081967213115" height="38" fill="#45A0A8"/>
+<text x="860" y="483" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">54%</text>
+<rect x="1054.754098360656" y="456" width="118.0327868852459" height="38" fill="#CDD1D2"/>
+<text x="1113.770491803279" y="483" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">16%</text>
+<rect x="1172.7868852459019" y="456" width="47.21311475409836" height="38" fill="#C85842"/>
+<rect x="500" y="456" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="483" class="value">n = 61</text>
+<text x="72" y="557" text-anchor="start" class="label">Complete child impact assessments</text><text x="72" y="583" text-anchor="start" class="label">before launch</text>
+<rect x="500" y="542" width="177.04918032786884" height="38" fill="#0D5C63"/>
+<text x="588.5245901639344" y="569" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">25%</text>
+<rect x="677.0491803278688" y="542" width="354.0983606557377" height="38" fill="#45A0A8"/>
+<text x="854.0983606557377" y="569" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">49%</text>
+<rect x="1031.1475409836066" y="542" width="118.0327868852459" height="38" fill="#CDD1D2"/>
+<text x="1090.1639344262296" y="569" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">16%</text>
+<rect x="1149.1803278688526" y="542" width="70.81967213114754" height="38" fill="#C85842"/>
+<text x="1184.5901639344263" y="569" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">10%</text>
+<rect x="500" y="542" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="569" class="value">n = 61</text>
+<text x="72" y="643" text-anchor="start" class="label">Prioritise victim support over</text><text x="72" y="669" text-anchor="start" class="label">restricting generation</text>
+<rect x="500" y="628" width="114.78260869565219" height="38" fill="#0D5C63"/>
+<text x="557.3913043478261" y="655" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">16%</text>
+<rect x="614.7826086956522" y="628" width="406.9565217391304" height="38" fill="#45A0A8"/>
+<text x="818.2608695652175" y="655" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">57%</text>
+<rect x="1021.7391304347826" y="628" width="83.47826086956522" height="38" fill="#CDD1D2"/>
+<text x="1063.4782608695652" y="655" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">12%</text>
+<rect x="1105.2173913043478" y="628" width="114.78260869565219" height="38" fill="#C85842"/>
+<text x="1162.6086956521738" y="655" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">16%</text>
+<rect x="500" y="628" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="655" class="value">n = 69</text>
+<text x="72" y="729" text-anchor="start" class="label">Prevent expanded surveillance in</text><text x="72" y="755" text-anchor="start" class="label">the name of child protection</text>
+<rect x="500" y="714" width="226.66666666666669" height="38" fill="#0D5C63"/>
+<text x="613.3333333333334" y="741" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">31%</text>
+<rect x="726.6666666666667" y="714" width="253.33333333333331" height="38" fill="#45A0A8"/>
+<text x="853.3333333333334" y="741" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">35%</text>
+<rect x="980" y="714" width="133.33333333333334" height="38" fill="#CDD1D2"/>
+<text x="1046.6666666666667" y="741" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">19%</text>
+<rect x="1113.3333333333333" y="714" width="106.66666666666666" height="38" fill="#C85842"/>
+<text x="1166.6666666666665" y="741" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">15%</text>
+<rect x="500" y="714" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="741" class="value">n = 54</text>
+<text x="72" y="815" text-anchor="start" class="label">Can regulation keep pace with AI?</text>
+<rect x="500" y="800" width="93.91304347826086" height="38" fill="#0D5C63"/>
+<text x="546.9565217391304" y="827" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">13%</text>
+<rect x="593.9130434782609" y="800" width="187.82608695652172" height="38" fill="#45A0A8"/>
+<text x="687.8260869565217" y="827" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">26%</text>
+<rect x="781.7391304347826" y="800" width="313.04347826086956" height="38" fill="#CDD1D2"/>
+<text x="938.2608695652174" y="827" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#161616">43%</text>
+<rect x="1094.7826086956522" y="800" width="125.21739130434781" height="38" fill="#C85842"/>
+<text x="1157.3913043478262" y="827" text-anchor="middle" style="font-size:17px;font-weight:500;fill:#FFFFFF">17%</text>
+<rect x="500" y="800" width="720" height="38" fill="none" stroke="#FFFFFF" stroke-width="2" rx="0"/>
+<text x="1250" y="827" class="value">n = 23</text>
+<text x="72" y="925" class="small">No ‘strongly disagree’ votes were recorded. Q24 is a question, so agreement cannot be read as support for a policy position.</text>
+</svg>

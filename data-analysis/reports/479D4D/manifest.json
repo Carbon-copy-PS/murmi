@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "generatorVersion": "1.14.0",
+  "locale": "zh-Hant-TW",
+  "session": "479D4D",
+  "topic": "AI 生成 / 散佈兒少不宜內容",
+  "aggregateOnly": true,
+  "counts": {
+    "participantsWithVotes": 71,
+    "statements": 24,
+    "responses": 1028,
+    "support": 785,
+    "neutral": 159,
+    "oppose": 84
+  },
+  "opinionGroupAnalysis": {
+    "method": "Pol.is-inspired static analysis; not official Pol.is output",
+    "status": "withheld",
+    "eligibleParticipants": 54,
+    "excludedParticipants": 17,
+    "minimumVotes": 7,
+    "explainedVariancePct": 28.06266099666552,
+    "pcaAxisVariancePct": [
+      14.503772940520884,
+      13.558888056144639
+    ],
+    "softTendencyMethod": "Deterministic fuzzy c-means on the first two PCA dimensions",
+    "softTendencyCount": 3,
+    "softTendencyOverlapThreshold": 0.2,
+    "participantsWithMultipleSoftTendencies": 15,
+    "statementBootstrapMedianAdjustedRand": 0.22473175202517198,
+    "statementBootstrapReplicates": 100,
+    "statementBootstrapThresholdPasses": 0
+  },
+  "files": [
+    {
+      "file": "index.html",
+      "bytes": 105539,
+      "sha256": "d1c18c8af93f6d1d4608a75aaadf587fac80608f6c651a754a32757ae4a541f4"
+    },
+    {
+      "file": "README.txt",
+      "bytes": 529,
+      "sha256": "90a21033d449c25e5e30f5c611d457ed4d07e6b0fdeefe2b4d30e42f0aff5190"
+    },
+    {
+      "file": "assets/01-key-statements.svg",
+      "bytes": 10801,
+      "sha256": "2ff083ef8bbe76c964e6ab4f500486032add59e9c959effa78f56f38f028674a"
+    },
+    {
+      "file": "assets/01-key-statements.png",
+      "bytes": 162276,
+      "sha256": "6f129fdf685dd46ba31a6ec7b1d066b755147be30861aac9e28360d6edc3863e"
+    },
+    {
+      "file": "assets/02-pause-map.svg",
+      "bytes": 5749,
+      "sha256": "c5eea67ab0de88e109f7e918cce3c888f3ab60d3efde642f98088b30bb45269e"
+    },
+    {
+      "file": "assets/02-pause-map.png",
+      "bytes": 154963,
+      "sha256": "afe3b9fa7f889768ae29537d3407e9567c4cd95aac519b650c9a8505f8cd88a7"
+    },
+    {
+      "file": "assets/03-theme-map.svg",
+      "bytes": 8344,
+      "sha256": "840fada863e7b2f848c57c4c7891a8664323001e4187311a6b0950855dabe3da"
+    },
+    {
+      "file": "assets/03-theme-map.png",
+      "bytes": 181772,
+      "sha256": "897b4bdf8d575c4756f2982578e08848325150de93aee57f1982a1a1526e1bb5"
+    },
+    {
+      "file": "assets/04-overlap-mosaics.svg",
+      "bytes": 5628,
+      "sha256": "0bfddd930471ca3a1dcd576044be922b54190cb50c0e5dc5bbe5c11fe94ebc80"
+    },
+    {
+      "file": "assets/04-overlap-mosaics.png",
+      "bytes": 176738,
+      "sha256": "61ba7efdb52bb358c367bf5cb7893d7dc2f2614a86abcda29901f6cfafc927a7"
+    },
+    {
+      "file": "assets/05-response-coverage.svg",
+      "bytes": 9484,
+      "sha256": "6fc8cbf5368f58eedccc7d7acec27f05499fc0ba7d9524c53c6a7fd1194875a5"
+    },
+    {
+      "file": "assets/05-response-coverage.png",
+      "bytes": 110817,
+      "sha256": "7afcb258b36c70233a88ffa41d6174923f38b0790464bda3f988067f37b29f62"
+    },
+    {
+      "file": "assets/06-opinion-landscape.svg",
+      "bytes": 7986,
+      "sha256": "521650dbf18f1caf9464265002c9d6601ebeed6b85b80ac559f4d96312243615"
+    },
+    {
+      "file": "assets/06-opinion-landscape.png",
+      "bytes": 192342,
+      "sha256": "f26a48306569bd5ebe7c1830ba89ffe4679fc2e27316fc2e5b8f310f6876a507"
+    }
+  ]
+}

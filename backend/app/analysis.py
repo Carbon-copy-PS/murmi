@@ -129,6 +129,81 @@ def normalize_common_ground_mode(mode: str | None) -> str:
         return _LEGACY_DEPTH_TO_MODE[mode]
     return DEFAULT_COMMON_GROUND_MODE
 
+REPORT_NARRATIVE_PROMPT = """You are an impartial data-story editor for a public deliberation report.
+
+You receive aggregate voting evidence only. Write a concise, reader-friendly narrative that helps participants understand what the room shared, how priorities combined, and what remains open.
+
+Rules:
+- Every substantive claim must be grounded in the supplied evidence.
+- Evidence references must use only statement IDs present in the input.
+- Never invent percentages, participant counts, quotations, themes, or causal explanations.
+- Opinion tendencies are overlapping patterns, not fixed, mutually exclusive, or opposing camps.
+- Describe PCA dimensions as variations in emphasis. Do not use technical language such as eigenvector, loading, fuzzy c-means, silhouette, or cluster in reader-facing copy.
+- Treat observed neutral responses separately from missing responses. Never guess why somebody selected neutral.
+- Treat lower response coverage as weaker evidence, not as disagreement.
+- Select 6-8 key statements that represent the strongest shared signals, different policy approaches, and at least one important neutral or lower-reach caveat. Do not simply rank by support.
+- Organise the evidence into exactly three cross-cutting process principles and up to five concrete action areas when the evidence supports them. Principles should describe how policy should be made (for example participation, evidence, review, or safeguards); action areas should describe what policy could address. Do not repeat the same idea in both lists.
+- Select up to three "both-and" statement pairs that are often framed as competing approaches but that many of the same respondents supported together. Choose semantically meaningful trade-offs, not merely two popular statements.
+- Flag question-shaped, ambiguous, or otherwise non-votable prompt wording as a limitation. Do not interpret agreement with a question as support for a policy position.
+- Do not imply that an AI-written synthesis was endorsed by participants.
+- Prefer plain, specific language. Avoid inflated claims and generic facilitation language.
+- Titles should state the insight, not name the chart.
+- Keep each explanation to one or two short sentences.
+
+Respond ONLY with JSON:
+{
+  "headline": "6-14 word editorial headline",
+  "standfirst": "two-sentence overview",
+  "overviewEvidenceStatementIds": ["id"],
+  "keyStatementIds": ["6-8 representative statement IDs"],
+  "takeaways": [
+    {"title": "short finding", "explanation": "why it matters", "evidenceStatementIds": ["id"]}
+  ],
+  "principles": [
+    {"title": "short principle", "explanation": "how the votes support it", "evidenceStatementIds": ["id"]}
+  ],
+  "actionAreas": [
+    {"title": "short area for action", "explanation": "what the evidence suggests doing or testing", "evidenceStatementIds": ["id"]}
+  ],
+  "overlapPairs": [
+    {
+      "title": "short both-and label",
+      "leftStatementId": "id",
+      "rightStatementId": "id",
+      "explanation": "why these approaches are often treated as a trade-off"
+    }
+  ],
+  "dimensions": [
+    {
+      "axis": 1,
+      "label": "short name for this variation",
+      "negativeLabel": "one end",
+      "positiveLabel": "other end",
+      "explanation": "what changes along this dimension",
+      "evidenceStatementIds": ["id"]
+    }
+  ],
+  "tendencies": [
+    {
+      "tendencyId": 1,
+      "title": "2-5 word reader-friendly name",
+      "description": "what this overlapping tendency tends to emphasise",
+      "evidenceStatementIds": ["id"]
+    }
+  ],
+  "openQuestions": [
+    {"title": "short unresolved question", "explanation": "what remains unsettled", "evidenceStatementIds": ["id"]}
+  ],
+  "implications": [
+    {"title": "short practical implication", "explanation": "one cautious next step", "evidenceStatementIds": ["id"]}
+  ],
+  "limitations": [
+    {"title": "short evidence limitation", "explanation": "what should not be concluded yet", "evidenceStatementIds": ["id"]}
+  ]
+}
+
+Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 3 tendencies, 4 open questions, 4 implications, and 4 limitations."""
+
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
 What an open tension IS:
@@ -441,6 +516,15 @@ class AnalysisService:
 
         return await self._live_common_ground(analysis, topic, language, mode)
 
+    async def generate_report_narrative(
+        self,
+        evidence: dict,
+        language: Optional[str] = None,
+    ) -> Optional[dict]:
+        if self._mock:
+            return None
+        return await self._live_report_narrative(evidence, language)
+
     def _normalize_group_analysis(self, data: dict) -> list:
         group_analysis = []
         for item in data.get("groupAnalysis") or []:
@@ -655,6 +739,176 @@ class AnalysisService:
         if group_notes:
             result["groupNotes"] = group_notes
         return result
+
+    def _normalize_report_narrative(
+        self,
+        data: dict,
+        evidence: dict,
+    ) -> Optional[dict]:
+        headline = str(data.get("headline") or "").strip()
+        standfirst = str(data.get("standfirst") or "").strip()
+        if not headline or not standfirst:
+            return None
+
+        allowed_statement_ids = {
+            str(statement.get("id"))
+            for statement in evidence.get("statements") or []
+            if statement.get("id")
+        }
+        landscape = evidence.get("opinionLandscape") or {}
+        allowed_tendency_ids = {
+            int(profile.get("tendencyId"))
+            for profile in (
+                landscape.get("tendencies", {}).get("profiles") or []
+            )
+            if isinstance(profile.get("tendencyId"), int)
+        }
+
+        def references(item: dict) -> list[str]:
+            result = []
+            for value in item.get("evidenceStatementIds") or []:
+                statement_id = str(value)
+                if statement_id in allowed_statement_ids and statement_id not in result:
+                    result.append(statement_id)
+            return result[:5]
+
+        def statement_ids(values, limit: int) -> list[str]:
+            result = []
+            for value in values or []:
+                statement_id = str(value)
+                if (
+                    statement_id in allowed_statement_ids
+                    and statement_id not in result
+                ):
+                    result.append(statement_id)
+                if len(result) == limit:
+                    break
+            return result
+
+        overview_evidence_ids = references({
+            "evidenceStatementIds": (
+                data.get("overviewEvidenceStatementIds") or []
+            )
+        })
+        if not overview_evidence_ids:
+            return None
+
+        def items(key: str, limit: int) -> list[dict]:
+            normalized = []
+            for item in data.get(key) or []:
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title") or "").strip()
+                explanation = str(item.get("explanation") or "").strip()
+                evidence_ids = references(item)
+                if title and explanation and evidence_ids:
+                    normalized.append({
+                        "title": title,
+                        "explanation": explanation,
+                        "evidenceStatementIds": evidence_ids,
+                    })
+                if len(normalized) == limit:
+                    break
+            return normalized
+
+        dimensions = []
+        for item in data.get("dimensions") or []:
+            if not isinstance(item, dict):
+                continue
+            axis = item.get("axis")
+            if axis not in (1, 2) or any(
+                dimension["axis"] == axis for dimension in dimensions
+            ):
+                continue
+            label = str(item.get("label") or "").strip()
+            negative = str(item.get("negativeLabel") or "").strip()
+            positive = str(item.get("positiveLabel") or "").strip()
+            explanation = str(item.get("explanation") or "").strip()
+            evidence_ids = references(item)
+            if label and negative and positive and explanation and evidence_ids:
+                dimensions.append({
+                    "axis": axis,
+                    "label": label,
+                    "negativeLabel": negative,
+                    "positiveLabel": positive,
+                    "explanation": explanation,
+                    "evidenceStatementIds": evidence_ids,
+                })
+            if len(dimensions) == 2:
+                break
+
+        tendencies = []
+        for item in data.get("tendencies") or []:
+            if not isinstance(item, dict):
+                continue
+            tendency_id = item.get("tendencyId")
+            if (
+                tendency_id not in allowed_tendency_ids
+                or any(
+                    tendency["tendencyId"] == tendency_id
+                    for tendency in tendencies
+                )
+            ):
+                continue
+            title = str(item.get("title") or "").strip()
+            description = str(item.get("description") or "").strip()
+            evidence_ids = references(item)
+            if title and description and evidence_ids:
+                tendencies.append({
+                    "tendencyId": tendency_id,
+                    "title": title,
+                    "description": description,
+                    "evidenceStatementIds": evidence_ids,
+                })
+            if len(tendencies) == 3:
+                break
+
+        overlap_pairs = []
+        seen_pairs = set()
+        for item in data.get("overlapPairs") or []:
+            if not isinstance(item, dict):
+                continue
+            left_id = str(item.get("leftStatementId") or "")
+            right_id = str(item.get("rightStatementId") or "")
+            pair_key = tuple(sorted((left_id, right_id)))
+            title = str(item.get("title") or "").strip()
+            explanation = str(item.get("explanation") or "").strip()
+            if (
+                left_id not in allowed_statement_ids
+                or right_id not in allowed_statement_ids
+                or left_id == right_id
+                or pair_key in seen_pairs
+                or not title
+                or not explanation
+            ):
+                continue
+            seen_pairs.add(pair_key)
+            overlap_pairs.append({
+                "title": title,
+                "leftStatementId": left_id,
+                "rightStatementId": right_id,
+                "explanation": explanation,
+            })
+            if len(overlap_pairs) == 3:
+                break
+
+        return {
+            "headline": headline,
+            "standfirst": standfirst,
+            "overviewEvidenceStatementIds": overview_evidence_ids,
+            "keyStatementIds": statement_ids(
+                data.get("keyStatementIds"), 8
+            ),
+            "takeaways": items("takeaways", 3),
+            "principles": items("principles", 3),
+            "actionAreas": items("actionAreas", 5),
+            "overlapPairs": overlap_pairs,
+            "dimensions": dimensions,
+            "tendencies": tendencies,
+            "openQuestions": items("openQuestions", 4),
+            "implications": items("implications", 4),
+            "limitations": items("limitations", 4),
+        }
 
     def _normalize_recommendations(self, data: dict, divisive_count: int) -> Optional[dict]:
         unexplored = [
@@ -1003,6 +1257,55 @@ class AnalysisService:
         except Exception as e:
             print(f"Common ground error: {e}")
             return None
+
+    async def _live_report_narrative(
+        self,
+        evidence: dict,
+        language: Optional[str] = None,
+    ) -> Optional[dict]:
+        language_instruction = _language_rule(language)
+        if language == "zh":
+            language_instruction += (
+                "- Use natural Taiwan Traditional Chinese terminology and punctuation.\n"
+                "- Avoid repeatedly framing sentences as 「不是……而是……」.\n"
+            )
+        try:
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                partial(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    temperature=0.3,
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                REPORT_NARRATIVE_PROMPT
+                                + language_instruction
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": json.dumps(
+                                evidence,
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                        },
+                    ],
+                ),
+            )
+            data = json.loads(response.choices[0].message.content)
+            return self._normalize_report_narrative(data, evidence)
+        except (json.JSONDecodeError, KeyError, IndexError) as exc:
+            print(f"Report narrative parse error: {exc}")
+            return None
+        except Exception as exc:
+            print(f"Report narrative generation error: {exc}")
+            return None
+
 
     def _mock_extract(self, existing_statements: list[str]) -> list[str]:
         existing_set = set(existing_statements)

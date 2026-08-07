@@ -4,6 +4,7 @@ import { CG_VOTE_REASON_MAX, resolveCgMode, isPolicyCommonGround } from '../cons
 import RecommendationsPanel from './tension-generator'
 import { canGenerateRecommendations } from '../utils/recommendations-payload'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
+import ReportControls from './final-report/ReportControls'
 import {
   buildCSV,
   buildJSON,
@@ -1038,6 +1039,11 @@ export default function ResultsPanel({
   onPublishRecommendations,
   onClearRecommendationDrafts,
   publicView = false,
+  publicId = null,
+  reportStatus = 'none',
+  reportSnapshot = null,
+  onFinalizeReport = () => {},
+  onPublishReport = () => {},
 }) {
   const { t, i18n } = useTranslation()
   const cluster = useMemo(
@@ -1101,6 +1107,15 @@ export default function ResultsPanel({
   )
 
   const approvedCount = statements.filter((s) => s.approved).length
+  const reportControls = isHost && !publicView ? (
+    <ReportControls
+      status={reportStatus}
+      report={reportSnapshot}
+      publicId={publicId}
+      onGenerate={onFinalizeReport}
+      onPublish={onPublishReport}
+    />
+  ) : null
 
   if (!cluster) {
     return (
@@ -1110,6 +1125,7 @@ export default function ResultsPanel({
           message={t('results.crunching')}
           stats={t('results.statementsLive', { count: approvedCount })}
         />
+        {reportControls}
       </div>
     )
   }
@@ -1125,6 +1141,7 @@ export default function ResultsPanel({
         {commonGroundSection}
         {cluster.consensus.length > 0 && <ConsensusBlocks cluster={cluster} voteType={voteType} />}
         {!publicView && <ExportBar ctx={exportCtx} />}
+        {reportControls}
       </div>
     )
   }
@@ -1169,6 +1186,8 @@ export default function ResultsPanel({
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 
       {!publicView && <ExportBar ctx={exportCtx} />}
+
+      {reportControls}
     </div>
   )
 }

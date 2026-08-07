@@ -99,6 +99,9 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [statements, setStatements] = useState([])
   const [topic, setTopic] = useState(null)
   const [publicId, setPublicId] = useState(null)
+  const [reportStatus, setReportStatus] = useState('none')
+  const [reportSnapshot, setReportSnapshot] = useState(null)
+  const [reportVersion, setReportVersion] = useState(0)
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [cgMode, setCgMode] = useState(DEFAULT_CG_MODE)
@@ -287,6 +290,9 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           setStatements(msg.statements || [])
           setTopic(msg.topic || null)
           if (msg.publicId) setPublicId(msg.publicId)
+          setReportStatus(msg.reportStatus || 'none')
+          setReportVersion(msg.reportVersion || 0)
+          setReportSnapshot(msg.report || null)
           setRoomLanguage(msg.recorderLanguage || 'en')
           setVoteType(msg.voteType || 'binary')
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
@@ -361,6 +367,11 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           break
         case 'language_updated':
           setRoomLanguage(msg.language || 'en')
+          break
+        case 'report_status_updated':
+          setReportStatus(msg.reportStatus || 'none')
+          setReportVersion(msg.reportVersion || 0)
+          if (msg.report) setReportSnapshot(msg.report)
           break
         case 'participant_renamed':
           break
@@ -819,6 +830,16 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
     wsRef.current?.send(JSON.stringify({ type: 'endorse_common_ground', id: cgId }))
   }
 
+  function finalizeReport() {
+    wsRef.current?.send(JSON.stringify({
+      type: reportStatus === 'stale' ? 'regenerate_report' : 'finalize_report',
+    }))
+  }
+
+  function publishReport() {
+    wsRef.current?.send(JSON.stringify({ type: 'publish_report' }))
+  }
+
   function dismissCommonGround(cgId) {
     if (!cgId) return
     setCgError(null)
@@ -1177,6 +1198,12 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           onGenerateRecommendations={tourActive ? noop : requestRecommendations}
           onPublishRecommendations={tourActive ? noop : publishRecommendations}
           onClearRecommendationDrafts={tourActive ? noop : clearRecommendationDrafts}
+          publicId={publicId}
+          reportStatus={tourActive ? 'none' : reportStatus}
+          reportSnapshot={tourActive ? null : reportSnapshot}
+          reportVersion={tourActive ? 0 : reportVersion}
+          onFinalizeReport={tourActive ? noop : finalizeReport}
+          onPublishReport={tourActive ? noop : publishReport}
         />
       )}
       {view === 'participants' && isHost && (
