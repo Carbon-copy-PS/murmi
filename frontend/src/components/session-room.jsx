@@ -811,7 +811,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
       setCgPending(false)
       setCgPendingMode(null)
       setCgError(t('errors.cgTimeout'))
-    }, 60000)
+    }, 80000)
   }
 
   function endorseCommonGround(cgId) {

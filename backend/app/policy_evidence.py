@@ -1,7 +1,8 @@
 """Policy Common Ground evidence built from approved statements and votes.
 
-Stable argument IDs are statement IDs. Participant names and internal participant
-IDs are never included in model-facing payloads.
+Model-facing argument IDs are short aliases (a1, a2, …) mapped back to statement
+IDs after generation. Participant names and internal participant IDs are never
+included in model-facing payloads.
 """
 from __future__ import annotations
 
@@ -392,9 +393,17 @@ def build_policy_evidence(session) -> dict:
     clusters = _compute_clusters(approved, voters, session.vote_type or "binary")
     co_support = _co_support_pairs(approved, voters)
 
+    # Short aliases are much more reliable for the model than opaque hex statement ids.
+    alias_map: dict[str, str] = {}
+    real_to_alias: dict[str, str] = {}
+    for i, st in enumerate(stats, start=1):
+        alias = f"a{i}"
+        alias_map[alias] = st["id"]
+        real_to_alias[st["id"]] = alias
+
     arguments = [
         {
-            "id": st["id"],
+            "id": real_to_alias[st["id"]],
             "text": st["text"],
             "support": st["support"],
             "neutrality": st["neutrality"],
@@ -421,9 +430,31 @@ def build_policy_evidence(session) -> dict:
             unique = {x["lean"] for x in leans if x["lean"] != "mixed"}
             if len(unique) >= 2:
                 group_differences.append({
-                    "argumentId": st["id"],
+                    "argumentId": real_to_alias[st["id"]],
                     "groupLeans": leans,
                 })
+
+    opinion_groups = []
+    for g in groups:
+        stances = []
+        for stance in g.get("stances") or []:
+            real_id = stance.get("argumentId")
+            alias = real_to_alias.get(real_id)
+            if not alias:
+                continue
+            stances.append({**stance, "argumentId": alias})
+        opinion_groups.append({
+            "group": g["group"],
+            "size": g["size"],
+            "stances": stances,
+        })
+
+    co_support_aliased = []
+    for pair in co_support:
+        ids = [real_to_alias[rid] for rid in (pair.get("argumentIds") or []) if rid in real_to_alias]
+        if len(ids) < 2:
+            continue
+        co_support_aliased.append({**pair, "argumentIds": ids})
 
     return {
         "voterCount": len(voters),
@@ -431,17 +462,11 @@ def build_policy_evidence(session) -> dict:
         "statementCount": len(approved),
         "voteType": session.vote_type or "binary",
         "arguments": arguments,
-        "opinionGroups": [
-            {
-                "group": g["group"],
-                "size": g["size"],
-                "stances": g["stances"],
-            }
-            for g in groups
-        ],
+        "opinionGroups": opinion_groups,
         "groupDifferences": group_differences,
-        "coSupport": co_support,
-        "validArgumentIds": [s.id for s in approved],
+        "coSupport": co_support_aliased,
+        "validArgumentIds": list(alias_map.keys()),
+        "argumentIdMap": alias_map,
     }
 
 

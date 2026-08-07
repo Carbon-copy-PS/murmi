@@ -65,8 +65,8 @@ class Session:
     statements: list[Statement] = field(default_factory=list)
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
-    vote_type: str = "binary"
-    common_ground_mode: str = "generic"
+    vote_type: str = "likert"
+    common_ground_mode: str = "policy"
     started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
@@ -94,7 +94,7 @@ MIN_VOTING_LIFETIME_HOURS = 1.0
 MAX_VOTING_LIFETIME_HOURS = 720.0
 VOTING_ACTIVITY_MAX = 100
 COMMON_GROUND_MODES = ("generic", "policy")
-DEFAULT_COMMON_GROUND_MODE = "generic"
+DEFAULT_COMMON_GROUND_MODE = "policy"
 _LEGACY_DEPTH_TO_MODE = {
     "basic": "generic",
     "extended": "generic",
@@ -123,15 +123,16 @@ class SessionManager:
         self,
         session_id: str,
         topic: str | None = None,
-        vote_type: str = "binary",
+        vote_type: str = "likert",
     ) -> Session:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
-        vt = vote_type if vote_type in VOTE_TYPES else "binary"
+        vt = vote_type if vote_type in VOTE_TYPES else "likert"
         return Session(
             id=session_id,
             topic=topic,
             vote_type=vt,
+            common_ground_mode=DEFAULT_COMMON_GROUND_MODE,
             created_at=now,
             expires_at=expires_at,
             voting_lifetime_hours=DEFAULT_VOTING_LIFETIME_HOURS,
@@ -145,7 +146,7 @@ class SessionManager:
             if token and token not in existing:
                 return token
 
-    def create(self, topic: str | None = None, vote_type: str = "binary") -> str:
+    def create(self, topic: str | None = None, vote_type: str = "likert") -> str:
         session_id = uuid.uuid4().hex[:6].upper()
         session = self._new_session(session_id, topic, vote_type)
         session.public_id = self._gen_public_id()
@@ -172,7 +173,7 @@ class SessionManager:
         session = Session(
             id=data["id"],
             topic=data.get("topic"),
-            vote_type=data.get("vote_type", "binary"),
+            vote_type=data.get("vote_type", "likert"),
             created_at=data.get("created_at", time.time()),
             expires_at=data.get("expires_at"),
         )

@@ -181,7 +181,7 @@ class CreateSessionRequest(BaseModel):
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
-    vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
+    vote_type = req.voteType if req.voteType in ("binary", "likert") else "likert"
     session_id = sessions.create(topic=topic, vote_type=vote_type)
     await persist_session(sessions.get(session_id))
     return {
@@ -350,7 +350,7 @@ async def run_analysis(session_id: str):
         sessions.mark_analysis_done(session_id)
 
 
-COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
+COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "75"))
 RECOMMENDATIONS_TIMEOUT_SECONDS = float(os.environ.get("RECOMMENDATIONS_TIMEOUT_SECONDS", os.environ.get("TENSION_TIMEOUT_SECONDS", "45")))
 TENSION_TRANSCRIPT_MAX_TURNS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_TURNS", "80"))
 TENSION_TRANSCRIPT_MAX_CHARS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_CHARS", "12000"))
