@@ -39,7 +39,7 @@ class SessionRow(Base):
     topic: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     threshold: Mapped[int] = mapped_column(Integer, default=5)
-    vote_type: Mapped[str] = mapped_column(String(16), default="binary", server_default="binary")
+    vote_type: Mapped[str] = mapped_column(String(16), default="likert", server_default="likert")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     voting_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
@@ -48,7 +48,7 @@ class SessionRow(Base):
     voting_activity: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     public_id: Mapped[Optional[str]] = mapped_column(String(24), nullable=True, unique=True, index=True)
     common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    common_ground_depth: Mapped[str] = mapped_column(String(16), default="extended", server_default="extended")
+    common_ground_mode: Mapped[str] = mapped_column(String(16), default="policy", server_default="policy")
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -163,7 +163,7 @@ class Database:
             ))
             await conn.execute(text(
                 "ALTER TABLE sessions "
-                "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'binary'"
+                "ADD COLUMN IF NOT EXISTS vote_type varchar(16) NOT NULL DEFAULT 'likert'"
             ))
             await conn.execute(text(
                 "ALTER TABLE statements "
@@ -209,6 +209,19 @@ class Database:
                 "ALTER TABLE sessions "
                 "ADD COLUMN IF NOT EXISTS common_ground_depth varchar(16) NOT NULL DEFAULT 'extended'"
             ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_mode varchar(16) NOT NULL DEFAULT 'policy'"
+            ))
+            await conn.execute(text(
+                """
+                UPDATE sessions
+                SET common_ground_mode = 'policy'
+                WHERE common_ground_mode IS NULL
+                   OR common_ground_mode = ''
+                   OR common_ground_mode IN ('basic', 'extended', 'comprehensive')
+                """
+            ))
         return True
 
     async def disconnect(self):
@@ -227,7 +240,7 @@ class Database:
             "topic": session.topic,
             "current_round": 1,
             "threshold": 5,
-            "vote_type": getattr(session, "vote_type", "binary"),
+            "vote_type": getattr(session, "vote_type", "likert"),
             "created_at": created,
             "expires_at": datetime.fromtimestamp(expires_epoch, timezone.utc),
             "voting_open": getattr(session, "voting_open", True),
@@ -236,7 +249,7 @@ class Database:
             "voting_activity": getattr(session, "voting_activity", []),
             "public_id": getattr(session, "public_id", None),
             "common_ground_history": getattr(session, "common_ground_history", []) or [],
-            "common_ground_depth": getattr(session, "common_ground_depth", "extended") or "extended",
+            "common_ground_mode": getattr(session, "common_ground_mode", "policy") or "policy",
         }
 
     async def _ensure_session(self, db, session):
@@ -283,7 +296,7 @@ class Database:
                 .where(SessionRow.id == session.id)
                 .values(
                     common_ground_history=getattr(session, "common_ground_history", []) or [],
-                    common_ground_depth=getattr(session, "common_ground_depth", "extended") or "extended",
+                    common_ground_mode=getattr(session, "common_ground_mode", "policy") or "policy",
                 )
             )
             await db.commit()
@@ -544,7 +557,9 @@ class Database:
             "voting_activity": getattr(row, "voting_activity", None) or [],
             "public_id": getattr(row, "public_id", None),
             "common_ground_history": getattr(row, "common_ground_history", None) or [],
-            "common_ground_depth": getattr(row, "common_ground_depth", None) or "extended",
+            "common_ground_mode": getattr(row, "common_ground_mode", None)
+                or getattr(row, "common_ground_depth", None)
+                or "policy",
             "transcript": [t.payload for t in transcript],
             "statements": statement_payloads,
             "members": {

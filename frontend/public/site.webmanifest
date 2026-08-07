@@ -1,11 +1,11 @@
 {
-  "name": "HearTheRoom",
-  "short_name": "HearTheRoom",
-  "description": "Real-time collaborative sense-making for live rooms and workshops.",
+  "name": "Murmi",
+  "short_name": "Murmi",
+  "description": "Better group decisions at the speed of conversation.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#070B24",
+  "theme_color": "#0200DD",
   "icons": [
     { "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "/pwa-512x512.png", "sizes": "512x512", "type": "image/png" },

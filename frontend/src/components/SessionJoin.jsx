@@ -1,10 +1,33 @@
 import { useState, useEffect } from 'react'
 import { APP_NAME } from '../constants/app'
-import { LANGUAGE_SHOWCASE, SPOKEN_LANGUAGES } from '../constants/languages'
+import { LANGUAGE_SHOWCASE } from '../constants/languages'
 import { getSavedName, saveName } from '../identity'
 import LanguageSelect from './language-select'
-import ThemeToggle from './ThemeToggle'
-import NeutralIcon from './neutral-icon'
+import ProductScreensCarousel from './product-screens-carousel'
+
+function MurmiMark({ className = 'ls-brand-mark' }) {
+  return (
+    <img
+      className={className}
+      src="/favicon.svg"
+      alt=""
+      width={32}
+      height={32}
+      decoding="async"
+    />
+  )
+}
+
+function scrollToSection(event, id) {
+  event.preventDefault()
+  const el = document.getElementById(id)
+  if (!el) return
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  if (window.history?.replaceState) {
+    window.history.replaceState(null, '', `#${id}`)
+  }
+}
 
 function LanguageShowcase() {
   return (
@@ -13,7 +36,7 @@ function LanguageShowcase() {
         <span className="ls-kicker">Languages</span>
         <h2 className="ls-h2">Built for Europe — and beyond</h2>
         <p className="ls-lead compact">
-          Every EU official language, plus Chinese. Participants choose their spoken language; transcription stays in that language.
+          Every EU official language, plus Chinese. Participants choose their spoken language; the conversation stays with them.
         </p>
       </div>
       <div className="ls-lang-grid">
@@ -30,309 +53,78 @@ function LanguageShowcase() {
 
 const Req = () => <span className="req" aria-hidden="true">*</span>
 
-function LogoMark({ className = 'ls-logo-mark' }) {
+function HostChevron() {
   return (
-    <svg viewBox="0 0 512 512" className={className} fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <g fill="none" strokeLinecap="round">
-        <g stroke="#12b76a">
-          <path d="M201 351.26 A 110 110 0 0 1 201 160.74" strokeWidth="30" />
-          <path d="M173.5 398.9 A 165 165 0 0 1 173.5 113.1" strokeWidth="30" strokeOpacity="0.5" />
-        </g>
-        <g stroke="#f04438">
-          <path d="M311 160.74 A 110 110 0 0 1 311 351.26" strokeWidth="30" />
-          <path d="M338.5 113.1 A 165 165 0 0 1 338.5 398.9" strokeWidth="30" strokeOpacity="0.5" />
-        </g>
-      </g>
-      <circle cx="256" cy="256" r="46" fill="#ffffff" />
-    </svg>
+    <span className="ls-btn-chevron" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   )
 }
 
 const STEPS = [
   {
     num: '01',
-    icon: '🎙️',
-    title: 'Host opens one mic',
-    text: 'One person starts a session and shares a 6-character code. Only the host streams audio, so captions stay clean and continuous.',
+    title: 'Host a session',
+    text: 'Start in seconds, share a code, and invite the group — no sign-up, no setup.',
   },
   {
     num: '02',
-    icon: '✨',
-    title: 'AI extracts the claims',
-    text: 'As people speak, the room is transcribed and distilled into short, neutral statements you can actually react to.',
+    title: 'Speak & participate',
+    text: 'As people contribute, Murmi turns the discussion into clear claims everyone can engage with.',
   },
   {
     num: '03',
-    icon: '👆',
-    title: 'Everyone votes',
-    text: 'Swipe to agree, disagree, or mark neutral. Votes are anonymous and update live as the conversation rolls on.',
+    title: 'Vote together',
+    text: 'Everyone can react to claims anonymously, in real time — so quieter voices count too.',
   },
   {
     num: '04',
-    icon: '🧭',
-    title: 'See where the room stands',
-    text: 'Opinion clusters, diverging bars, and an AI common-ground statement turn noise into a shared picture.',
+    title: 'Decide with clarity',
+    text: 'From messy talk to shared understanding — structure better conversations and move toward decisions.',
   },
 ]
 
 const FEATURES = [
   {
-    icon: '🎧',
-    title: 'Live captions',
-    text: 'Realtime transcription with a final accuracy pass so the record reads cleanly, not just quickly.',
+    icon: '◎',
+    title: 'Focus the discussion',
+    text: 'Keeps the group on claims that matter, so workshops and meetings move toward decisions instead of drift.',
   },
   {
-    icon: '🤖',
-    title: 'AI claim extraction',
-    text: 'Completed speaker turns become crisp, votable statements — no manual note-taking.',
+    icon: '◇',
+    title: 'Include overlooked voices',
+    text: 'Brings quieter themes and perspectives into the decision, so the whole group can weigh in fairly.',
   },
   {
-    icon: '🔒',
-    title: 'Anonymous voting',
-    text: 'Individual votes are shown as group patterns in results. Export vote counts per statement from the Results tab.',
+    icon: '☰',
+    title: 'Fair, anonymous voting',
+    text: 'Opinion clusters and vote patterns show where people align or diverge — without singling anyone out.',
   },
   {
-    icon: '🌍',
+    icon: '◌',
     title: 'Multilingual',
     text: 'All 24 EU official languages plus Chinese — or auto-detect. Each participant picks their own.',
   },
   {
-    icon: '🤝',
+    icon: '✦',
     title: 'AI common ground',
     text: 'A mediator that drafts a shared statement bridging opposing clusters, inspired by Pol.is and the Habermas Machine.',
   },
   {
-    icon: '📊',
-    title: 'Opinion clusters',
-    text: 'A live map groups people by how they vote, so you can see the real shape of the disagreement.',
+    icon: '▦',
+    title: 'Opinion map',
+    text: 'A live map groups people by how they vote, so the shape of disagreement becomes something you can work with.',
   },
 ]
-
-const HERO_CLAIMS = [
-  {
-    topic: 'Education & peace',
-    claim: 'Every child deserves twelve years of free, quality education.',
-    source: 'Malala Yousafzai · Peace 2014',
-    voteType: 'likert',
-    exitVote: 'strongly_agree',
-    voted: 3,
-    total: 5,
-  },
-  {
-    topic: 'Science & society',
-    claim: 'Scientific knowledge should serve humanity, not private profit alone.',
-    source: 'Marie Curie · Physics & Chemistry',
-    voteType: 'binary',
-    exitVote: 'agree',
-    voted: 2,
-    total: 5,
-  },
-  {
-    topic: 'Climate action',
-    claim: 'Human-caused climate change requires immediate global action.',
-    source: 'IPCC · Peace 2007',
-    voteType: 'binary',
-    exitVote: 'disagree',
-    voted: 4,
-    total: 5,
-  },
-  {
-    topic: 'Development',
-    claim: 'Progress should be measured by freedom and capability, not GDP alone.',
-    source: 'Amartya Sen · Economics 1998',
-    voteType: 'likert',
-    exitVote: 'agree',
-    voted: 1,
-    total: 5,
-  },
-  {
-    topic: 'Poverty & finance',
-    claim: 'Microcredit can be a sustainable path out of poverty.',
-    source: 'Muhammad Yunus · Peace 2006',
-    voteType: 'likert',
-    exitVote: 'strongly_disagree',
-    voted: 2,
-    total: 5,
-  },
-  {
-    topic: 'Peace & justice',
-    claim: 'Forgiveness is essential for healing societies after conflict.',
-    source: 'Desmond Tutu · Peace 1984',
-    voteType: 'binary',
-    exitVote: 'agree',
-    voted: 3,
-    total: 5,
-  },
-  {
-    topic: 'Civilization',
-    claim: 'Nationalism is among the greatest threats to human civilization.',
-    source: 'Albert Einstein · Physics 1921',
-    voteType: 'likert',
-    exitVote: 'strongly_agree',
-    voted: 4,
-    total: 5,
-  },
-  {
-    topic: 'Environment & democracy',
-    claim: 'Environmental restoration and democracy are inseparable.',
-    source: 'Wangari Maathai · Peace 2004',
-    voteType: 'binary',
-    exitVote: 'disagree',
-    voted: 5,
-    total: 5,
-  },
-]
-
-const STAMP_LABEL = {
-  agree: 'Agree',
-  disagree: 'Disagree',
-  strongly_agree: 'Strongly agree',
-  strongly_disagree: 'Strongly disagree',
-}
-
-function PhoneDeck() {
-  const [idx, setIdx] = useState(0)
-  const [anim, setAnim] = useState('idle')
-
-  useEffect(() => {
-    let swapTimer
-    const cycle = setInterval(() => {
-      setAnim('out')
-      swapTimer = setTimeout(() => {
-        setIdx((i) => (i + 1) % HERO_CLAIMS.length)
-        setAnim('in')
-        setTimeout(() => setAnim('idle'), 420)
-      }, 480)
-    }, 4200)
-    return () => {
-      clearInterval(cycle)
-      clearTimeout(swapTimer)
-    }
-  }, [])
-
-  const item = HERO_CLAIMS[idx]
-  const isLikert = item.voteType === 'likert'
-  const progress = Math.round((item.voted / item.total) * 100)
-  const exitCls = item.exitVote.replace(/_/g, '-')
-  const showStamp = anim === 'out'
-
-  return (
-    <div className="phone" data-testid="mock-phone">
-      <div className="phone-notch" />
-      <div className="phone-screen">
-        <div className="mock-room-top">
-          <span className="mock-topic" key={`topic-${idx}`}>{item.topic}</span>
-        </div>
-        <div className="mock-progress">
-          <span style={{ width: `${progress}%` }} className="mock-progress-fill" />
-        </div>
-        <span className="mock-counter">{item.voted} of {item.total} voted</span>
-        <div className="mock-deck">
-          <div className="mock-card behind-2" />
-          <div className="mock-card behind-1" />
-          <div
-            key={idx}
-            className={`mock-card top ${isLikert ? 'likert' : ''} anim-${anim} exit-${exitCls}`}
-            data-testid="mock-card"
-          >
-            <span className="mock-tag">Claim</span>
-            <p className="mock-card-text">{item.claim}</p>
-            <span className="mock-source">{item.source}</span>
-            {showStamp && (
-              <span className={`mock-stamp ${exitCls}`}>{STAMP_LABEL[item.exitVote]}</span>
-            )}
-          </div>
-        </div>
-        <div className={`mock-controls ${isLikert ? 'likert' : ''}`} data-testid="mock-controls">
-          {isLikert ? (
-            <>
-              <span className="mock-circle disagree strong" aria-hidden="true">⇤</span>
-              <span className="mock-circle disagree" aria-hidden="true">✕</span>
-              <span className="mock-circle pass" aria-hidden="true"><NeutralIcon size={16} /></span>
-              <span className="mock-circle agree" aria-hidden="true">✓</span>
-              <span className="mock-circle agree strong" aria-hidden="true">⇥</span>
-            </>
-          ) : (
-            <>
-              <span className="mock-circle disagree" aria-hidden="true">✕</span>
-              <span className="mock-circle pass" aria-hidden="true"><NeutralIcon size={16} /></span>
-              <span className="mock-circle agree" aria-hidden="true">✓</span>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ResultsShot() {
-  const bars = [
-    { label: 'Free transit cuts emissions', agree: 72, disagree: 28 },
-    { label: 'Funding should come from fuel tax', agree: 41, disagree: 59 },
-    { label: 'Rural areas would be underserved', agree: 55, disagree: 45 },
-  ]
-  return (
-    <div className="shot" data-testid="mock-results">
-      <span className="shot-title">Where the room stands</span>
-      <div className="shot-bars">
-        {bars.map((b) => (
-          <div className="shot-bar-row" key={b.label}>
-            <span className="shot-bar-label">{b.label}</span>
-            <div className="shot-bar-track">
-              <span className="shot-bar-d" style={{ width: `${b.disagree / 2}%` }} />
-              <span className="shot-bar-a" style={{ width: `${b.agree / 2}%` }} />
-              <span className="shot-bar-mid" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ClusterShot() {
-  const dots = [
-    { x: 30, y: 38, c: '#12b76a' }, { x: 38, y: 30, c: '#12b76a' }, { x: 26, y: 50, c: '#12b76a' },
-    { x: 44, y: 44, c: '#12b76a' }, { x: 72, y: 60, c: '#f04438' }, { x: 80, y: 52, c: '#f04438' },
-    { x: 68, y: 72, c: '#f04438' }, { x: 56, y: 24, c: '#e0a400' }, { x: 62, y: 34, c: '#e0a400' },
-  ]
-  return (
-    <div className="shot" data-testid="mock-clusters">
-      <span className="shot-title">Opinion clusters</span>
-      <svg viewBox="0 0 100 90" className="shot-scatter" aria-hidden="true">
-        <ellipse cx="34" cy="41" rx="18" ry="16" fill="rgba(18,183,106,0.12)" />
-        <ellipse cx="73" cy="62" rx="16" ry="14" fill="rgba(240,68,56,0.12)" />
-        <ellipse cx="59" cy="29" rx="11" ry="9" fill="rgba(224,164,0,0.12)" />
-        {dots.map((d, i) => (
-          <circle key={i} cx={d.x} cy={d.y} r="3.2" fill={d.c} />
-        ))}
-        <circle cx="44" cy="44" r="4.2" fill="none" stroke="var(--ds-text)" strokeWidth="1.4" />
-        <text x="44" y="55" textAnchor="middle" className="shot-you">You</text>
-      </svg>
-    </div>
-  )
-}
-
-function CaptionsShot() {
-  return (
-    <div className="shot" data-testid="mock-captions">
-      <span className="shot-title"><span className="shot-live">● Live</span> captions</span>
-      <div className="shot-lines">
-        <p><strong>Alex</strong> I think the bigger issue is funding, not demand.</p>
-        <p><strong>Mara</strong> But demand spikes when it's free — that's the point.</p>
-        <p className="shot-partial"><strong>Jon</strong> well, if we look at Zurich's model…</p>
-      </div>
-      <span className="shot-chip">✨ Extracting claims…</span>
-    </div>
-  )
-}
 
 export default function SessionJoin({ onJoin }) {
   const [mode, setMode] = useState(null)
   const [name, setName] = useState(getSavedName)
   const [language, setLanguage] = useState('en')
   const [topic, setTopic] = useState('')
-  const [voteType, setVoteType] = useState('binary')
+  const [voteType, setVoteType] = useState('likert')
   const [code, setCode] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -421,93 +213,100 @@ export default function SessionJoin({ onJoin }) {
   }
 
   return (
-    <div className="ls" data-testid="landing">
-      <nav className="ls-nav">
-        <a className="ls-brand" href="#top">
-          <span className="ls-brand-logo"><LogoMark /></span>
-          <span className="ls-brand-name">{APP_NAME}</span>
-        </a>
-        <div className="ls-nav-actions">
-          <a className="ls-nav-link" href="#how">How it works</a>
-          <a className="ls-nav-link" href="#features">Features</a>
-          <ThemeToggle />
-          <button type="button" className="ls-btn ghost" onClick={() => switchMode('join')} data-testid="nav-join">
-            Join
-          </button>
-          <button type="button" className="ls-btn solid" onClick={() => switchMode('create')} data-testid="nav-host">
-            Host a session
-          </button>
-        </div>
-      </nav>
-
-      <header className="ls-hero" id="top">
-        <div className="ls-hero-copy">
-          <span className="ls-eyebrow">Collaborative sense-making for live rooms</span>
-          <h1 className="ls-h1">
-            Hear the room. <span className="ls-grad">Learn what we all think.</span>
-          </h1>
-          <p className="ls-lead">
-            {APP_NAME} listens to your discussion, turns it into clear claims with AI,
-            and lets everyone vote anonymously — so a messy conversation becomes a shared,
-            real-time picture of where people actually stand.
-          </p>
-          <div className="ls-cta-row">
-            <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="hero-host">
-              Host a session
+    <div className="ls murmi-land" data-testid="landing">
+      <div className="ls-topfold">
+        <nav className="ls-nav">
+          <a className="ls-brand" href="#top" onClick={(e) => scrollToSection(e, 'top')}>
+            <MurmiMark />
+            <span className="ls-brand-name">{APP_NAME}</span>
+          </a>
+          <div className="ls-nav-center">
+            <a className="ls-nav-link" href="#how" onClick={(e) => scrollToSection(e, 'how')}>How it works</a>
+            <a className="ls-nav-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
+            <a className="ls-nav-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
+            <a className="ls-nav-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+          </div>
+          <div className="ls-nav-actions">
+            <button type="button" className="ls-btn nav-join" onClick={() => switchMode('join')} data-testid="nav-join">
+              Join
             </button>
-            <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="hero-join">
-              I have a code →
+            <button type="button" className="ls-btn nav-host" onClick={() => switchMode('create')} data-testid="nav-host">
+              <span>Host a session</span>
+              <span className="ls-nav-host-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="12" height="12">
+                  <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             </button>
           </div>
-          <ul className="ls-trust">
-            <li>🔒 Anonymous votes</li>
-            <li>⚡ Realtime captions</li>
-            <li>🌍 {SPOKEN_LANGUAGES.length} languages</li>
-          </ul>
-        </div>
-        <div className="ls-hero-visual">
-          <div className="ls-glow" aria-hidden="true" />
-          <PhoneDeck />
-        </div>
-      </header>
+        </nav>
 
-      <section className="ls-section" id="how">
-        <div className="ls-section-head">
+        <header className="ls-hero" id="top">
+          <div className="ls-hero-scrim" aria-hidden="true" />
+          <div className="ls-hero-copy">
+            <p className="ls-hero-brand">{APP_NAME}</p>
+            <h1 className="ls-h1">
+              Better group<br />
+              decisions at the speed<br />
+              of conversation.
+            </h1>
+            <p className="ls-hero-lead">
+              Spin up a session, invite the room, and move from messy talk to shared understanding.
+            </p>
+            <div className="ls-cta-row">
+              <button type="button" className="ls-btn host-pill lg" onClick={() => switchMode('create')} data-testid="hero-host">
+                <span>Host a Session</span>
+                <HostChevron />
+              </button>
+              <button type="button" className="ls-btn ghost" onClick={() => switchMode('join')} data-testid="hero-join">
+                Join with a code
+              </button>
+            </div>
+          </div>
+          <div className="ls-hero-visual" aria-hidden="true">
+            <img
+              className="ls-hero-art"
+              src="/brand/hero-gathering.jpg"
+              alt=""
+              width={1920}
+              height={1080}
+            />
+          </div>
+        </header>
+      </div>
+
+      <div className="ls-sheet">
+      <section className="ls-section ls-section-split" id="how">
+        <div className="ls-section-media">
+          <img src="/brand/section-together.jpg" alt="" width={1672} height={941} />
+        </div>
+        <div className="ls-section-copy">
           <span className="ls-kicker">How it works</span>
-          <h2 className="ls-h2">From spoken words to group consensus in four steps</h2>
-        </div>
-        <div className="ls-steps">
-          {STEPS.map((s) => (
-            <article className="ls-step" key={s.num}>
-              <div className="ls-step-top">
-                <span className="ls-step-icon" aria-hidden="true">{s.icon}</span>
-                <span className="ls-step-num">{s.num}</span>
-              </div>
-              <h3 className="ls-step-title">{s.title}</h3>
-              <p className="ls-step-text">{s.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="ls-section ls-showcase">
-        <div className="ls-section-head">
-          <span className="ls-kicker">See it in action</span>
-          <h2 className="ls-h2">Captions, votes, and consensus — all in one screen</h2>
-        </div>
-        <div className="ls-shots">
-          <CaptionsShot />
-          <ResultsShot />
-          <ClusterShot />
+          <h2 className="ls-h2">From messy talks to shared understanding.</h2>
+          <p className="ls-lead compact">Groups go beyond opinions to decisions they can stand behind together.</p>
+          <div className="ls-steps">
+            {STEPS.map((s) => (
+              <article className="ls-step" key={s.num}>
+                <div className="ls-step-top">
+                  <span className="ls-step-num">{s.num}</span>
+                </div>
+                <h3 className="ls-step-title">{s.title}</h3>
+                <p className="ls-step-text">{s.text}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
-      <LanguageShowcase />
+      <ProductScreensCarousel />
 
       <section className="ls-section" id="features">
         <div className="ls-section-head">
-          <span className="ls-kicker">Features</span>
-          <h2 className="ls-h2">Everything you need to make sense of the room</h2>
+          <span className="ls-kicker">Why {APP_NAME}?</span>
+          <h2 className="ls-h2">Think better together</h2>
+          <p className="ls-lead compact">
+            {APP_NAME} doesn&apos;t replace people. It helps everyone join the decision and reach shared understanding.
+          </p>
         </div>
         <div className="ls-features">
           {FEATURES.map((f) => (
@@ -520,15 +319,44 @@ export default function SessionJoin({ onJoin }) {
         </div>
       </section>
 
+      <section className="ls-section ls-audiences" id="together">
+        <div className="ls-section-head">
+          <span className="ls-kicker">Who it&apos;s for</span>
+          <h2 className="ls-h2">Built for groups that decide together</h2>
+        </div>
+        <div className="ls-audience-grid">
+          <article className="ls-audience">
+            <h3>Teams & Workshops</h3>
+            <p>Make meetings more productive and decisions stronger.</p>
+          </article>
+          <article className="ls-audience">
+            <h3>Public Civic Engagement</h3>
+            <p>Involve more people, more fairly, with greater transparency.</p>
+          </article>
+          <article className="ls-audience">
+            <h3>Organizations & Leaders</h3>
+            <p>Understand your stakeholders and lead with confidence.</p>
+          </article>
+        </div>
+      </section>
+
+      <LanguageShowcase />
+      </div>
+
       <section className="ls-final">
+        <div className="ls-final-bg" aria-hidden="true">
+          <img src="/brand/cta-invite.jpg" alt="" width={2172} height={724} />
+        </div>
+        <div className="ls-final-scrim" aria-hidden="true" />
         <div className="ls-final-inner">
-          <h2 className="ls-h2">Ready to find out what the room really thinks?</h2>
-          <p className="ls-lead">Spin up a session in seconds. No sign-up, no setup.</p>
+          <h2 className="ls-h2">Ready to think better together?</h2>
+          <p className="ls-lead">Host a session in seconds — no sign-up, no setup.</p>
           <div className="ls-cta-row center">
-            <button type="button" className="ls-btn solid lg" onClick={() => switchMode('create')} data-testid="final-host">
-              Host a session
+            <button type="button" className="ls-btn host-pill lg" onClick={() => switchMode('create')} data-testid="final-host">
+              <span>Host a session</span>
+              <HostChevron />
             </button>
-            <button type="button" className="ls-btn ghost lg" onClick={() => switchMode('join')} data-testid="final-join">
+            <button type="button" className="ls-btn join lg" onClick={() => switchMode('join')} data-testid="final-join">
               Join with a code
             </button>
           </div>
@@ -536,11 +364,21 @@ export default function SessionJoin({ onJoin }) {
       </section>
 
       <footer className="ls-footer">
-        <div className="ls-brand">
-          <span className="ls-brand-logo"><LogoMark /></span>
-          <span className="ls-brand-name">{APP_NAME}</span>
+        <div className="ls-footer-brand">
+          <a className="ls-brand" href="#top" onClick={(e) => scrollToSection(e, 'top')}>
+            <MurmiMark />
+            <span className="ls-brand-name">{APP_NAME}</span>
+          </a>
+          <span className="ls-foot-note">
+            Born in the Swiss Alps — built with collective intelligence.
+          </span>
         </div>
-        <span className="ls-foot-note">Collaborative sense-making in live rooms.</span>
+        <nav className="ls-footer-nav" aria-label="Footer">
+          <a className="ls-footer-link" href="#how" onClick={(e) => scrollToSection(e, 'how')}>How it works</a>
+          <a className="ls-footer-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
+          <a className="ls-footer-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
+          <a className="ls-footer-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+        </nav>
       </footer>
 
       {mode && (
@@ -592,7 +430,7 @@ export default function SessionJoin({ onJoin }) {
                   </h2>
                   <p className="auth-modal-lead">
                     {mode === 'create'
-                      ? 'Set up a room, share the code, and capture what the group thinks.'
+                      ? 'Set up a session, share the code, and invite the group to participate.'
                       : 'Enter the 6-character code from your host to jump in.'}
                   </p>
                 </div>
@@ -629,7 +467,7 @@ export default function SessionJoin({ onJoin }) {
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    placeholder="What is the room discussing?"
+                    placeholder="What is the group discussing?"
                     data-testid="host-topic"
                   />
                 </label>

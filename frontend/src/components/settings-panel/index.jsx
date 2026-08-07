@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LanguageSelect from '../language-select'
-import { CG_DEPTH_OPTIONS } from '../../constants/common-ground-depth'
+import { CG_MODE_OPTIONS } from '../../constants/common-ground-mode'
 
 const VOTING_LIFETIME_OPTIONS = [
   { hours: 1, key: 'len1h' },
@@ -159,8 +159,8 @@ function VotingControls({
 export default function SettingsPanel({
   roomLanguage = 'en',
   onLanguageChange,
-  cgDepth = 'extended',
-  onCgDepthChange,
+  cgMode = 'generic',
+  onCgModeChange,
   autoApprove = false,
   onToggleAutoApprove,
   voteType = 'binary',
@@ -196,26 +196,25 @@ export default function SettingsPanel({
 
       <section className="settings-section" data-testid="settings-common-ground">
         <div className="settings-section-head">
-          <span className="settings-section-title">{t('settings.cgLevel')}</span>
-          <span className="settings-section-hint">{t('settings.cgLevelHint')}</span>
+          <span className="settings-section-title">{t('settings.cgMode')}</span>
+          <span className="settings-section-hint">{t('settings.cgModeHint')}</span>
         </div>
-        <div className="settings-depth-options">
-          {CG_DEPTH_OPTIONS.map((opt) => (
+        <div className="settings-mode-options">
+          {CG_MODE_OPTIONS.map((opt) => (
             <button
               key={opt.id}
               type="button"
-              className={`cg-depth-btn depth-${opt.id} ${cgDepth === opt.id ? 'is-active' : ''}`}
-              data-testid={`settings-depth-${opt.id}`}
-              aria-pressed={cgDepth === opt.id}
-              onClick={() => onCgDepthChange(opt.id)}
-              title={t(`cgDepth.${opt.id}.hint`)}
+              className={`cg-mode-btn mode-${opt.id} ${cgMode === opt.id ? 'is-active' : ''}`}
+              data-testid={`settings-mode-${opt.id}`}
+              aria-pressed={cgMode === opt.id}
+              onClick={() => onCgModeChange(opt.id)}
+              title={t(`cgMode.${opt.id}.hint`)}
             >
-              <span className="cg-depth-btn-tier">{t('settings.level', { tier: opt.tier })}</span>
-              <span className="cg-depth-btn-label">
-                {t(`cgDepth.${opt.id}.label`)}
-                {opt.recommended && <span className="cg-depth-rec">{t('settings.recommended')}</span>}
+              <span className="cg-mode-btn-label">
+                {t(`cgMode.${opt.id}.label`)}
+                {opt.recommended && <span className="cg-mode-rec">{t('settings.recommended')}</span>}
               </span>
-              <span className="cg-depth-btn-hint">{t(`cgDepth.${opt.id}.hint`)}</span>
+              <span className="cg-mode-btn-hint">{t(`cgMode.${opt.id}.hint`)}</span>
             </button>
           ))}
         </div>
