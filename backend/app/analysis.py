@@ -60,7 +60,7 @@ Respond ONLY with JSON:
 Turn the discussion into a WORKING POLICY DRAFT the room can refine. Stay grounded ONLY in the evidence pack (arguments with IDs, vote tallies, opinion groups, co-support pairs, and anonymous prior feedback). Never invent argument IDs, feedback IDs, or positions.
 
 Evidence rules:
-- Stable argument IDs are provided; cite them on every recommendation and essential condition.
+- Stable argument IDs look like a1, a2, a3 — cite ONLY those (and fb* feedback IDs when present).
 - Anonymous feedback IDs look like fb1, fb2 — cite them when addressing prior reactions.
 - Only combine multiple arguments into one recommendation when co-support marks them safeToCombine (or when supportOverlap is clearly high and conflictRate is low). Otherwise keep them separate or flag a trade-off.
 - Preserve parts previous voters marked "agree" (Good enough) unless new votes contradict them.
@@ -107,12 +107,12 @@ Respond ONLY with JSON (strict schema):
   ]
 }
 
-Include 3-6 recommendations, 2-4 essentialConditions, 2-4 tradeoffs, and 2-4 unresolvedQuestions. Every recommendation and essentialCondition MUST include at least one evidenceIds entry that exists in the evidence pack. Do not invent IDs.
+Include 3-6 recommendations, 2-4 essentialConditions, 2-4 tradeoffs, and 2-4 unresolvedQuestions. Every recommendation and essentialCondition MUST include at least one evidenceIds entry from the evidence pack (a1, a2, … or fb*). Do not invent IDs.
 """,
 }
 
 COMMON_GROUND_MODES = frozenset(COMMON_GROUND_PROMPTS)
-DEFAULT_COMMON_GROUND_MODE = "generic"
+DEFAULT_COMMON_GROUND_MODE = "policy"
 
 # Legacy depth ids from older sessions map onto the generic mediation mode.
 _LEGACY_DEPTH_TO_MODE = {
@@ -464,19 +464,27 @@ class AnalysisService:
         valid_ids: set[str],
         require_evidence: bool,
         id_prefix: str,
+        fallback_ids: list[str] | None = None,
     ) -> Optional[list]:
-        """Normalize list of {id, text, evidenceIds, ...} or legacy strings. Return None if invalid."""
+        """Normalize list of {id, text, evidenceIds, ...} or legacy strings.
+
+        Unknown evidence IDs are dropped (not fatal). When evidence is required and
+        none remain, attach the first available argument fallback so a mostly-valid
+        draft is not discarded for a single bad citation.
+        """
         if not isinstance(values, list):
             return []
+        fallback = [eid for eid in (fallback_ids or []) if eid in valid_ids]
         out = []
         for idx, raw in enumerate(values, start=1):
             if isinstance(raw, str):
                 text = raw.strip()
                 if not text:
                     continue
-                if require_evidence:
-                    return None  # legacy strings cannot satisfy citation requirement
-                out.append({"id": f"{id_prefix}{idx}", "text": text, "evidenceIds": []})
+                evidence = list(fallback[:1]) if require_evidence and fallback else []
+                if require_evidence and not evidence:
+                    continue
+                out.append({"id": f"{id_prefix}{idx}", "text": text, "evidenceIds": evidence})
                 continue
             if not isinstance(raw, dict):
                 continue
@@ -489,19 +497,37 @@ class AnalysisService:
                 if not isinstance(eid, str):
                     continue
                 eid = eid.strip()
-                if not eid:
+                if not eid or eid not in valid_ids:
                     continue
-                if eid not in valid_ids:
-                    return None  # invented / unknown ID
                 if eid not in evidence:
                     evidence.append(eid)
             if require_evidence and not evidence:
-                return None
+                if fallback:
+                    evidence = [fallback[0]]
+                else:
+                    continue
             item = {"id": item_id, "text": text, "evidenceIds": evidence}
             if "preserved" in raw:
                 item["preserved"] = bool(raw.get("preserved"))
             out.append(item)
         return out
+
+    @staticmethod
+    def _remap_evidence_ids(items: list, id_map: dict[str, str]) -> list:
+        if not id_map or not items:
+            return items
+        remapped = []
+        for item in items:
+            if not isinstance(item, dict):
+                remapped.append(item)
+                continue
+            eids = []
+            for eid in item.get("evidenceIds") or []:
+                real = id_map.get(eid, eid)
+                if real not in eids:
+                    eids.append(real)
+            remapped.append({**item, "evidenceIds": eids})
+        return remapped
 
     def _normalize_common_ground(
         self,
@@ -527,37 +553,46 @@ class AnalysisService:
                         if isinstance(item, dict) and item.get("id"):
                             valid_ids.add(str(item["id"]))
 
+            fallback_ids = list(analysis.get("validArgumentIds") or [])
             recommendations = self._normalize_cited_items(
                 data.get("recommendations"),
                 valid_ids=valid_ids,
                 require_evidence=True,
                 id_prefix="r",
+                fallback_ids=fallback_ids,
             )
             if recommendations is None or not recommendations:
+                print("Policy CG normalize failed: no usable recommendations")
                 return None
             conditions = self._normalize_cited_items(
                 data.get("essentialConditions"),
                 valid_ids=valid_ids,
                 require_evidence=True,
                 id_prefix="c",
+                fallback_ids=fallback_ids,
             )
             if conditions is None:
+                print("Policy CG normalize failed: essentialConditions invalid")
                 return None
             tradeoffs = self._normalize_cited_items(
                 data.get("tradeoffs"),
                 valid_ids=valid_ids,
                 require_evidence=False,
                 id_prefix="t",
+                fallback_ids=fallback_ids,
             )
             if tradeoffs is None:
+                print("Policy CG normalize failed: tradeoffs invalid")
                 return None
             unresolved = self._normalize_cited_items(
                 data.get("unresolvedQuestions"),
                 valid_ids=valid_ids,
                 require_evidence=False,
                 id_prefix="u",
+                fallback_ids=fallback_ids,
             )
             if unresolved is None:
+                print("Policy CG normalize failed: unresolvedQuestions invalid")
                 return None
 
             prev_id = data.get("previousVersionId")
@@ -578,6 +613,7 @@ class AnalysisService:
                     else "Initial working draft from current argument votes."
                 )
 
+            id_map = analysis.get("argumentIdMap") or {}
             return {
                 "mode": mode,
                 "status": "working_draft",
@@ -585,10 +621,10 @@ class AnalysisService:
                 "changeSummary": change_summary,
                 "groupAnalysis": group_analysis,
                 "groupStatement": statement,
-                "recommendations": recommendations,
-                "essentialConditions": conditions,
-                "tradeoffs": tradeoffs,
-                "unresolvedQuestions": unresolved,
+                "recommendations": self._remap_evidence_ids(recommendations, id_map),
+                "essentialConditions": self._remap_evidence_ids(conditions, id_map),
+                "tradeoffs": self._remap_evidence_ids(tradeoffs, id_map),
+                "unresolvedQuestions": self._remap_evidence_ids(unresolved, id_map),
             }
 
         result = {

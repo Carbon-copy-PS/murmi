@@ -124,7 +124,7 @@ export default function SessionJoin({ onJoin }) {
   const [name, setName] = useState(getSavedName)
   const [language, setLanguage] = useState('en')
   const [topic, setTopic] = useState('')
-  const [voteType, setVoteType] = useState('binary')
+  const [voteType, setVoteType] = useState('likert')
   const [code, setCode] = useState('')
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)

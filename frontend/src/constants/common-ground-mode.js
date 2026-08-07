@@ -3,12 +3,12 @@ export const CG_MODE_OPTIONS = [
     id: 'generic',
     label: 'Generic',
     hint: 'Shared positions, disagreements, and a bridge',
-    recommended: true,
   },
   {
     id: 'policy',
     label: 'Policy',
     hint: 'Working policy proposal with recommendations',
+    recommended: true,
   },
 ]
 
@@ -16,7 +16,7 @@ export const CG_MODE_LABELS = Object.fromEntries(
   CG_MODE_OPTIONS.map((o) => [o.id, o.label]),
 )
 
-export const DEFAULT_CG_MODE = 'generic'
+export const DEFAULT_CG_MODE = 'policy'
 
 const LEGACY_DEPTH_TO_MODE = {
   basic: 'generic',
