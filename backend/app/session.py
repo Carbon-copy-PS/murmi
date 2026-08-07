@@ -40,6 +40,16 @@ class Statement:
     author: Optional[str] = None
     snapshot: Optional[dict] = None
     votes: Dict[str, str] = field(default_factory=dict)
+    vote_times: Dict[str, float] = field(default_factory=dict)
+    last_vote_at: float = 0.0
+
+
+def sync_statement_last_vote_at(stmt: Statement) -> float:
+    if stmt.vote_times:
+        stmt.last_vote_at = max(stmt.vote_times.values())
+    elif not stmt.votes:
+        stmt.last_vote_at = 0.0
+    return stmt.last_vote_at
 
 
 @dataclass
@@ -56,12 +66,13 @@ class Session:
     statements: list[Statement] = field(default_factory=list)
     transcript_since_last_analysis: int = 0
     analysis_in_progress: bool = False
-    vote_type: str = "binary"
-    common_ground_depth: str = "extended"
+    vote_type: str = "likert"
+    common_ground_mode: str = "policy"
     started: bool = False
     created_at: float = field(default_factory=time.time)
     expires_at: Optional[float] = None
     known_participants: Dict[str, str] = field(default_factory=dict)
+    participant_names: Dict[str, str] = field(default_factory=dict)
     common_ground_history: list = field(default_factory=list)
     auto_approve_prefs: Dict[str, bool] = field(default_factory=dict)
     statement_perms: Dict[str, bool] = field(default_factory=dict)
@@ -87,8 +98,21 @@ DEFAULT_VOTING_LIFETIME_HOURS = 24.0
 MIN_VOTING_LIFETIME_HOURS = 1.0
 MAX_VOTING_LIFETIME_HOURS = 720.0
 VOTING_ACTIVITY_MAX = 100
-COMMON_GROUND_DEPTHS = ("basic", "extended", "comprehensive")
-DEFAULT_COMMON_GROUND_DEPTH = "extended"
+COMMON_GROUND_MODES = ("generic", "policy")
+DEFAULT_COMMON_GROUND_MODE = "policy"
+_LEGACY_DEPTH_TO_MODE = {
+    "basic": "generic",
+    "extended": "generic",
+    "comprehensive": "generic",
+}
+
+
+def normalize_common_ground_mode(mode: str | None) -> str:
+    if mode in COMMON_GROUND_MODES:
+        return mode
+    if mode in _LEGACY_DEPTH_TO_MODE:
+        return _LEGACY_DEPTH_TO_MODE[mode]
+    return DEFAULT_COMMON_GROUND_MODE
 VALID_BINARY_VOTES = ("agree", "disagree", "neutral")
 VALID_LIKERT_VOTES = ("strongly_agree", "agree", "neutral", "disagree", "strongly_disagree")
 AGREE_VOTES = ("agree", "strongly_agree")
@@ -104,17 +128,18 @@ class SessionManager:
         self,
         session_id: str,
         topic: str | None = None,
-        vote_type: str = "binary",
+        vote_type: str = "likert",
         language: str | None = None,
     ) -> Session:
         now = time.time()
         expires_at = now + self.ttl_seconds if self.ttl_seconds else None
-        vt = vote_type if vote_type in VOTE_TYPES else "binary"
+        vt = vote_type if vote_type in VOTE_TYPES else "likert"
         return Session(
             id=session_id,
             topic=topic,
             language=language,
             vote_type=vt,
+            common_ground_mode=DEFAULT_COMMON_GROUND_MODE,
             created_at=now,
             expires_at=expires_at,
             voting_lifetime_hours=DEFAULT_VOTING_LIFETIME_HOURS,
@@ -131,7 +156,7 @@ class SessionManager:
     def create(
         self,
         topic: str | None = None,
-        vote_type: str = "binary",
+        vote_type: str = "likert",
         language: str | None = None,
     ) -> str:
         session_id = uuid.uuid4().hex[:6].upper()
@@ -161,12 +186,17 @@ class SessionManager:
             id=data["id"],
             topic=data.get("topic"),
             language=data.get("language"),
-            vote_type=data.get("vote_type", "binary"),
+            vote_type=data.get("vote_type", "likert"),
             created_at=data.get("created_at", time.time()),
             expires_at=data.get("expires_at"),
         )
         session.transcript = list(data.get("transcript", []))
-        session.common_ground_depth = data.get("common_ground_depth") or DEFAULT_COMMON_GROUND_DEPTH
+        raw_mode = data.get("common_ground_mode") or data.get("common_ground_depth")
+        session.common_ground_mode = normalize_common_ground_mode(raw_mode)
+        session.common_ground_history = list(data.get("common_ground_history") or [])
+        for item in session.common_ground_history:
+            if isinstance(item, dict) and "mode" not in item:
+                item["mode"] = normalize_common_ground_mode(item.get("depth"))
         if "default_can_add_statement" in data:
             session.default_can_add_statement = bool(data["default_can_add_statement"])
         if "voting_open" in data and data["voting_open"] is not None:
@@ -180,14 +210,13 @@ class SessionManager:
         session.report_version = int(data.get("report_version") or 0)
         session.finalized_at = data.get("finalized_at")
         session.report_snapshot = data.get("report_snapshot")
-        session.common_ground_history = list(
-            data.get("common_ground_history") or []
-        )
         session.started = bool(data.get("started")) or bool(session.transcript)
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
             if client_id and pid:
                 session.known_participants[client_id] = pid
+            if pid and member.get("name"):
+                session.participant_names[pid] = member["name"]
             if client_id and member.get("is_host"):
                 session.host_client_ids.add(client_id)
                 if not session.language and member.get("language"):
@@ -197,7 +226,12 @@ class SessionManager:
             if client_id and "can_add_statement" in member:
                 session.statement_perms[client_id] = bool(member["can_add_statement"])
         for s in data.get("statements", []):
-            session.statements.append(Statement(
+            votes = dict(s.get("votes", {}))
+            vote_times = {k: float(v) for k, v in (s.get("vote_times") or {}).items()}
+            last_vote_at = float(s.get("last_vote_at") or 0)
+            if votes and not vote_times and not last_vote_at:
+                last_vote_at = float(s.get("created_at") or time.time())
+            stmt = Statement(
                 id=s["id"],
                 text=s["text"],
                 round=s.get("round", 1),
@@ -206,8 +240,12 @@ class SessionManager:
                 tension=s.get("tension", False),
                 edited=s.get("edited", False),
                 created_at=s.get("created_at", time.time()),
-                votes=dict(s.get("votes", {})),
-            ))
+                votes=votes,
+                vote_times=vote_times,
+                last_vote_at=last_vote_at,
+            )
+            sync_statement_last_vote_at(stmt)
+            session.statements.append(stmt)
         self.sessions[session.id] = session
         return session
 
@@ -246,6 +284,7 @@ class SessionManager:
         session.participants[participant_id] = participant
         if client_id:
             session.known_participants[client_id] = participant_id
+        session.participant_names[participant_id] = name.strip()[:120]
 
         perm_key = client_id or participant_id
         if perm_key not in session.statement_perms:
@@ -290,7 +329,7 @@ class SessionManager:
             "votingLifetimeHours": session.voting_lifetime_hours,
             "votingExpiresAt": session.voting_expires_at,
             "votingActivity": session.voting_activity,
-            "commonGroundDepth": session.common_ground_depth,
+            "commonGroundMode": session.common_ground_mode,
             "participantsStatus": self.participants_status(session_id),
             "presence": self.presence(session_id),
             "autoApprove": self.get_auto_approve(session_id, participant_id),
@@ -362,6 +401,10 @@ class SessionManager:
     def is_host(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
         return session is not None and self._is_host(session, participant_id)
+
+    def is_recorder(self, session_id: str, participant_id: str) -> bool:
+        session = self.sessions.get(session_id)
+        return session is not None and session.host_participant_id == participant_id
 
     def set_recorder(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
@@ -519,7 +562,7 @@ class SessionManager:
         if not session:
             return None
         stmt = next((s for s in session.statements if s.id == statement_id), None)
-        if not stmt or stmt.approved:
+        if not stmt:
             return None
         new_text = (text or "").strip()[:240]
         if not new_text:
@@ -529,20 +572,21 @@ class SessionManager:
             stmt.edited = True
         return stmt
 
+    def delete_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
+        session = self.sessions.get(session_id)
+        if not session or not statement_ids:
+            return []
+        removed = [s.id for s in session.statements if s.id in statement_ids]
+        if removed:
+            session.statements = [s for s in session.statements if s.id not in statement_ids]
+        return removed
+
     def reject_statements(self, session_id: str, statement_ids: set[str]) -> list[str]:
         session = self.sessions.get(session_id)
         if not session or not statement_ids:
             return []
-        removed = [
-            s.id for s in session.statements
-            if not s.approved and s.id in statement_ids
-        ]
-        if removed:
-            session.statements = [
-                s for s in session.statements
-                if not (not s.approved and s.id in statement_ids)
-            ]
-        return removed
+        pending_ids = {s.id for s in session.statements if not s.approved}
+        return self.delete_statements(session_id, statement_ids & pending_ids)
 
     def has_active_host(self, session_id: str) -> bool:
         session = self.sessions.get(session_id)
@@ -622,16 +666,23 @@ class SessionManager:
         if not stmt or not stmt.approved:
             return False
         if vote == "undo":
-            return stmt.votes.pop(participant_id, None) is not None
+            removed = stmt.votes.pop(participant_id, None) is not None
+            if removed:
+                stmt.vote_times.pop(participant_id, None)
+                sync_statement_last_vote_at(stmt)
+            return removed
         valid = VALID_LIKERT_VOTES if session.vote_type == "likert" else VALID_BINARY_VOTES
         if vote not in valid:
             return False
         if stmt.votes.get(participant_id) == vote:
             return False
+        now = time.time()
         stmt.votes[participant_id] = vote
+        stmt.vote_times[participant_id] = now
+        stmt.last_vote_at = now
         p = session.participants.get(participant_id)
         if p:
-            p.last_vote_at = time.time()
+            p.last_vote_at = now
         return True
 
     def format_statement(self, stmt: Statement, participant_id: str) -> dict:
@@ -652,6 +703,7 @@ class SessionManager:
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
             "myVote": stmt.votes.get(participant_id),
+            "lastVoteAt": sync_statement_last_vote_at(stmt),
         }
 
     def vote_matrix(self, session_id: str, participant_id: str) -> dict:
@@ -679,7 +731,7 @@ class SessionManager:
             "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
             "voters": voters,
             "commonGroundHistory": history,
-            "commonGroundDepth": session.common_ground_depth,
+            "commonGroundMode": session.common_ground_mode,
         }
 
     def public_results(self, session_id: str) -> Optional[dict]:
@@ -770,12 +822,12 @@ class SessionManager:
     def get_auto_approve(self, session_id: str, participant_id: str) -> bool:
         session = self.sessions.get(session_id)
         if not session:
-            return True
+            return False
         participant = session.participants.get(participant_id)
         client_id = participant.client_id if participant else None
         if not client_id:
-            return True
-        return session.auto_approve_prefs.get(client_id, True)
+            return False
+        return session.auto_approve_prefs.get(client_id, False)
 
     def set_auto_approve(self, session_id: str, participant_id: str, value: bool) -> Optional[str]:
         session = self.sessions.get(session_id)
@@ -862,6 +914,7 @@ class SessionManager:
         participant_votes = item.get("participantVotes") or {}
         mine = participant_votes.get(participant_id) or {}
         public = {k: v for k, v in item.items() if k != "participantVotes"}
+        public["mode"] = normalize_common_ground_mode(public.get("mode") or public.get("depth"))
         return {
             **public,
             "votes": self._cg_vote_tally(participant_votes),
@@ -897,8 +950,11 @@ class SessionManager:
             "generatedByName": self.get_participant_name(session_id, participant_id),
             "voterCountAtGeneration": snapshot.get("voterCount"),
             "statementCountAtGeneration": snapshot.get("statementCount"),
+            "status": payload.get("status") or "working_draft",
             "participantVotes": {},
         }
+        if normalize_common_ground_mode(item.get("mode")) == "policy" and "previousVersionId" not in item:
+            item["previousVersionId"] = None
         session.common_ground_history.append(item)
         return self.format_common_ground_item(item, participant_id)
 
@@ -926,6 +982,8 @@ class SessionManager:
         item = self._find_common_ground(session, cg_id)
         if not item:
             return False
+        if item.get("status") == "endorsed":
+            return False
         participant_votes = item.setdefault("participantVotes", {})
         if vote == "undo":
             participant_votes.pop(participant_id, None)
@@ -949,12 +1007,24 @@ class SessionManager:
             return {"agree": 0, "disagree": 0, "total": 0}
         return self._cg_vote_tally(item.get("participantVotes") or {})
 
-    def collect_common_ground_feedback(self, session_id: str) -> list:
+    def collect_common_ground_feedback(self, session_id: str, mode: str | None = None) -> list:
         session = self.sessions.get(session_id)
         if not session:
             return []
+        target = normalize_common_ground_mode(mode) if mode else None
+        if target == "policy":
+            from .policy_evidence import build_anonymous_policy_feedback
+            history = [
+                item for item in session.common_ground_history
+                if normalize_common_ground_mode(item.get("mode") or item.get("depth")) == "policy"
+            ]
+            return build_anonymous_policy_feedback(history)
+
         feedback_history = []
         for item in session.common_ground_history:
+            item_mode = normalize_common_ground_mode(item.get("mode") or item.get("depth"))
+            if target and item_mode != target:
+                continue
             participant_votes = item.get("participantVotes") or {}
             reactions = []
             for entry in participant_votes.values():
@@ -965,12 +1035,57 @@ class SessionManager:
             feedback_history.append({
                 "id": item.get("id"),
                 "generatedAt": item.get("generatedAt"),
-                "depth": item.get("depth", "basic"),
+                "mode": item_mode,
                 "groupStatement": item.get("groupStatement"),
                 "votes": self._cg_vote_tally(participant_votes),
                 "feedback": reactions,
             })
         return feedback_history
+
+    def endorse_common_ground(self, session_id: str, cg_id: str, participant_id: str) -> Optional[dict]:
+        """Mark a version as Final/endorsed and freeze the current reaction tally."""
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        item = self._find_common_ground(session, cg_id)
+        if not item:
+            return None
+        # Only endorse the latest version.
+        if not session.common_ground_history or session.common_ground_history[-1].get("id") != cg_id:
+            return None
+        if item.get("status") == "endorsed":
+            return self.format_common_ground_item(item, participant_id)
+
+        tally = self._cg_vote_tally(item.get("participantVotes") or {})
+        # Respondents = people who reacted; also remember roster size at endorsement.
+        roster = set(session.known_participants.values()) | set(session.participants.keys())
+        for s in session.statements:
+            if s.approved:
+                roster.update(s.votes.keys())
+        roster_size = max(len(roster), tally["total"])
+        item["status"] = "endorsed"
+        item["endorsedAt"] = time.time()
+        item["endorsedBy"] = participant_id
+        item["endorsedByName"] = self.get_participant_name(session_id, participant_id)
+        item["endorsement"] = {
+            "agree": tally["agree"],
+            "disagree": tally["disagree"],
+            "total": tally["total"],
+            "respondentCount": tally["total"],
+            "rosterSize": roster_size,
+            "summary": (
+                f"Endorsed as good enough by {tally['agree']} of "
+                f"{tally['total'] or roster_size} respondents"
+                if tally["total"]
+                else "Endorsed as final (no reactions recorded yet)"
+            ),
+            "remainingConcerns": [
+                {"reason": (entry.get("reason") or "").strip()}
+                for entry in (item.get("participantVotes") or {}).values()
+                if entry.get("vote") == "disagree" and (entry.get("reason") or "").strip()
+            ],
+        }
+        return self.format_common_ground_item(item, participant_id)
 
     def format_all_statements(self, session_id: str, participant_id: str, include_pending: bool = False) -> list:
         session = self.sessions.get(session_id)
@@ -1036,6 +1151,7 @@ class SessionManager:
                     "disagrees": disagrees,
                     "hasVoted": pid in stmt.votes,
                     "myVote": stmt.votes.get(pid),
+                    "lastVoteAt": sync_statement_last_vote_at(stmt),
                 })
             except Exception:
                 disconnected.append(pid)
@@ -1102,12 +1218,12 @@ class SessionManager:
         session.topic = (topic or "").strip()[:200] or None
         return session.topic
 
-    def set_common_ground_depth(self, session_id: str, depth: str) -> str | None:
+    def set_common_ground_mode(self, session_id: str, mode: str) -> str | None:
         session = self.sessions.get(session_id)
-        if not session or depth not in COMMON_GROUND_DEPTHS:
+        if not session or mode not in COMMON_GROUND_MODES:
             return None
-        session.common_ground_depth = depth
-        return depth
+        session.common_ground_mode = mode
+        return mode
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)
@@ -1120,7 +1236,9 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session or participant_id not in session.participants:
             return False
-        session.participants[participant_id].name = name.strip()[:120]
+        clean = name.strip()[:120]
+        session.participants[participant_id].name = clean
+        session.participant_names[participant_id] = clean
         return True
 
     def leave(self, session_id: str, participant_id: str, websocket: WebSocket | None = None) -> dict:
@@ -1156,9 +1274,11 @@ class SessionManager:
 
     def get_participant_name(self, session_id: str, participant_id: str) -> str:
         session = self.sessions.get(session_id)
-        if session and participant_id in session.participants:
+        if not session:
+            return "Unknown"
+        if participant_id in session.participants:
             return session.participants[participant_id].name
-        return "Unknown"
+        return session.participant_names.get(participant_id, "Unknown")
 
     def get_participant_language(self, session_id: str, participant_id: str) -> str | None:
         session = self.sessions.get(session_id)

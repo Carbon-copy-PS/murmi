@@ -1,5 +1,5 @@
 const THEME_KEY = 'ds_theme'
-const DEFAULT_THEME = 'dark'
+const DEFAULT_THEME = 'light'
 
 export function getStoredTheme() {
   return localStorage.getItem(THEME_KEY)

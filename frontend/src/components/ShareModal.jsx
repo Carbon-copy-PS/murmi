@@ -31,7 +31,7 @@ export default function ShareModal({ sessionId, topic, publicId, onClose }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `hear-the-room-${sessionId}-qr.png`
+    a.download = `murmi-${sessionId}-qr.png`
     document.body.appendChild(a)
     a.click()
     a.remove()
@@ -41,7 +41,7 @@ export default function ShareModal({ sessionId, topic, publicId, onClose }) {
   async function shareQr() {
     const blob = await qrToBlob()
     if (!blob) return
-    const file = new File([blob], `hear-the-room-${sessionId}-qr.png`, { type: 'image/png' })
+    const file = new File([blob], `murmi-${sessionId}-qr.png`, { type: 'image/png' })
     if (navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({

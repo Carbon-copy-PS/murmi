@@ -9,8 +9,18 @@ export default function TranscriptPanel({ entries, partial, error }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [entries, partial?.text])
 
-  if (entries.length === 0 && !partial?.text && !error) {
-    return <div className="transcript empty">{t('transcript.empty')}</div>
+  if (entries.length === 0 && !partial?.text) {
+    return (
+      <div className="transcript empty" data-testid="transcript-empty">
+        {error ? (
+          <div className="transcript-alert" role="alert">
+            <p className="caption-error">{error}</p>
+          </div>
+        ) : (
+          t('transcript.empty')
+        )}
+      </div>
+    )
   }
 
   return (

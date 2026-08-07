@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from .session import SessionManager
+from .session import SessionManager, DEFAULT_COMMON_GROUND_MODE, normalize_common_ground_mode
 from .transcription import TranscriptionService
 from .analysis import AnalysisService
 from .realtime_transcription import RealtimeTranscriptionSession
@@ -139,7 +139,7 @@ async def lifespan(_app: FastAPI):
         await db.disconnect()
 
 
-app = FastAPI(title="HearTheRoom", lifespan=lifespan)
+app = FastAPI(title="Murmi", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -197,7 +197,7 @@ class CreateSessionRequest(BaseModel):
 @app.post("/api/sessions")
 async def create_session(req: CreateSessionRequest = CreateSessionRequest()):
     topic = req.topic.strip() if req.topic else None
-    vote_type = req.voteType if req.voteType in ("binary", "likert") else "binary"
+    vote_type = req.voteType if req.voteType in ("binary", "likert") else "likert"
     language = normalize_language(req.language)
     session_id = sessions.create(topic=topic, vote_type=vote_type, language=language)
     await persist_session(sessions.get(session_id))
@@ -368,8 +368,8 @@ async def run_analysis(session_id: str):
         sessions.mark_analysis_done(session_id)
 
 
-COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "45"))
-TENSION_TIMEOUT_SECONDS = float(os.environ.get("TENSION_TIMEOUT_SECONDS", "45"))
+COMMON_GROUND_TIMEOUT_SECONDS = float(os.environ.get("COMMON_GROUND_TIMEOUT_SECONDS", "75"))
+RECOMMENDATIONS_TIMEOUT_SECONDS = float(os.environ.get("RECOMMENDATIONS_TIMEOUT_SECONDS", os.environ.get("TENSION_TIMEOUT_SECONDS", "45")))
 TENSION_TRANSCRIPT_MAX_TURNS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_TURNS", "80"))
 TENSION_TRANSCRIPT_MAX_CHARS = int(os.environ.get("TENSION_TRANSCRIPT_MAX_CHARS", "12000"))
 
@@ -397,7 +397,7 @@ def build_transcript_excerpt(session) -> list[dict]:
     return trimmed
 
 
-async def run_tensions(
+async def run_recommendations(
     session_id: str,
     participant_id: str,
     payload: dict,
@@ -410,21 +410,21 @@ async def run_tensions(
     if not participant:
         return
 
-    await participant.websocket.send_json({"type": "tensions_pending"})
+    await participant.websocket.send_json({"type": "recommendations_pending"})
 
     payload = dict(payload)
     payload["transcript"] = build_transcript_excerpt(session)
 
-    tensions: list[str] = []
+    result: dict | None = None
     try:
-        tensions = await asyncio.wait_for(
-            analysis.generate_tension_statements(payload, count, topic, language),
-            timeout=TENSION_TIMEOUT_SECONDS,
+        result = await asyncio.wait_for(
+            analysis.generate_recommendations(payload, count, topic, language),
+            timeout=RECOMMENDATIONS_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
-        print("Tension generation timed out")
+        print("Recommendations generation timed out")
     except Exception as e:
-        print(f"Tension task error: {e}")
+        print(f"Recommendations task error: {e}")
 
     if not sessions.exists(session_id):
         return
@@ -433,16 +433,21 @@ async def run_tensions(
     if not participant:
         return
 
-    if tensions:
+    if result and (result.get("divisiveIssues") or result.get("unexploredTopics") or result.get("proposedSolutions")):
         await participant.websocket.send_json({
-            "type": "tensions_draft",
-            "tensions": [{"id": f"t{i}", "text": t} for i, t in enumerate(tensions)],
+            "type": "recommendations_draft",
+            "unexploredTopics": result.get("unexploredTopics") or [],
+            "divisiveIssues": [
+                {"id": f"d{i}", "text": t}
+                for i, t in enumerate(result.get("divisiveIssues") or [])
+            ],
+            "proposedSolutions": result.get("proposedSolutions") or [],
         })
     else:
         await participant.websocket.send_json({
-            "type": "tensions_error",
-            "message": "Could not generate tension statements. Try again.",
-            "code": "tensionsFailed",
+            "type": "recommendations_error",
+            "message": "Could not generate recommendations. Try again.",
+            "code": "recommendationsFailed",
         })
 
 
@@ -537,13 +542,13 @@ async def run_common_ground(
     payload: dict,
     topic: str | None,
     language: str | None,
-    depth: str = "basic",
+    mode: str = "generic",
     participant_id: str | None = None,
 ):
     result = None
     try:
         result = await asyncio.wait_for(
-            analysis.generate_common_ground(payload, topic, language, depth=depth),
+            analysis.generate_common_ground(payload, topic, language, mode=mode),
             timeout=COMMON_GROUND_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -557,7 +562,7 @@ async def run_common_ground(
     if result:
         result["generatedAt"] = time.time()
         snapshot = {
-            "voterCount": payload.get("voterCount"),
+            "voterCount": payload.get("voterCount") or payload.get("rosterSize"),
             "statementCount": payload.get("statementCount"),
         }
         added = sessions.add_common_ground(session_id, result, participant_id or "", snapshot)
@@ -570,6 +575,7 @@ async def run_common_ground(
             )
             if stored:
                 await _safe_db(db.save_common_ground(session_id, stored))
+            await _safe_db(db.save_common_ground(session))
         await broadcast_common_ground_history(
             session_id,
             added_id=added.get("id") if added else None,
@@ -772,7 +778,7 @@ async def finalize_caption(
 
 
 async def broadcast_caption_error(session_id: str, message: str, code: str | None = None):
-    key = (session_id, message)
+    key = (session_id, code or message)
     if key in realtime_errors_seen:
         return
     realtime_errors_seen.add(key)
@@ -801,6 +807,11 @@ async def get_realtime_session(
 
     speaker = sessions.get_participant_name(session_id, participant_id)
     language = sessions.get_participant_language(session_id, participant_id)
+
+    async def on_bridge_error(sid: str, message: str, code: str | None = None):
+        realtime_unavailable.add((session_id, participant_id))
+        await broadcast_caption_error(sid, message, code)
+
     bridge = RealtimeTranscriptionSession(
         session_id=session_id,
         participant_id=participant_id,
@@ -808,7 +819,7 @@ async def get_realtime_session(
         language=language,
         on_delta=broadcast_caption_delta,
         on_final=finalize_caption,
-        on_error=broadcast_caption_error,
+        on_error=on_bridge_error,
     )
     realtime_sessions[key] = bridge
 
@@ -901,7 +912,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if not session or not session.recording:
                     continue
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
 
                 audio_bytes = base64.b64decode(data["audio"])
@@ -917,7 +928,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if not session or not session.recording:
                     continue
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
 
                 audio = data.get("audio")
@@ -927,11 +938,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 bridge = await get_realtime_session(session_id, participant_id)
                 if bridge:
                     await bridge.send_audio(audio)
+                elif (session_id, participant_id) in realtime_unavailable:
+                    continue
+                else:
+                    await broadcast_caption_error(
+                        session_id,
+                        "Realtime captions unavailable.",
+                        "captionsUnavailable",
+                    )
 
             elif msg_type == "set_recording":
-                if not sessions.is_host(session_id, participant_id):
+                if not sessions.is_recorder(session_id, participant_id):
                     continue
                 recording = data.get("recording", False)
+                if recording:
+                    realtime_unavailable.discard((session_id, participant_id))
                 await sessions.set_recording(session_id, recording)
                 if not recording:
                     await close_realtime_sessions(session_id)
@@ -969,7 +990,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     **sessions.vote_matrix(session_id, participant_id),
                 })
 
-            elif msg_type == "generate_tensions":
+            elif msg_type == "generate_recommendations":
                 if not sessions.is_host(session_id, participant_id):
                     continue
                 payload = data.get("analysis")
@@ -980,7 +1001,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
                 asyncio.create_task(
-                    run_tensions(session_id, participant_id, payload, count, topic, language)
+                    run_recommendations(session_id, participant_id, payload, count, topic, language)
                 )
 
             elif msg_type == "publish_tensions":
@@ -1002,21 +1023,57 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             elif msg_type == "get_common_ground":
                 if not sessions.is_host(session_id, participant_id):
                     continue
-                payload = data.get("analysis")
-                if not isinstance(payload, dict):
-                    continue
                 session = sessions.get(session_id)
-                depth = data.get("depth") or (session.common_ground_depth if session else "extended")
-                if depth not in ("basic", "extended", "comprehensive"):
-                    depth = "extended"
-                payload = dict(payload)
-                payload["previousFeedback"] = sessions.collect_common_ground_feedback(session_id)
+                raw_mode = data.get("mode") or data.get("depth") or (
+                    session.common_ground_mode if session else DEFAULT_COMMON_GROUND_MODE
+                )
+                mode = normalize_common_ground_mode(raw_mode)
+                client_analysis = data.get("analysis") if isinstance(data.get("analysis"), dict) else {}
+
+                if mode == "policy":
+                    if not session:
+                        continue
+                    from .policy_evidence import build_policy_evidence
+                    payload = build_policy_evidence(session)
+                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
+                        session_id, mode="policy"
+                    )
+                    if not payload.get("arguments"):
+                        await sessions.broadcast(session_id, {
+                            "type": "common_ground_error",
+                            "message": "Need approved arguments with votes before generating a policy draft.",
+                            "code": "cgNeedsVotes",
+                        })
+                        continue
+                else:
+                    payload = dict(client_analysis)
+                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
+                        session_id, mode="generic"
+                    )
+
                 topic = session.topic if session else None
                 language = session_statement_language(session_id) if session else None
-                await sessions.broadcast(session_id, {"type": "common_ground_pending", "depth": depth})
+                await sessions.broadcast(session_id, {"type": "common_ground_pending", "mode": mode})
                 asyncio.create_task(
-                    run_common_ground(session_id, payload, topic, language, depth, participant_id)
+                    run_common_ground(session_id, payload, topic, language, mode, participant_id)
                 )
+
+            elif msg_type == "endorse_common_ground":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                cg_id = data.get("id")
+                if not cg_id:
+                    continue
+                endorsed = sessions.endorse_common_ground(session_id, cg_id, participant_id)
+                if endorsed:
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
+                    await broadcast_common_ground_history(session_id)
+                else:
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_error",
+                        "message": "Could not endorse this version. Only the latest working draft can be marked Final.",
+                        "code": "cgEndorseFailed",
+                    })
 
             elif msg_type == "set_auto_approve":
                 if not sessions.is_host(session_id, participant_id):
@@ -1139,6 +1196,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                             db.save_common_ground(session_id, stored)
                         )
                     await broadcast_common_ground_history(session_id)
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
             elif msg_type == "dismiss_common_ground":
                 if not sessions.is_host(session_id, participant_id):
@@ -1148,6 +1206,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     continue
                 await _safe_db(db.delete_common_ground(cg_id))
                 await broadcast_common_ground_history(session_id)
+                await _safe_db(db.save_common_ground(sessions.get(session_id)))
 
             elif msg_type == "approve_statement":
                 if not sessions.is_host(session_id, participant_id):
@@ -1176,6 +1235,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 else:
                     target = set()
                 removed = sessions.reject_statements(session_id, target)
+                if removed:
+                    await sessions.broadcast_statements(session_id)
+                    await sessions.broadcast_participants(session_id)
+                    await _safe_db(db.delete_statements(removed))
+
+            elif msg_type == "delete_statement":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                ids = data.get("statementIds")
+                if isinstance(ids, list):
+                    target = set(ids)
+                elif data.get("statementId"):
+                    target = {data["statementId"]}
+                else:
+                    target = set()
+                removed = sessions.delete_statements(session_id, target)
                 if removed:
                     await sessions.broadcast_statements(session_id)
                     await sessions.broadcast_participants(session_id)
@@ -1246,14 +1321,15 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         "voteType": vote_type,
                     })
 
-            elif msg_type == "set_common_ground_depth":
+            elif msg_type == "set_common_ground_mode":
                 if not sessions.is_host(session_id, participant_id):
                     continue
-                depth = sessions.set_common_ground_depth(session_id, data.get("depth"))
-                if depth:
+                mode = sessions.set_common_ground_mode(session_id, data.get("mode"))
+                if mode:
+                    await _safe_db(db.save_common_ground(sessions.get(session_id)))
                     await sessions.broadcast(session_id, {
-                        "type": "common_ground_depth_updated",
-                        "depth": depth,
+                        "type": "common_ground_mode_updated",
+                        "mode": mode,
                     })
 
             elif msg_type == "set_topic":
@@ -1367,22 +1443,23 @@ def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
     import html as _html
 
     title = _html.escape(topic) if topic else "Live results"
-    full_title = f"{title} · HearTheRoom"
+    full_title = f"{title} · Murmi"
     desc = "See the live opinion map, common ground and open tensions from this conversation."
     url = f"/r/{_html.escape(public_id, quote=True)}"
+    default_desc = "Better group decisions at the speed of conversation. Murmi turns live discussion into clear claims and shared understanding."
 
     replacements = {
-        '<meta property="og:title" content="HearTheRoom" />':
+        '<meta property="og:title" content="Murmi" />':
             f'<meta property="og:title" content="{full_title}" />',
-        '<meta property="og:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta property="og:description" content="{default_desc}" />':
             f'<meta property="og:description" content="{desc}" />',
-        '<meta name="twitter:title" content="HearTheRoom" />':
+        '<meta name="twitter:title" content="Murmi" />':
             f'<meta name="twitter:title" content="{full_title}" />',
-        '<meta name="twitter:description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta name="twitter:description" content="{default_desc}" />':
             f'<meta name="twitter:description" content="{desc}" />',
-        '<meta name="description" content="Real-time collaborative sense-making for live rooms and workshops." />':
+        f'<meta name="description" content="{default_desc}" />':
             f'<meta name="description" content="{desc}" />',
-        "<title>HearTheRoom</title>":
+        "<title>Murmi</title>":
             f"<title>{full_title}</title>",
     }
     for old, new in replacements.items():

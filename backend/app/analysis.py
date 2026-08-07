@@ -42,19 +42,7 @@ Never invent positions that are not supported by the data. Be neutral, concise, 
 For "groupAnalysis": add one entry per opinion group provided in the input, using the same group letters. Each entry gets a short title and a 1-2 sentence description of that group's stance. If no opinion-group data is provided, return an empty array."""
 
 COMMON_GROUND_PROMPTS = {
-    "basic": COMMON_GROUND_BASE + """
-
-Write a short "group statement" the whole room could endorse. Capture genuine common ground first, acknowledge the main tension, and propose one bridging statement.
-
-Respond ONLY with JSON:
-{
-  "groupAnalysis": [{"group": "A", "title": "2-4 word label for this opinion group", "description": "1-2 sentence description of what this group believes, grounded in the vote data"}],
-  "groupStatement": "2-3 sentence statement the group could collectively endorse",
-  "commonGround": ["exactly 2 short bullets of shared agreement"],
-  "divides": ["exactly 2 short bullets describing key disagreements"],
-  "bridgingProposal": "one sentence proposal likely to gain cross-group support"
-}""",
-    "extended": COMMON_GROUND_BASE + """
+    "generic": COMMON_GROUND_BASE + """
 
 Produce a richer mediation summary. Surface more nuance across opinion groups while staying grounded in the vote data.
 
@@ -67,27 +55,79 @@ Respond ONLY with JSON:
   "bridgingProposal": "one concrete bridging sentence",
   "insights": ["2-3 short observations about how groups align or diverge"]
 }""",
-    "comprehensive": COMMON_GROUND_BASE + """
+    "policy": COMMON_GROUND_BASE + """
 
-Produce the deepest analysis available from the data. Map multiple layers of agreement, disagreement, trade-offs, and group-specific perspectives.
+Turn the discussion into a WORKING POLICY DRAFT the room can refine. Stay grounded ONLY in the evidence pack (arguments with IDs, vote tallies, opinion groups, co-support pairs, and anonymous prior feedback). Never invent argument IDs, feedback IDs, or positions.
 
-Respond ONLY with JSON:
+Evidence rules:
+- Stable argument IDs look like a1, a2, a3 — cite ONLY those (and fb* feedback IDs when present).
+- Anonymous feedback IDs look like fb1, fb2 — cite them when addressing prior reactions.
+- Only combine multiple arguments into one recommendation when co-support marks them safeToCombine (or when supportOverlap is clearly high and conflictRate is low). Otherwise keep them separate or flag a trade-off.
+- Preserve parts previous voters marked "agree" (Good enough) unless new votes contradict them.
+- Revise parts challenged by "disagree" (Not good enough) feedback; do not claim individual suggestions are already collective agreement.
+- Supported anonymous suggestions may become recommendations or essential conditions only when backed by argument evidence; otherwise keep them as trade-offs or unresolved questions.
+- Unreconciled concerns stay visible as tradeoffs or unresolvedQuestions.
+
+Respond ONLY with JSON (strict schema):
 {
-  "groupAnalysis": [{"group": "A", "title": "2-4 word label for this opinion group", "description": "1-2 sentence description of what this group believes, grounded in the vote data"}],
-  "groupStatement": "3-5 sentence synthesis the room could discuss collectively",
-  "commonGround": ["4-6 bullets of shared agreement across groups"],
-  "divides": ["4-6 bullets of open tensions and unresolved disagreements"],
-  "bridgingProposal": "primary bridging sentence most likely to gain cross-group support",
-  "bridgingAlternatives": ["1-2 alternative bridging approaches"],
-  "insights": ["3-4 observations about group dynamics and voting patterns"],
-  "tradeoffs": ["2-3 bullets on what each side gains or risks in compromise"],
-  "groupNotes": [{"group": "A", "note": "one sentence on this group's core concern"}]
+  "status": "working_draft",
+  "previousVersionId": "id of prior version or null",
+  "changeSummary": "1-3 sentences on what changed vs previous draft and why (cite feedback/argument IDs when relevant)",
+  "groupAnalysis": [{"group": "A", "title": "2-4 word label", "description": "1-2 sentences grounded in group stance data"}],
+  "groupStatement": "2-4 sentence framing of this working policy proposal",
+  "recommendations": [
+    {
+      "id": "r1",
+      "text": "concrete actionable recommendation",
+      "evidenceIds": ["argumentId", "fbN"],
+      "preserved": false
+    }
+  ],
+  "essentialConditions": [
+    {
+      "id": "c1",
+      "text": "must-hold condition for cross-group acceptability",
+      "evidenceIds": ["argumentId"],
+      "preserved": false
+    }
+  ],
+  "tradeoffs": [
+    {
+      "id": "t1",
+      "text": "explicit trade-off this proposal accepts",
+      "evidenceIds": ["argumentId"]
+    }
+  ],
+  "unresolvedQuestions": [
+    {
+      "id": "u1",
+      "text": "open question the room still needs to settle",
+      "evidenceIds": ["argumentId", "fbN"]
+    }
+  ]
 }
 
-Include groupNotes only when opinion-group data is provided. Use the group letters from the input."""
+Include 3-6 recommendations, 2-4 essentialConditions, 2-4 tradeoffs, and 2-4 unresolvedQuestions. Every recommendation and essentialCondition MUST include at least one evidenceIds entry from the evidence pack (a1, a2, … or fb*). Do not invent IDs.
+""",
 }
 
-COMMON_GROUND_DEPTHS = frozenset(COMMON_GROUND_PROMPTS)
+COMMON_GROUND_MODES = frozenset(COMMON_GROUND_PROMPTS)
+DEFAULT_COMMON_GROUND_MODE = "policy"
+
+# Legacy depth ids from older sessions map onto the generic mediation mode.
+_LEGACY_DEPTH_TO_MODE = {
+    "basic": "generic",
+    "extended": "generic",
+    "comprehensive": "generic",
+}
+
+
+def normalize_common_ground_mode(mode: str | None) -> str:
+    if mode in COMMON_GROUND_MODES:
+        return mode
+    if mode in _LEGACY_DEPTH_TO_MODE:
+        return _LEGACY_DEPTH_TO_MODE[mode]
+    return DEFAULT_COMMON_GROUND_MODE
 
 REPORT_NARRATIVE_PROMPT = """You are an impartial data-story editor for a public deliberation report.
 
@@ -187,30 +227,46 @@ Method:
 Respond ONLY with JSON:
 {"tensions": ["statement 1", "statement 2", ...]}"""
 
+RECOMMENDATIONS_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript, vote results, and opinion groups, produce three kinds of recommendations for the facilitator.
+
+1. UNEXPLORED TOPICS — substantive themes raised in the transcript that are NOT yet covered by existing votable statements. Short bullets (one sentence each). Do not invent topics absent from the discussion.
+
+2. DIVISIVE ISSUES — fresh, sharply framed votable propositions that would split the room roughly down the middle. These must:
+   - Surface the deeper disagreement driving current vote splits
+   - NOT paraphrase, reword, or merge any existing statement or any already-published tension statement
+   - NOT restate settled consensus
+   - Be specific to this discussion; never invent positions unsupported by the data
+   - Each must be materially different from every other output in this category
+
+3. PROPOSED SOLUTIONS — concrete bridging or compromise ideas grounded in consensus and divisive vote data. Short facilitator-facing suggestions, NOT phrased as agree/disagree votable claims.
+
+Respond ONLY with JSON:
+{
+  "unexploredTopics": ["topic 1", "topic 2", ...],
+  "divisiveIssues": ["votable statement 1", "votable statement 2", ...],
+  "proposedSolutions": ["bridging idea 1", "bridging idea 2", ...]
+}"""
+
 MOCK_TENSIONS = [
     "Switzerland should adopt a horizontal federal AI law rather than relying mainly on sector-specific rules.",
     "Mandatory AI transparency should apply to every consumer-facing system, not only high-risk use cases.",
     "Sensitive Swiss data must be processed only on infrastructure located in Switzerland.",
 ]
 
+MOCK_RECOMMENDATIONS = {
+    "unexploredTopics": [
+        "How liability should be allocated when AI systems cause harm in regulated sectors.",
+        "Whether open-source AI models should face the same transparency rules as commercial products.",
+    ],
+    "divisiveIssues": MOCK_TENSIONS,
+    "proposedSolutions": [
+        "Adopt a lightweight federal AI baseline focused on transparency, paired with sector-specific rules where risk is highest.",
+        "Pilot federal rules in health and finance first, then evaluate expansion based on compliance burden.",
+    ],
+}
+
 MOCK_COMMON_GROUND = {
-    "basic": {
-        "groupAnalysis": [
-            {"group": "A", "title": "Federal-law advocates", "description": "Favor a broad federal AI law and EU-compatible guardrails to ensure consistent oversight."},
-            {"group": "B", "title": "Sector pragmatists", "description": "Prefer sector-specific rules that keep the burden on startups low while still protecting public trust."},
-        ],
-        "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle.",
-        "commonGround": [
-            "AI oversight and public trust are widely seen as essential.",
-            "Heavy-handed rules that crush startups should be avoided.",
-        ],
-        "divides": [
-            "Horizontal AI law vs. sector-specific regulation.",
-            "Whether data localization is practical for smaller firms.",
-        ],
-        "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
-    },
-    "extended": {
+    "generic": {
         "groupAnalysis": [
             {"group": "A", "title": "Federal-harmonization advocates", "description": "Push for federal coherence and EU alignment, accepting more scope in exchange for predictability across sectors."},
             {"group": "B", "title": "Sector-specific pragmatists", "description": "Want domain-tailored rules and minimal cost for smaller firms, while still backing baseline transparency."},
@@ -234,45 +290,72 @@ MOCK_COMMON_GROUND = {
             "Data-sovereignty advocates and pragmatists split mainly on cost, not principle.",
         ],
     },
-    "comprehensive": {
+    "policy": {
+        "status": "working_draft",
+        "previousVersionId": None,
+        "changeSummary": "Initial working draft from current argument votes.",
         "groupAnalysis": [
             {"group": "A", "title": "Federal coherence camp", "description": "Prioritizes federal coherence and EU-compatible guardrails, favoring horizontal rules for predictability."},
             {"group": "B", "title": "Innovation-first camp", "description": "Wants sector nuance and minimal burden on innovators, wary of one-size-fits-all obligations."},
         ],
-        "groupStatement": "Most participants agree that Switzerland needs a credible response to AI risks and that public trust matters, while disagreeing on whether a broad federal law or sector-specific rules is the right vehicle. There is shared concern for protecting smaller companies from disproportionate burden. The room also shares skepticism toward one-size-fits-all rules that ignore domain risk.",
-        "commonGround": [
-            "AI oversight and public trust are widely seen as essential.",
-            "Heavy-handed rules that crush startups should be avoided.",
-            "Sector-specific expertise should inform high-risk domains like health.",
-            "Transparency obligations should be proportionate to risk.",
-            "Existing FADP protections are a floor, not a complete AI answer.",
+        "groupStatement": "Working proposal: establish a lightweight federal AI baseline on transparency and accountability, layered with sector-specific rules where risk is highest, while protecting smaller firms from disproportionate burden.",
+        "recommendations": [
+            {
+                "id": "r1",
+                "text": "Pass a federal transparency-and-accountability baseline for high-risk AI systems.",
+                "evidenceIds": ["arg-mock-1"],
+                "preserved": False,
+            },
+            {
+                "id": "r2",
+                "text": "Add sector-specific rules for health and finance, informed by domain experts.",
+                "evidenceIds": ["arg-mock-2"],
+                "preserved": False,
+            },
+            {
+                "id": "r3",
+                "text": "Set proportionate SME exemptions or compliance pathways based on risk tier.",
+                "evidenceIds": ["arg-mock-1", "arg-mock-3"],
+                "preserved": False,
+            },
         ],
-        "divides": [
-            "Horizontal AI law vs. sector-specific regulation.",
-            "Whether data localization is practical for smaller firms.",
-            "How strictly training-data rules should apply beyond FADP.",
-            "Whether EU alignment should drive Swiss AI policy.",
-            "Mandatory audits vs. voluntary industry standards.",
-        ],
-        "bridgingProposal": "Adopt a lightweight federal AI baseline focused on transparency and accountability, paired with sector-specific rules where risk is highest.",
-        "bridgingAlternatives": [
-            "Pilot federal rules in health and finance first, then evaluate expansion.",
-            "Create an independent AI oversight body with sector advisory panels.",
-        ],
-        "insights": [
-            "Groups that favor sector rules still support baseline transparency.",
-            "Data-sovereignty advocates and pragmatists split mainly on cost, not principle.",
-            "Startup-protection language appears across otherwise opposing clusters.",
-            "EU-alignment divides are sharper among groups skeptical of horizontal law.",
+        "essentialConditions": [
+            {
+                "id": "c1",
+                "text": "Baseline obligations stay proportional to demonstrated risk.",
+                "evidenceIds": ["arg-mock-1"],
+                "preserved": False,
+            },
+            {
+                "id": "c2",
+                "text": "Sector rules must not recreate contradictory obligations across domains.",
+                "evidenceIds": ["arg-mock-2"],
+                "preserved": False,
+            },
         ],
         "tradeoffs": [
-            "Horizontal law trades flexibility for predictability across sectors.",
-            "Strict localization improves sovereignty but raises compliance cost for SMEs.",
-            "Risk-based transparency may leave gaps that universal rules would close.",
+            {
+                "id": "t1",
+                "text": "Horizontal predictability trades some sector flexibility.",
+                "evidenceIds": ["arg-mock-2"],
+            },
+            {
+                "id": "t2",
+                "text": "EU alignment reduces friction for exporters but constrains Swiss-only paths.",
+                "evidenceIds": ["arg-mock-3"],
+            },
         ],
-        "groupNotes": [
-            {"group": "A", "note": "Prioritizes federal coherence and EU-compatible guardrails."},
-            {"group": "B", "note": "Wants sector nuance and minimal burden on innovators."},
+        "unresolvedQuestions": [
+            {
+                "id": "u1",
+                "text": "Who audits high-risk systems and who pays for reviews?",
+                "evidenceIds": ["arg-mock-1"],
+            },
+            {
+                "id": "u2",
+                "text": "Should training-data rules go beyond existing FADP requirements?",
+                "evidenceIds": ["arg-mock-3"],
+            },
         ],
     },
 }
@@ -385,32 +468,53 @@ class AnalysisService:
 
         return await self._live_extract_turn(turn_entry, existing_statements, topic, language)
 
-    async def generate_tension_statements(
+    async def generate_recommendations(
         self,
         analysis: dict,
-        count: int = 3,
+        divisive_count: int = 3,
         topic: Optional[str] = None,
         language: Optional[str] = None,
-    ) -> list[str]:
-        count = max(1, min(5, int(count or 3)))
+    ) -> Optional[dict]:
+        divisive_count = max(1, min(5, int(divisive_count or 3)))
         if self._mock:
             existing = set(analysis.get("existingStatements") or [])
-            return [t for t in MOCK_TENSIONS if t not in existing][:count]
+            existing |= set(analysis.get("existingTensions") or [])
+            divisive = [t for t in MOCK_TENSIONS if t not in existing][:divisive_count]
+            return {
+                "unexploredTopics": list(MOCK_RECOMMENDATIONS["unexploredTopics"]),
+                "divisiveIssues": divisive,
+                "proposedSolutions": list(MOCK_RECOMMENDATIONS["proposedSolutions"]),
+            }
 
-        return await self._live_tension_statements(analysis, count, topic, language)
+        return await self._live_recommendations(analysis, divisive_count, topic, language)
 
     async def generate_common_ground(
         self,
         analysis: dict,
         topic: Optional[str] = None,
         language: Optional[str] = None,
-        depth: str = "basic",
+        mode: str = DEFAULT_COMMON_GROUND_MODE,
     ) -> Optional[dict]:
-        depth = depth if depth in COMMON_GROUND_DEPTHS else "basic"
+        mode = normalize_common_ground_mode(mode)
         if self._mock:
-            return {**MOCK_COMMON_GROUND[depth], "depth": depth}
+            mock = {**MOCK_COMMON_GROUND[mode], "mode": mode}
+            if mode == "policy":
+                # Remap mock evidence IDs to real argument ids when available.
+                valid = set(analysis.get("validArgumentIds") or [])
+                if valid:
+                    first = sorted(valid)[0]
+                    for key in ("recommendations", "essentialConditions", "tradeoffs", "unresolvedQuestions"):
+                        items = []
+                        for item in mock.get(key) or []:
+                            if isinstance(item, dict):
+                                items.append({**item, "evidenceIds": [first]})
+                            else:
+                                items.append(item)
+                        mock[key] = items
+                return self._normalize_common_ground(mock, mode, analysis)
+            return mock
 
-        return await self._live_common_ground(analysis, topic, language, depth)
+        return await self._live_common_ground(analysis, topic, language, mode)
 
     async def generate_report_narrative(
         self,
@@ -421,18 +525,7 @@ class AnalysisService:
             return None
         return await self._live_report_narrative(evidence, language)
 
-    def _normalize_common_ground(self, data: dict, depth: str) -> Optional[dict]:
-        statement = (data.get("groupStatement") or "").strip()
-        if not statement:
-            return None
-        group_notes = []
-        for item in data.get("groupNotes") or []:
-            if not isinstance(item, dict):
-                continue
-            group = (item.get("group") or "").strip()
-            note = (item.get("note") or "").strip()
-            if group and note:
-                group_notes.append({"group": group, "note": note})
+    def _normalize_group_analysis(self, data: dict) -> list:
         group_analysis = []
         for item in data.get("groupAnalysis") or []:
             if not isinstance(item, dict):
@@ -442,23 +535,207 @@ class AnalysisService:
             description = (item.get("description") or "").strip()
             if group and description:
                 group_analysis.append({"group": group, "title": title, "description": description})
+        return group_analysis
+
+    @staticmethod
+    def _clean_str_list(values) -> list:
+        return [s.strip() for s in (values or []) if isinstance(s, str) and s.strip()]
+
+    def _normalize_cited_items(
+        self,
+        values,
+        *,
+        valid_ids: set[str],
+        require_evidence: bool,
+        id_prefix: str,
+        fallback_ids: list[str] | None = None,
+    ) -> Optional[list]:
+        """Normalize list of {id, text, evidenceIds, ...} or legacy strings.
+
+        Unknown evidence IDs are dropped (not fatal). When evidence is required and
+        none remain, attach the first available argument fallback so a mostly-valid
+        draft is not discarded for a single bad citation.
+        """
+        if not isinstance(values, list):
+            return []
+        fallback = [eid for eid in (fallback_ids or []) if eid in valid_ids]
+        out = []
+        for idx, raw in enumerate(values, start=1):
+            if isinstance(raw, str):
+                text = raw.strip()
+                if not text:
+                    continue
+                evidence = list(fallback[:1]) if require_evidence and fallback else []
+                if require_evidence and not evidence:
+                    continue
+                out.append({"id": f"{id_prefix}{idx}", "text": text, "evidenceIds": evidence})
+                continue
+            if not isinstance(raw, dict):
+                continue
+            text = (raw.get("text") or "").strip()
+            if not text:
+                continue
+            item_id = (raw.get("id") or f"{id_prefix}{idx}").strip()
+            evidence = []
+            for eid in raw.get("evidenceIds") or []:
+                if not isinstance(eid, str):
+                    continue
+                eid = eid.strip()
+                if not eid or eid not in valid_ids:
+                    continue
+                if eid not in evidence:
+                    evidence.append(eid)
+            if require_evidence and not evidence:
+                if fallback:
+                    evidence = [fallback[0]]
+                else:
+                    continue
+            item = {"id": item_id, "text": text, "evidenceIds": evidence}
+            if "preserved" in raw:
+                item["preserved"] = bool(raw.get("preserved"))
+            out.append(item)
+        return out
+
+    @staticmethod
+    def _remap_evidence_ids(items: list, id_map: dict[str, str]) -> list:
+        if not id_map or not items:
+            return items
+        remapped = []
+        for item in items:
+            if not isinstance(item, dict):
+                remapped.append(item)
+                continue
+            eids = []
+            for eid in item.get("evidenceIds") or []:
+                real = id_map.get(eid, eid)
+                if real not in eids:
+                    eids.append(real)
+            remapped.append({**item, "evidenceIds": eids})
+        return remapped
+
+    def _normalize_common_ground(
+        self,
+        data: dict,
+        mode: str,
+        analysis: Optional[dict] = None,
+    ) -> Optional[dict]:
+        statement = (data.get("groupStatement") or "").strip()
+        if not statement:
+            return None
+        group_analysis = self._normalize_group_analysis(data)
+        mode = normalize_common_ground_mode(mode)
+        analysis = analysis or {}
+
+        if mode == "policy":
+            valid_ids = set(analysis.get("validArgumentIds") or [])
+            for prev in analysis.get("previousFeedback") or []:
+                valid_ids.update(prev.get("validFeedbackIds") or [])
+            # Also allow citing prior recommendation/condition/tradeoff/question ids.
+            for prev in analysis.get("previousFeedback") or []:
+                for key in ("recommendations", "essentialConditions", "tradeoffs", "unresolvedQuestions"):
+                    for item in prev.get(key) or []:
+                        if isinstance(item, dict) and item.get("id"):
+                            valid_ids.add(str(item["id"]))
+
+            fallback_ids = list(analysis.get("validArgumentIds") or [])
+            recommendations = self._normalize_cited_items(
+                data.get("recommendations"),
+                valid_ids=valid_ids,
+                require_evidence=True,
+                id_prefix="r",
+                fallback_ids=fallback_ids,
+            )
+            if recommendations is None or not recommendations:
+                print("Policy CG normalize failed: no usable recommendations")
+                return None
+            conditions = self._normalize_cited_items(
+                data.get("essentialConditions"),
+                valid_ids=valid_ids,
+                require_evidence=True,
+                id_prefix="c",
+                fallback_ids=fallback_ids,
+            )
+            if conditions is None:
+                print("Policy CG normalize failed: essentialConditions invalid")
+                return None
+            tradeoffs = self._normalize_cited_items(
+                data.get("tradeoffs"),
+                valid_ids=valid_ids,
+                require_evidence=False,
+                id_prefix="t",
+                fallback_ids=fallback_ids,
+            )
+            if tradeoffs is None:
+                print("Policy CG normalize failed: tradeoffs invalid")
+                return None
+            unresolved = self._normalize_cited_items(
+                data.get("unresolvedQuestions"),
+                valid_ids=valid_ids,
+                require_evidence=False,
+                id_prefix="u",
+                fallback_ids=fallback_ids,
+            )
+            if unresolved is None:
+                print("Policy CG normalize failed: unresolvedQuestions invalid")
+                return None
+
+            prev_id = data.get("previousVersionId")
+            if prev_id is not None:
+                prev_id = str(prev_id).strip() or None
+            known_prev = {p.get("versionId") for p in (analysis.get("previousFeedback") or [])}
+            if prev_id and prev_id not in known_prev:
+                # Prefer latest known previous version rather than inventing.
+                prev_id = next(iter(reversed(list(known_prev))), None) if known_prev else None
+            if not prev_id and known_prev:
+                prev_id = list(known_prev)[-1]
+
+            change_summary = (data.get("changeSummary") or "").strip()
+            if not change_summary:
+                change_summary = (
+                    "Revised working draft based on latest argument votes and prior reactions."
+                    if prev_id
+                    else "Initial working draft from current argument votes."
+                )
+
+            id_map = analysis.get("argumentIdMap") or {}
+            return {
+                "mode": mode,
+                "status": "working_draft",
+                "previousVersionId": prev_id,
+                "changeSummary": change_summary,
+                "groupAnalysis": group_analysis,
+                "groupStatement": statement,
+                "recommendations": self._remap_evidence_ids(recommendations, id_map),
+                "essentialConditions": self._remap_evidence_ids(conditions, id_map),
+                "tradeoffs": self._remap_evidence_ids(tradeoffs, id_map),
+                "unresolvedQuestions": self._remap_evidence_ids(unresolved, id_map),
+            }
+
         result = {
-            "depth": depth,
+            "mode": mode,
             "groupAnalysis": group_analysis,
             "groupStatement": statement,
-            "commonGround": [s for s in (data.get("commonGround") or []) if isinstance(s, str) and s.strip()],
-            "divides": [s for s in (data.get("divides") or []) if isinstance(s, str) and s.strip()],
+            "commonGround": self._clean_str_list(data.get("commonGround")),
+            "divides": self._clean_str_list(data.get("divides")),
             "bridgingProposal": (data.get("bridgingProposal") or "").strip(),
         }
-        insights = [s for s in (data.get("insights") or []) if isinstance(s, str) and s.strip()]
+        insights = self._clean_str_list(data.get("insights"))
         if insights:
             result["insights"] = insights
-        tradeoffs = [s for s in (data.get("tradeoffs") or []) if isinstance(s, str) and s.strip()]
+        tradeoffs = self._clean_str_list(data.get("tradeoffs"))
         if tradeoffs:
             result["tradeoffs"] = tradeoffs
-        alternatives = [s for s in (data.get("bridgingAlternatives") or []) if isinstance(s, str) and s.strip()]
+        alternatives = self._clean_str_list(data.get("bridgingAlternatives"))
         if alternatives:
             result["bridgingAlternatives"] = alternatives
+        group_notes = []
+        for item in data.get("groupNotes") or []:
+            if not isinstance(item, dict):
+                continue
+            group = (item.get("group") or "").strip()
+            note = (item.get("note") or "").strip()
+            if group and note:
+                group_notes.append({"group": group, "note": note})
         if group_notes:
             result["groupNotes"] = group_notes
         return result
@@ -633,20 +910,44 @@ class AnalysisService:
             "limitations": items("limitations", 4),
         }
 
-    async def _live_tension_statements(
+    def _normalize_recommendations(self, data: dict, divisive_count: int) -> Optional[dict]:
+        unexplored = [
+            s.strip() for s in (data.get("unexploredTopics") or [])
+            if isinstance(s, str) and s.strip()
+        ]
+        proposed = [
+            s.strip() for s in (data.get("proposedSolutions") or [])
+            if isinstance(s, str) and s.strip()
+        ]
+        raw_divisive = data.get("divisiveIssues")
+        if not isinstance(raw_divisive, list):
+            raw_divisive = next(
+                (v for k, v in data.items() if k != "unexploredTopics" and k != "proposedSolutions" and isinstance(v, list)),
+                [],
+            )
+        divisive = [s.strip() for s in raw_divisive if isinstance(s, str) and s.strip()]
+        if not divisive and not unexplored and not proposed:
+            return None
+        return {
+            "unexploredTopics": unexplored[:6],
+            "divisiveIssues": divisive[:divisive_count + 4],
+            "proposedSolutions": proposed[:6],
+        }
+
+    async def _live_recommendations(
         self,
         analysis: dict,
-        count: int,
+        divisive_count: int,
         topic: Optional[str] = None,
         language: Optional[str] = None,
-    ) -> list[str]:
-        request_count = count + 4
+    ) -> Optional[dict]:
+        request_count = divisive_count + 4
         parts = []
         parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
         parts.append(
-            f"\nYou MUST return at least {count} open-tension statement(s). "
-            f"Generate {request_count} distinct candidates, ordered strongest first, so the {count} best can be kept. "
-            f"Never return fewer than {count} — if the data is thin, dig into finer-grained trade-offs and edge cases to reach the count."
+            f"\nDivisive issues requested: {divisive_count}. "
+            f"Generate {request_count} distinct divisive-issue candidates, ordered strongest first. "
+            f"Also provide 2-4 unexplored topics and 2-3 proposed solutions."
         )
 
         transcript = analysis.get("transcript") or []
@@ -660,8 +961,14 @@ class AnalysisService:
 
         existing = analysis.get("existingStatements") or []
         if existing:
-            parts.append("\nExisting statements — your tensions must NOT restate or paraphrase any of these:")
+            parts.append("\nExisting statements — divisive issues must NOT restate or paraphrase any of these:")
             for s in existing:
+                parts.append(f"- {s}")
+
+        existing_tensions = analysis.get("existingTensions") or []
+        if existing_tensions:
+            parts.append("\nAlready-published tension statements — divisive issues must NOT restate or paraphrase these:")
+            for s in existing_tensions:
                 parts.append(f"- {s}")
 
         divisive = analysis.get("divisive") or []
@@ -676,11 +983,26 @@ class AnalysisService:
 
         consensus = analysis.get("consensus") or []
         if consensus:
-            parts.append("\nStatements with broad agreement (for context — tensions should contrast with these):")
+            parts.append("\nStatements with broad agreement (for context — divisive issues should contrast with these):")
             for s in consensus:
                 parts.append(f"- \"{s.get('text', '')}\" ({s.get('agree', 0)} agree / {s.get('disagree', 0)} disagree)")
 
+        groups = analysis.get("groups") or []
+        if groups:
+            parts.append("\nOpinion groups:")
+            for g in groups:
+                parts.append(f"Group {g.get('letter', '?')} ({g.get('size', 0)} people):")
+                for t in (g.get("stronglyAgree") or []):
+                    parts.append(f"  strongly agrees: \"{t}\"")
+                for t in (g.get("agree") or []):
+                    parts.append(f"  tends to agree: \"{t}\"")
+                for t in (g.get("stronglyDisagree") or []):
+                    parts.append(f"  strongly disagrees: \"{t}\"")
+                for t in (g.get("disagree") or []):
+                    parts.append(f"  tends to disagree: \"{t}\"")
+
         user_message = "\n".join(parts)
+        dedupe_against = list(existing) + list(existing_tensions)
 
         try:
             loop = asyncio.get_event_loop()
@@ -692,43 +1014,158 @@ class AnalysisService:
                     temperature=0.45,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": TENSION_PROMPT + _language_rule(language)},
+                        {"role": "system", "content": RECOMMENDATIONS_PROMPT + _language_rule(language)},
                         {"role": "user", "content": user_message},
                     ],
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            raw = data.get("tensions")
-            if not isinstance(raw, list):
-                raw = next((v for v in data.values() if isinstance(v, list)), [])
-            tensions = [s.strip() for s in raw if isinstance(s, str) and s.strip()]
-            filtered = _dedupe_tensions(tensions, existing)
-            if len(filtered) < count:
-                existing_set = {s.strip().lower() for s in existing}
+            normalized = self._normalize_recommendations(data, divisive_count)
+            if not normalized:
+                return None
+
+            filtered = _dedupe_tensions(normalized["divisiveIssues"], dedupe_against)
+            if len(filtered) < divisive_count:
+                existing_set = {s.strip().lower() for s in dedupe_against}
                 seen = {t.lower() for t in filtered}
-                for t in tensions:
-                    if len(filtered) >= count:
+                for t in normalized["divisiveIssues"]:
+                    if len(filtered) >= divisive_count:
                         break
                     key = t.lower()
                     if key in seen or key in existing_set:
                         continue
                     filtered.append(t)
                     seen.add(key)
-            return (filtered or tensions)[:count]
+            normalized["divisiveIssues"] = (filtered or normalized["divisiveIssues"])[:divisive_count]
+            return normalized
         except (json.JSONDecodeError, KeyError, IndexError) as e:
-            print(f"Tension parse error: {e}")
-            return []
+            print(f"Recommendations parse error: {e}")
+            return None
         except Exception as e:
-            print(f"Tension generation error: {e}")
-            return []
+            print(f"Recommendations generation error: {e}")
+            return None
 
-    async def _live_common_ground(
-        self,
-        analysis: dict,
-        topic: Optional[str] = None,
-        language: Optional[str] = None,
-        depth: str = "basic",
-    ) -> Optional[dict]:
+    def _policy_user_message(self, analysis: dict, topic: Optional[str]) -> str:
+        parts = []
+        parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
+        parts.append(
+            f"\nRoster size: {analysis.get('rosterSize', 0)}; "
+            f"voters with ballots: {analysis.get('voterCount', 0)}; "
+            f"approved arguments: {analysis.get('statementCount', 0)}; "
+            f"vote scale: {analysis.get('voteType', 'binary')}."
+        )
+        parts.append(
+            "\nEVIDENCE PACK — cite only these argument IDs and fb* feedback IDs. "
+            "Never use participant names or internal participant IDs."
+        )
+        parts.append("\nArguments (stable IDs):")
+        for arg in analysis.get("arguments") or []:
+            parts.append(
+                f"- [{arg.get('id')}] \"{arg.get('text', '')}\" "
+                f"support={arg.get('support', 0)}, neutral={arg.get('neutrality', 0)}, "
+                f"oppose={arg.get('opposition', 0)}, missing={arg.get('missing', 0)}, "
+                f"coverage={arg.get('coveragePct', 0)}%, supportRate={arg.get('supportRate', 0)}, "
+                f"split={arg.get('split', 0)}"
+            )
+
+        groups = analysis.get("opinionGroups") or []
+        if groups:
+            parts.append("\nOpinion groups (anonymous, lettered):")
+            for g in groups:
+                parts.append(f"Group {g.get('group')} (size {g.get('size', 0)}):")
+                for st in g.get("stances") or []:
+                    if st.get("lean") == "mixed":
+                        continue
+                    parts.append(
+                        f"  {st.get('lean')} on [{st.get('argumentId')}] "
+                        f"(support={st.get('support', 0)}, oppose={st.get('opposition', 0)})"
+                    )
+
+        diffs = analysis.get("groupDifferences") or []
+        if diffs:
+            parts.append("\nCross-group differences (same argument, different leans):")
+            for d in diffs:
+                leans = ", ".join(
+                    f"{x.get('group')}={x.get('lean')}" for x in (d.get("groupLeans") or [])
+                )
+                parts.append(f"- [{d.get('argumentId')}]: {leans}")
+
+        co = analysis.get("coSupport") or []
+        if co:
+            parts.append(
+                "\nCo-support between arguments (same respondents). "
+                "Only combine arguments into one recommendation when safeToCombine is true:"
+            )
+            for pair in co[:40]:
+                ids = pair.get("argumentIds") or []
+                parts.append(
+                    f"- {ids}: shared={pair.get('sharedRespondents')}, "
+                    f"bothSupport={pair.get('bothSupport')}, conflict={pair.get('conflict')}, "
+                    f"supportOverlap={pair.get('supportOverlap')}, "
+                    f"conflictRate={pair.get('conflictRate')}, "
+                    f"safeToCombine={pair.get('safeToCombine')}"
+                )
+
+        previous = analysis.get("previousFeedback") or []
+        if previous:
+            parts.append(
+                "\nPrevious POLICY drafts and anonymous reactions. "
+                "Preserve items voters marked agree unless new votes contradict. "
+                "Revise parts challenged by disagree. Individual suggestions must not be "
+                "described as collective agreement unless argument evidence supports them. "
+                "Valid feedback IDs to cite: fb* listed below."
+            )
+            for idx, prev in enumerate(previous, start=1):
+                votes = prev.get("votes") or {}
+                parts.append(
+                    f"\nVersion {idx} id={prev.get('versionId')} status={prev.get('status')}: "
+                    f"\"{prev.get('groupStatement', '')}\" — "
+                    f"{votes.get('agree', 0)} agree / {votes.get('disagree', 0)} disagree"
+                )
+                if prev.get("changeSummary"):
+                    parts.append(f"  prior changeSummary: {prev['changeSummary']}")
+
+                def _brief_items(label, items):
+                    if not items:
+                        return
+                    parts.append(f"  {label}:")
+                    for item in items:
+                        if isinstance(item, dict):
+                            eids = ",".join(item.get("evidenceIds") or [])
+                            parts.append(
+                                f"    [{item.get('id')}] {item.get('text', '')} "
+                                f"(evidence: {eids or 'none'}; preserved={item.get('preserved', False)})"
+                            )
+                        else:
+                            parts.append(f"    - {item}")
+
+                _brief_items("recommendations", prev.get("recommendations"))
+                _brief_items("essentialConditions", prev.get("essentialConditions"))
+                _brief_items("tradeoffs", prev.get("tradeoffs"))
+                _brief_items("unresolvedQuestions", prev.get("unresolvedQuestions"))
+                for reaction in prev.get("feedback") or []:
+                    line = f"  - [{reaction.get('id')}] vote={reaction.get('vote')}"
+                    if reaction.get("reason"):
+                        line += f" reason=\"{reaction['reason']}\""
+                    parts.append(line)
+            latest = previous[-1]
+            parts.append(
+                f"\nSet previousVersionId to \"{latest.get('versionId')}\". "
+                "Include a changeSummary explaining what you revised and why."
+            )
+        else:
+            parts.append(
+                "\nNo previous policy draft. Set previousVersionId to null. "
+                "changeSummary should note this is the initial working draft."
+            )
+
+        parts.append(
+            f"\nValid argument IDs: {', '.join(analysis.get('validArgumentIds') or []) or '(none)'}"
+        )
+        parts.append("\nAnalysis mode requested: policy")
+        return "\n".join(parts)
+
+    def _generic_user_message(self, analysis: dict, topic: Optional[str], mode: str) -> str:
         parts = []
         parts.append(f"Session topic: {topic}" if topic else "Session topic: Not specified — infer from the data.")
         parts.append(f"\nParticipants who voted: {analysis.get('voterCount', 0)}")
@@ -764,20 +1201,38 @@ class AnalysisService:
             parts.append("\nPrevious common ground proposals and participant reactions (refine — do not repeat rejected framings):")
             for idx, prev in enumerate(previous, start=1):
                 votes = prev.get("votes") or {}
+                prev_mode = normalize_common_ground_mode(
+                    prev.get("mode") or prev.get("depth")
+                )
                 parts.append(
-                    f"\nVersion {idx} ({prev.get('depth', 'basic')}): \"{prev.get('groupStatement', '')}\""
+                    f"\nVersion {idx} ({prev_mode}): \"{prev.get('groupStatement', '')}\""
                     f" — {votes.get('agree', 0)} agree / {votes.get('disagree', 0)} disagree"
                 )
                 for reaction in prev.get("feedback") or []:
-                    line = f"  - {reaction.get('name', 'Participant')} {reaction.get('vote', '')}"
+                    # Generic mode may still include names from legacy collector; policy uses anonymous only.
+                    label = reaction.get("id") or reaction.get("name") or "Participant"
+                    line = f"  - {label} {reaction.get('vote', '')}"
                     if reaction.get("reason"):
                         line += f": \"{reaction['reason']}\""
                     parts.append(line)
 
-        parts.append(f"\nAnalysis depth requested: {depth}")
-        user_message = "\n".join(parts)
-        prompt = COMMON_GROUND_PROMPTS.get(depth, COMMON_GROUND_PROMPTS["basic"])
-        temperature = {"basic": 0.4, "extended": 0.45, "comprehensive": 0.5}.get(depth, 0.4)
+        parts.append(f"\nAnalysis mode requested: {mode}")
+        return "\n".join(parts)
+
+    async def _live_common_ground(
+        self,
+        analysis: dict,
+        topic: Optional[str] = None,
+        language: Optional[str] = None,
+        mode: str = DEFAULT_COMMON_GROUND_MODE,
+    ) -> Optional[dict]:
+        mode = normalize_common_ground_mode(mode)
+        if mode == "policy":
+            user_message = self._policy_user_message(analysis, topic)
+        else:
+            user_message = self._generic_user_message(analysis, topic, mode)
+        prompt = COMMON_GROUND_PROMPTS.get(mode, COMMON_GROUND_PROMPTS[DEFAULT_COMMON_GROUND_MODE])
+        temperature = {"generic": 0.45, "policy": 0.5}.get(mode, 0.45)
 
         try:
             loop = asyncio.get_event_loop()
@@ -795,7 +1250,7 @@ class AnalysisService:
                 ),
             )
             data = json.loads(response.choices[0].message.content)
-            return self._normalize_common_ground(data, depth)
+            return self._normalize_common_ground(data, mode, analysis)
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Common ground parse error: {e}")
             return None
@@ -850,6 +1305,7 @@ class AnalysisService:
         except Exception as exc:
             print(f"Report narrative generation error: {exc}")
             return None
+
 
     def _mock_extract(self, existing_statements: list[str]) -> list[str]:
         existing_set = set(existing_statements)
