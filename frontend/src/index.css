@@ -8051,32 +8051,31 @@ html.room-record-view #root {
   margin-top: 0.65rem;
 }
 
+.cg-policy-body .cg-policy-main {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: var(--ds-surface-2, rgba(0, 0, 0, 0.03));
+}
+
+.cg-policy-body .cg-policy-main .cg-extra-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ds-text);
+}
+
 .cg-policy-body .cg-extra-list {
   padding-left: 1.15rem;
   padding-right: 0.15rem;
 }
 
-.cg-policy-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  margin: 0 0 0.5rem;
-}
-
 .cg-change-summary {
-  margin: 0;
+  margin: 0.25rem 0 0;
   font-size: 0.86rem;
   line-height: 1.5;
   color: var(--ds-text);
-}
-
-.cg-change-summary .cg-extra-label {
-  margin-bottom: 0.3rem;
-}
-
-.cg-prev-version {
-  font-size: 0.72rem;
-  color: var(--ds-text-muted);
 }
 
 .cg-endorsement {
@@ -8153,27 +8152,6 @@ html.room-record-view #root {
   border-radius: 999px;
   background: rgba(42, 157, 78, 0.15);
   color: #1f7a3a;
-}
-
-.cg-evidence-ids {
-  display: inline-block;
-  margin-left: 0.35rem;
-  font-size: 0.68rem;
-  color: var(--ds-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.cg-preserved-tag {
-  display: inline-block;
-  margin-left: 0.35rem;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.08rem 0.3rem;
-  border-radius: 999px;
-  background: var(--ds-surface-2);
-  color: var(--ds-text-muted);
 }
 
 .cg-card-endorsed {

@@ -57,7 +57,7 @@ Respond ONLY with JSON:
 }""",
     "policy": COMMON_GROUND_BASE + """
 
-Turn the discussion into a WORKING POLICY DRAFT the room can refine. Stay grounded ONLY in the evidence pack (arguments with IDs, vote tallies, opinion groups, co-support pairs, and anonymous prior feedback). Never invent argument IDs, feedback IDs, or positions.
+Produce a policy-oriented common ground: a mediation summary plus concrete recommendations, conditions/red lines, and unresolved issues. Stay grounded ONLY in the evidence pack (arguments with IDs, vote tallies, opinion groups, co-support pairs, and anonymous prior feedback). Never invent argument IDs, feedback IDs, or positions.
 
 Evidence rules:
 - Stable argument IDs look like a1, a2, a3 — cite ONLY those (and fb* feedback IDs when present).
@@ -72,9 +72,9 @@ Respond ONLY with JSON (strict schema):
 {
   "status": "working_draft",
   "previousVersionId": "id of prior version or null",
-  "changeSummary": "1-3 sentences on what changed vs previous draft and why (cite feedback/argument IDs when relevant)",
+  "changeSummary": "1-3 short participant-facing sentences on what changed vs previous version and why — no IDs, no version references",
   "groupAnalysis": [{"group": "A", "title": "2-4 word label", "description": "1-2 sentences grounded in group stance data"}],
-  "groupStatement": "2-4 sentence framing of this working policy proposal",
+  "groupStatement": "3-4 sentence mediation summary balancing shared common ground, main concerns, and how opinion groups differ — do NOT pitch this as a working policy proposal or draft",
   "recommendations": [
     {
       "id": "r1",
@@ -86,7 +86,7 @@ Respond ONLY with JSON (strict schema):
   "essentialConditions": [
     {
       "id": "c1",
-      "text": "must-hold condition for cross-group acceptability",
+      "text": "must-hold condition or red line for cross-group acceptability",
       "evidenceIds": ["argumentId"],
       "preserved": false
     }
@@ -94,20 +94,20 @@ Respond ONLY with JSON (strict schema):
   "tradeoffs": [
     {
       "id": "t1",
-      "text": "explicit trade-off this proposal accepts",
+      "text": "explicit trade-off the room appears to accept",
       "evidenceIds": ["argumentId"]
     }
   ],
   "unresolvedQuestions": [
     {
       "id": "u1",
-      "text": "open question the room still needs to settle",
+      "text": "open issue the room still needs to settle",
       "evidenceIds": ["argumentId", "fbN"]
     }
   ]
 }
 
-Include 3-6 recommendations, 2-4 essentialConditions, 2-4 tradeoffs, and 2-4 unresolvedQuestions. Every recommendation and essentialCondition MUST include at least one evidenceIds entry from the evidence pack (a1, a2, … or fb*). Do not invent IDs.
+Include 3-6 recommendations, 2-4 essentialConditions, 2-4 tradeoffs, and 2-4 unresolvedQuestions. Every recommendation and essentialCondition MUST include at least one evidenceIds entry from the evidence pack (a1, a2, … or fb*). Do not invent IDs. Participant-facing text (groupStatement, changeSummary, and item text fields) must stay clean — never put argument IDs, feedback IDs, "preserved", or version IDs in those strings.
 """,
 }
 
@@ -293,12 +293,12 @@ MOCK_COMMON_GROUND = {
     "policy": {
         "status": "working_draft",
         "previousVersionId": None,
-        "changeSummary": "Initial working draft from current argument votes.",
+        "changeSummary": "First version from current argument votes.",
         "groupAnalysis": [
             {"group": "A", "title": "Federal coherence camp", "description": "Prioritizes federal coherence and EU-compatible guardrails, favoring horizontal rules for predictability."},
             {"group": "B", "title": "Innovation-first camp", "description": "Wants sector nuance and minimal burden on innovators, wary of one-size-fits-all obligations."},
         ],
-        "groupStatement": "Working proposal: establish a lightweight federal AI baseline on transparency and accountability, layered with sector-specific rules where risk is highest, while protecting smaller firms from disproportionate burden.",
+        "groupStatement": "The room shares a preference for transparency and accountability around high-risk AI, while remaining concerned about cost and burden on smaller firms. Opinion groups diverge mainly on whether rules should be horizontal or sector-specific, and how closely Switzerland should track EU standards.",
         "recommendations": [
             {
                 "id": "r1",
@@ -1151,12 +1151,13 @@ class AnalysisService:
             latest = previous[-1]
             parts.append(
                 f"\nSet previousVersionId to \"{latest.get('versionId')}\". "
-                "Include a changeSummary explaining what you revised and why."
+                "Include a changeSummary explaining what you revised and why "
+                "(participant-facing; no version or argument IDs in the text)."
             )
         else:
             parts.append(
-                "\nNo previous policy draft. Set previousVersionId to null. "
-                "changeSummary should note this is the initial working draft."
+                "\nNo previous policy common ground. Set previousVersionId to null. "
+                "changeSummary should note this is the first version."
             )
 
         parts.append(

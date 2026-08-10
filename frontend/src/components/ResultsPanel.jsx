@@ -505,32 +505,17 @@ function itemText(item) {
   return ''
 }
 
-function itemEvidenceIds(item) {
-  if (item && typeof item === 'object' && Array.isArray(item.evidenceIds)) {
-    return item.evidenceIds.filter(Boolean)
-  }
-  return []
-}
-
-function CgExtraList({ title, items, testId, showEvidence = false }) {
+function CgExtraList({ title, items, testId, className = '' }) {
   if (!items?.length) return null
   return (
-    <div className="cg-extra" data-testid={testId}>
+    <div className={`cg-extra ${className}`.trim()} data-testid={testId}>
       <span className="cg-extra-label">{title}</span>
       <ul className="cg-extra-list">
         {items.map((item, i) => {
           const text = itemText(item)
-          const evidence = showEvidence ? itemEvidenceIds(item) : []
-          const preserved = item && typeof item === 'object' && item.preserved
           return (
             <li key={`${testId}-${item?.id || i}`} data-testid={`${testId}-${i}`}>
               <span className="cg-extra-text">{text}</span>
-              {preserved && <span className="cg-preserved-tag">preserved</span>}
-              {evidence.length > 0 && (
-                <span className="cg-evidence-ids" data-testid={`${testId}-evidence-${i}`}>
-                  {evidence.join(', ')}
-                </span>
-              )}
             </li>
           )
         })}
@@ -541,36 +526,19 @@ function CgExtraList({ title, items, testId, showEvidence = false }) {
 
 function CgPolicyBody({ data }) {
   const { t } = useTranslation()
-  const sections = [
+  const mainSections = [
     { key: 'recommendations', title: t('cg.recommendations'), items: data.recommendations },
     { key: 'essentialConditions', title: t('cg.essentialConditions'), items: data.essentialConditions },
-    { key: 'tradeoffs', title: t('cg.tradeoffs'), items: data.tradeoffs },
     { key: 'unresolvedQuestions', title: t('cg.unresolvedQuestions'), items: data.unresolvedQuestions },
   ].filter((s) => s.items?.length)
+  const hasTradeoffs = data.tradeoffs?.length > 0
+  const hasChangeSummary = Boolean(data.changeSummary?.trim())
+  const hasGroupAnalysis = Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0
+  const hasMoreAnalysis = hasTradeoffs || hasChangeSummary || hasGroupAnalysis
   const concerns = data.endorsement?.remainingConcerns?.filter((c) => c?.reason) || []
 
   return (
     <div className="cg-policy-body" data-testid="cg-policy-body">
-      {(data.status || data.changeSummary || data.previousVersionId) && (
-        <div className="cg-policy-meta" data-testid="cg-policy-meta">
-          {data.status && (
-            <span className={`cg-status-badge status-${data.status}`} data-testid="cg-status">
-              {data.status === 'endorsed' ? t('cg.statusEndorsed') : t('cg.statusDraft')}
-            </span>
-          )}
-          {data.previousVersionId && (
-            <span className="cg-prev-version" data-testid="cg-prev-version">
-              {t('cg.basedOnPrevious', { id: data.previousVersionId })}
-            </span>
-          )}
-          {data.changeSummary && (
-            <p className="cg-change-summary" data-testid="cg-change-summary">
-              <span className="cg-extra-label">{t('cg.changeSummary')}</span>
-              {data.changeSummary}
-            </p>
-          )}
-        </div>
-      )}
       {data.endorsement?.summary && (
         <div className="cg-endorsement" data-testid="cg-endorsement">
           <strong>{data.endorsement.summary}</strong>
@@ -583,19 +551,30 @@ function CgPolicyBody({ data }) {
           )}
         </div>
       )}
-      {sections.map((s) => (
+      {mainSections.map((s) => (
         <CgExtraList
           key={s.key}
           title={s.title}
           items={s.items}
           testId={`cg-${s.key}`}
-          showEvidence
+          className="cg-policy-main"
         />
       ))}
-      {(Array.isArray(data.groupAnalysis) && data.groupAnalysis.length > 0) && (
+      {hasMoreAnalysis && (
         <details className="cg-extras-toggle" data-testid="cg-extras-toggle">
           <summary className="cg-extras-summary">{t('cg.moreAnalysis')}</summary>
           <div className="cg-extras-body">
+            {hasChangeSummary && (
+              <div className="cg-extra" data-testid="cg-change-summary">
+                <span className="cg-extra-label">{t('cg.changeSummary')}</span>
+                <p className="cg-change-summary">{data.changeSummary}</p>
+              </div>
+            )}
+            <CgExtraList
+              title={t('cg.tradeoffs')}
+              items={data.tradeoffs}
+              testId="cg-tradeoffs"
+            />
             <CgGroupAnalysis data={data} />
           </div>
         </details>

@@ -7,7 +7,7 @@ export const CG_MODE_OPTIONS = [
   {
     id: 'policy',
     label: 'Policy',
-    hint: 'Working policy proposal with recommendations',
+    hint: 'Recommendations, conditions, and unresolved issues',
     recommended: true,
   },
 ]
@@ -36,7 +36,7 @@ export function resolveCgMode(itemOrMode) {
   return LEGACY_DEPTH_TO_MODE[raw] || DEFAULT_CG_MODE
 }
 
-/** True when this version should render as a policy proposal. */
+/** True when this version should render with policy common-ground sections. */
 export function isPolicyCommonGround(item) {
   if (!item) return false
   const recs = item.recommendations
