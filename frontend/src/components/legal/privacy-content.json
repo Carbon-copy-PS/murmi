@@ -1,0 +1,614 @@
+{
+  "title": "Murmi – Privacy Policy",
+  "updated": "10 August 2026",
+  "sections": [
+    {
+      "heading": "1. General Information",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy Association (“Carbon Copy”, “we”, “us”, “our”) attaches great importance to the protection of personal data."
+        },
+        {
+          "type": "p",
+          "text": "This Privacy Policy explains how personal data is processed when you visit murmi.org, use the Murmi web application or related services, participate in a Murmi Session, organise a Session, communicate with us, or otherwise interact with Murmi."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is a digital collective sense-making platform. Depending on the relevant Session, Murmi may allow participants to contribute information, discuss or evaluate statements, and use AI-supported and statistical methods to structure contributions into themes, claims, summaries, patterns or other representations of a group’s perspectives."
+        },
+        {
+          "type": "p",
+          "text": "This Privacy Policy is intended to comply with the Swiss Federal Act on Data Protection (“FADP”) and, where applicable, the EU General Data Protection Regulation (“GDPR”)."
+        }
+      ]
+    },
+    {
+      "heading": "2. Who Is Responsible?",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "For processing for which Carbon Copy determines the purposes and means, the responsible entity is:"
+        },
+        {
+          "type": "address",
+          "lines": [
+            "Carbon Copy Association",
+            "Oescherstrasse 26",
+            "CH-8702 Zollikon",
+            "Switzerland",
+            "Email: hi@carbon-copy.org"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy is not necessarily the controller of all personal data processed through Murmi. Where Murmi is used by a university, research institution, public authority, company, association or another organisation for its own Session or project, that organisation may be the controller of the Session-specific processing and Carbon Copy may act as its processor or technical service provider."
+        }
+      ]
+    },
+    {
+      "heading": "3. Our Data Protection Roles",
+      "blocks": [
+        {
+          "type": "h3",
+          "text": "3.1 Where Carbon Copy Is the Controller"
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy generally acts as controller where we independently determine why and how personal data is processed, for example for:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "operating and administering Murmi;",
+            "managing our website;",
+            "managing relationships with Organisers and institutional customers;",
+            "responding to enquiries and support requests;",
+            "platform security and abuse prevention;",
+            "essential technical logging;",
+            "contractual and administrative purposes;",
+            "compliance with legal obligations; and",
+            "establishing, exercising or defending legal claims."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "If Carbon Copy directly organises a particular Session, we may also act as controller for that Session."
+        },
+        {
+          "type": "h3",
+          "text": "3.2 Where an Organiser Is the Controller"
+        },
+        {
+          "type": "p",
+          "text": "Murmi may be used by another organisation for research, consultation, workshops, deliberation or other projects. That organisation may determine why a Session takes place, who participates, what information is collected, how results are used, how long data is retained and whether results are published."
+        },
+        {
+          "type": "p",
+          "text": "In these circumstances, that organisation will generally be the controller for those purposes and Carbon Copy may process the relevant data on its behalf. Operating the Murmi platform does not by itself make Carbon Copy controller of an Organiser’s underlying research, consultation or decision-making purposes."
+        },
+        {
+          "type": "p",
+          "text": "Where applicable, the respective responsibilities are further governed by project-specific agreements or data processing agreements."
+        }
+      ]
+    },
+    {
+      "heading": "4. Project and Research-Specific Information",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may be used in academic research, workshops, consultations and other organised projects. Participants may therefore receive additional project-specific information explaining matters such as:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "who is responsible for the project;",
+            "its purpose;",
+            "what information is collected;",
+            "how AI is used;",
+            "whether participation is anonymous or pseudonymous;",
+            "who may access the information;",
+            "retention and deletion arrangements;",
+            "withdrawal rights; and",
+            "whether anonymised results may be published."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Such information supplements this Privacy Policy. Where another organisation is the controller, its participant information or privacy notice governs its own processing."
+        },
+        {
+          "type": "p",
+          "text": "Accepting the Murmi Terms of Service is not the same as consenting to participate in research. Research consent, where required, is obtained separately."
+        }
+      ]
+    },
+    {
+      "heading": "5. Personal Data We May Process",
+      "blocks": [
+        {
+          "type": "h3",
+          "text": "5.1 Participation and Session Data"
+        },
+        {
+          "type": "p",
+          "text": "Murmi does not currently require Participants to create a conventional user account. Depending on the Session, we may process:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "a display name or pseudonym;",
+            "Session and Participant identifiers;",
+            "contributions and statements;",
+            "responses;",
+            "votes and evaluations;",
+            "validation choices;",
+            "Session activity; and",
+            "other information intentionally submitted through Murmi."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Technical identifiers may be stored in the user’s browser where necessary to maintain Session continuity and preferences."
+        },
+        {
+          "type": "h3",
+          "text": "5.2 Contributions and Free Text"
+        },
+        {
+          "type": "p",
+          "text": "Murmi may process opinions, arguments, statements, ideas, questions, proposed solutions, feedback and other free-text contributions submitted by Participants or Organisers. Depending on what a person chooses to write, such contributions may themselves contain personal data."
+        },
+        {
+          "type": "p",
+          "text": "We encourage Participants not to provide unnecessary identifying or sensitive information."
+        },
+        {
+          "type": "h3",
+          "text": "5.3 Transcripts and Audio"
+        },
+        {
+          "type": "p",
+          "text": "Some Murmi functionality may process spoken contributions or transcripts in order to provide transcription and collective sense-making features. Depending on the Session, this may include audio submitted for transcription, transcripts, statements extracted from transcripts and subsequent AI-generated analysis."
+        },
+        {
+          "type": "p",
+          "text": "Whether audio is recorded or processed in a particular Session must be communicated to Participants where required."
+        },
+        {
+          "type": "h3",
+          "text": "5.4 AI-Generated and Derived Information"
+        },
+        {
+          "type": "p",
+          "text": "Murmi may generate information from Session Content, including candidate claims, themes, summaries, areas of agreement or disagreement, draft common-ground statements, suggested policy or action statements, groupings, patterns and other structured representations of the discussion."
+        },
+        {
+          "type": "p",
+          "text": "Such information may itself constitute personal data where it can still be linked to an identifiable Participant."
+        },
+        {
+          "type": "h3",
+          "text": "5.5 Technical Data"
+        },
+        {
+          "type": "p",
+          "text": "When Murmi or our website is accessed, technical information necessary to provide and secure the service may be processed, such as IP address, browser and device information, timestamps, technical Session identifiers, server request information and security or error information."
+        },
+        {
+          "type": "p",
+          "text": "We do not currently use advertising pixels or behavioural tracking tools within Murmi."
+        },
+        {
+          "type": "h3",
+          "text": "5.6 Communications and Business Information"
+        },
+        {
+          "type": "p",
+          "text": "If you contact Carbon Copy or work with us as an Organiser, partner or institutional customer, we may process your name and professional contact information, organisation and role, correspondence, project information, contractual records and billing or administrative information where applicable."
+        }
+      ]
+    },
+    {
+      "heading": "6. Sensitive Personal Data",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may be used for discussions involving political, social, professional or other potentially sensitive subjects. A Participant’s contribution could therefore reveal information such as political opinions, religious or philosophical beliefs, health information, ethnicity, employment or personal circumstances, or other sensitive personal data."
+        },
+        {
+          "type": "p",
+          "text": "Murmi does not require Participants to disclose such information merely in order to participate. Participants should avoid submitting unnecessary sensitive or identifying information."
+        },
+        {
+          "type": "p",
+          "text": "Where an Organiser intentionally uses Murmi to process sensitive personal data, the Organiser is responsible for ensuring that the processing has an appropriate legal basis and safeguards."
+        }
+      ]
+    },
+    {
+      "heading": "7. Purposes of Processing",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Personal data may be processed to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "provide and operate Murmi;",
+            "enable participation in Sessions;",
+            "process contributions and votes;",
+            "transcribe contributions where that functionality is used;",
+            "generate claims, summaries and other Session Outputs;",
+            "enable Participants to evaluate or validate statements;",
+            "provide authorised Session results;",
+            "administer relationships with Organisers;",
+            "respond to enquiries and support requests;",
+            "protect the security and integrity of the service;",
+            "detect and prevent misuse;",
+            "troubleshoot technical problems;",
+            "comply with legal obligations; and",
+            "establish, exercise or defend legal claims."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "We may also use appropriately aggregated or de-identified technical information and feedback to improve Murmi."
+        },
+        {
+          "type": "p",
+          "text": "We do not sell Participant or Session Content for advertising purposes."
+        }
+      ]
+    },
+    {
+      "heading": "8. Artificial Intelligence",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi uses AI-supported services for functions such as speech transcription, extracting or formulating candidate claims, summarising contributions, identifying themes and patterns, identifying areas of common ground and supporting the drafting of structured Session Outputs."
+        },
+        {
+          "type": "p",
+          "text": "AI-generated information is a computational interpretation of Participant input, not an authoritative determination of what an individual or group believes."
+        },
+        {
+          "type": "p",
+          "text": "AI systems may make mistakes, lose nuance or fail to represent certain perspectives accurately. Where appropriate to the Session design, Participants or facilitators may therefore be able to validate, reject, refine, disagree with or contextualise AI-generated representations."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is designed to support human sense-making rather than replace human judgement."
+        }
+      ]
+    },
+    {
+      "heading": "9. AI Provider and Model Training",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy uses the OpenAI API to provide certain AI-supported functionality, including transcription and analysis of Session Content."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy has not opted in to use Murmi Session Content for training or improving OpenAI’s general-purpose models. Data submitted through the API is not used for model training by default unless the customer expressly opts in."
+        },
+        {
+          "type": "p",
+          "text": "Depending on the applicable service configuration, OpenAI may retain limited content or logs for abuse-monitoring purposes for up to 30 days."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy does not independently use research or institutional Session Content to train unrelated general-purpose AI models unless such processing is separately agreed, appropriately disclosed and lawful."
+        }
+      ]
+    },
+    {
+      "heading": "10. No Significant Automated Decisions",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is intended as a collective sense-making and decision-support tool. It is not designed to autonomously determine an individual’s employment, access to public services or benefits, creditworthiness, medical treatment, educational admission, legal or political rights, or similarly significant status."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is also not intended to secretly profile individuals or generate personalised persuasive interventions based on their contributions."
+        }
+      ]
+    },
+    {
+      "heading": "11. Anonymous and Pseudonymous Participation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may allow contributions to be displayed without revealing a Participant’s identity to other Participants. However, anonymous presentation does not necessarily mean that the underlying information is fully anonymised."
+        },
+        {
+          "type": "p",
+          "text": "Anonymous presentation means that a person’s identity is not displayed in the Session. Pseudonymisation means that information is linked to a technical or substitute identifier rather than directly to the person’s identity. Anonymisation means that the information can no longer reasonably be linked to an identifiable individual."
+        },
+        {
+          "type": "p",
+          "text": "Technical information necessary to provide, secure or administer a Session may therefore still exist even where a contribution appears anonymous to other Participants."
+        }
+      ]
+    },
+    {
+      "heading": "12. Legal Bases",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Under Swiss law, we process personal data in accordance with the principles and requirements of the FADP."
+        },
+        {
+          "type": "p",
+          "text": "Where the GDPR applies and Carbon Copy acts as controller, processing may be based, depending on the circumstances, on performance of a contract, our legitimate interests in providing and securing Murmi, consent, compliance with legal obligations or another applicable legal basis."
+        },
+        {
+          "type": "p",
+          "text": "Where Carbon Copy acts only as processor, the relevant controller is responsible for determining the appropriate legal basis for the Session processing."
+        }
+      ]
+    },
+    {
+      "heading": "13. Who May Access Personal Data?",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Depending on the Session, information may be available to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "the relevant Participant;",
+            "authorised Organisers;",
+            "authorised facilitators or researchers;",
+            "other Participants where information is intended to be shared within the Session;",
+            "authorised Carbon Copy personnel where access is required to operate or support Murmi; and",
+            "service providers processing information on our behalf."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Access is intended to be limited to what is appropriate for the relevant purpose and Session configuration."
+        }
+      ]
+    },
+    {
+      "heading": "14. Service Providers",
+      "blocks": [
+        {
+          "type": "h3",
+          "text": "14.1 Hosting"
+        },
+        {
+          "type": "p",
+          "text": "Our primary application infrastructure and Session data storage are hosted using Amazon Web Services in Sweden."
+        },
+        {
+          "type": "p",
+          "text": "For security reasons, we do not publish unnecessary details about our internal infrastructure or configuration."
+        },
+        {
+          "type": "h3",
+          "text": "14.2 OpenAI"
+        },
+        {
+          "type": "p",
+          "text": "We use the OpenAI API for AI-supported processing such as transcription and analysis of Session Content. Information submitted for these functions may therefore be transmitted to and processed by OpenAI, including outside Switzerland or the European Economic Area."
+        },
+        {
+          "type": "h3",
+          "text": "14.3 Google Fonts"
+        },
+        {
+          "type": "p",
+          "text": "Certain public Murmi pages currently load fonts provided by Google. When a browser requests these fonts, Google may receive technical request information such as the visitor’s IP address and browser information. Google Fonts is not used by Murmi for behavioural advertising or Session analysis."
+        },
+        {
+          "type": "h3",
+          "text": "14.4 Other Technical Providers"
+        },
+        {
+          "type": "p",
+          "text": "We may use additional technical providers where reasonably necessary to secure or operate the Services, provided that their involvement complies with applicable data protection requirements."
+        },
+        {
+          "type": "p",
+          "text": "We do not currently use third-party analytics, advertising platforms, transactional email services or external error-monitoring services that receive Murmi Session Content."
+        }
+      ]
+    },
+    {
+      "heading": "15. International Data Transfers",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Our primary Murmi hosting is located in Sweden. Certain AI-supported processing may involve processing outside Switzerland or the European Economic Area, including in the United States."
+        },
+        {
+          "type": "p",
+          "text": "Where personal data is transferred to a country that does not provide an adequate level of protection under applicable Swiss or European law, we rely on legally recognised safeguards where required, such as appropriate contractual protections and recognised Standard Contractual Clauses."
+        }
+      ]
+    },
+    {
+      "heading": "16. Security",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy implements technical and organisational safeguards appropriate to the nature of the information processed and the relevant risks. These include measures concerning secure transmission, access controls, infrastructure security, restricted administrative access, separation or pseudonymisation where appropriate, and incident response."
+        },
+        {
+          "type": "p",
+          "text": "For security reasons, this Privacy Policy intentionally does not disclose detailed information about internal infrastructure, software configuration, credentials, network architecture or security controls."
+        },
+        {
+          "type": "p",
+          "text": "No internet-based system can guarantee absolute security."
+        }
+      ]
+    },
+    {
+      "heading": "17. Data Breaches",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy maintains processes for responding to suspected data security incidents. Where Carbon Copy acts as processor, we will inform the relevant controller of a personal-data breach as required by applicable law and the applicable agreement."
+        },
+        {
+          "type": "p",
+          "text": "Where Carbon Copy acts as controller, we assess whether notification to the Swiss Federal Data Protection and Information Commissioner (FDPIC), another supervisory authority or affected individuals is legally required."
+        }
+      ]
+    },
+    {
+      "heading": "18. Retention and Deletion",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "We retain personal data only for as long as reasonably necessary for the relevant purpose, subject to applicable legal, contractual and research requirements."
+        },
+        {
+          "type": "p",
+          "text": "Where Carbon Copy acts as processor, Session-data retention and deletion may be determined by the responsible Organiser or institutional controller. Research data may be subject to specific retention and anonymisation periods communicated in the relevant study documentation."
+        },
+        {
+          "type": "p",
+          "text": "Technical data may be retained for a limited period where necessary for security, troubleshooting or prevention of abuse. Contractual, accounting or legal records may be retained for applicable statutory periods."
+        },
+        {
+          "type": "p",
+          "text": "Where protected backup or snapshot copies exist, deletion from such copies may occur through the ordinary secure retention or overwrite cycle."
+        },
+        {
+          "type": "p",
+          "text": "Once information has been irreversibly anonymised, it is no longer possible to associate it with an identifiable individual or respond to individual deletion requests concerning that information."
+        }
+      ]
+    },
+    {
+      "heading": "19. Your Rights",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Depending on applicable law and the circumstances, you may have rights to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "request information about personal data concerning you;",
+            "access your personal data;",
+            "have inaccurate data corrected;",
+            "request deletion;",
+            "object to or restrict certain processing;",
+            "obtain certain data in a portable format where applicable; and",
+            "withdraw consent where processing is based on consent."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "The exercise of these rights may be subject to statutory conditions and exceptions."
+        }
+      ]
+    },
+    {
+      "heading": "20. How to Exercise Your Rights",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Where Carbon Copy is controller, requests can be sent to hi@carbon-copy.org. We may need to take reasonable steps to verify the identity of the person making a request."
+        },
+        {
+          "type": "p",
+          "text": "Where another organisation is controller of a particular Session or research project, requests concerning that processing should normally be directed to that organisation. Where appropriate, Carbon Copy will assist the relevant controller with such requests."
+        }
+      ]
+    },
+    {
+      "heading": "21. Browser Storage, Cookies and Tracking",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi uses limited browser storage where necessary for Session continuity and user preferences."
+        },
+        {
+          "type": "p",
+          "text": "We do not currently use advertising cookies, advertising pixels or behavioural analytics tools within Murmi."
+        },
+        {
+          "type": "p",
+          "text": "Our public website currently uses Google Fonts as described in Section 14. If we introduce non-essential analytics or tracking technologies in the future, we will update our information and provide appropriate choices where required."
+        }
+      ]
+    },
+    {
+      "heading": "22. Children and Young People",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is primarily designed for adults and organisational use."
+        },
+        {
+          "type": "p",
+          "text": "Where an Organiser intends to use Murmi with minors, that Organiser is responsible for assessing whether additional consent, information or safeguards are required. Carbon Copy may impose additional safeguards or restrictions for such uses."
+        }
+      ]
+    },
+    {
+      "heading": "23. Research and Publication",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Where Murmi is used for research, the responsible research institution or Organiser determines whether research results or anonymised data may be published."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy does not obtain the right to publicly publish identifiable Participant data simply because Murmi technically processes that information."
+        },
+        {
+          "type": "p",
+          "text": "Any research publication involving Session information must comply with the applicable research protocol, participant information, contractual arrangements and law."
+        }
+      ]
+    },
+    {
+      "heading": "24. Changes to This Privacy Policy",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "We may update this Privacy Policy where Murmi’s functionality, service providers, organisational arrangements or applicable legal requirements change."
+        },
+        {
+          "type": "p",
+          "text": "The current version will be made available through murmi.org. Where a change materially affects existing processing, we will take additional steps to inform affected users where required."
+        },
+        {
+          "type": "p",
+          "text": "Changes to this general Privacy Policy do not retroactively expand an ethics-approved research purpose, Participant consent or a controller’s existing processing instructions."
+        }
+      ]
+    },
+    {
+      "heading": "25. Contact",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "For questions about this Privacy Policy, personal-data processing or your data protection rights, please contact:"
+        },
+        {
+          "type": "address",
+          "lines": [
+            "Carbon Copy Association",
+            "Oescherstrasse 26",
+            "CH-8702 Zollikon",
+            "Switzerland",
+            "Email: hi@carbon-copy.org"
+          ]
+        }
+      ]
+    }
+  ]
+}

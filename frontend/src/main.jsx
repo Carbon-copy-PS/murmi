@@ -11,7 +11,25 @@ initTheme()
 
 const path = window.location.pathname.replace(/\/+$/, '') || '/'
 const publicMatch = path.match(/^\/r\/([^/]+)$/)
-const legalDoc = path === '/privacy' ? 'privacy' : path === '/terms' ? 'terms' : null
+
+const LEGAL_ROUTES = {
+  '/privacy-policy': 'privacy',
+  '/terms-and-conditions': 'terms',
+  // legacy short paths
+  '/privacy': 'privacy',
+  '/terms': 'terms',
+}
+
+const LEGAL_CANONICAL = {
+  privacy: '/privacy-policy',
+  terms: '/terms-and-conditions',
+}
+
+const legalDoc = LEGAL_ROUTES[path] || null
+
+if (legalDoc && path !== LEGAL_CANONICAL[legalDoc] && window.history?.replaceState) {
+  window.history.replaceState(null, '', LEGAL_CANONICAL[legalDoc])
+}
 
 function Root() {
   if (publicMatch) {
