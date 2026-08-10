@@ -271,8 +271,8 @@
     "surfaceTensions": "Offene Spannungen aufzeigen",
     "modeNote": "Modus {{mode}} · ",
     "recommendations": "Empfehlungen",
-    "essentialConditions": "Wesentliche Bedingungen",
-    "unresolvedQuestions": "Offene Fragen",
+    "essentialConditions": "Bedingungen / rote Linien",
+    "unresolvedQuestions": "Offene Punkte",
     "changeSummary": "Was sich geändert hat",
     "statusDraft": "Arbeitsentwurf",
     "statusEndorsed": "Final / unterstützt",
@@ -547,7 +547,7 @@
     },
     "policy": {
       "label": "Politik",
-      "hint": "Arbeitsfähiger Policy-Vorschlag mit Empfehlungen"
+      "hint": "Empfehlungen, Bedingungen und offene Punkte"
     }
   }
 }

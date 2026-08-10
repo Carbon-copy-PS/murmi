@@ -271,8 +271,8 @@
     "surfaceTensions": "呈現未解分歧",
     "modeNote": "{{mode}}模式 · ",
     "recommendations": "建議",
-    "essentialConditions": "必要條件",
-    "unresolvedQuestions": "未決問題",
+    "essentialConditions": "條件／紅線",
+    "unresolvedQuestions": "未決議題",
     "changeSummary": "變更說明",
     "statusDraft": "工作草稿",
     "statusEndorsed": "最終／已認可",
@@ -547,7 +547,7 @@
     },
     "policy": {
       "label": "政策",
-      "hint": "含具體建議的工作政策提案"
+      "hint": "建議、條件與未決議題"
     }
   }
 }

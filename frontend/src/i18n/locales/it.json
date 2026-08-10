@@ -271,8 +271,8 @@
     "surfaceTensions": "Fai emergere le tensioni aperte",
     "modeNote": "modalità {{mode}} · ",
     "recommendations": "Raccomandazioni",
-    "essentialConditions": "Condizioni essenziali",
-    "unresolvedQuestions": "Domande irrisolte",
+    "essentialConditions": "Condizioni / linee rosse",
+    "unresolvedQuestions": "Questioni irrisolte",
     "changeSummary": "Cosa è cambiato",
     "statusDraft": "Bozza di lavoro",
     "statusEndorsed": "Finale / approvato",
@@ -547,7 +547,7 @@
     },
     "policy": {
       "label": "Policy",
-      "hint": "Proposta di policy operativa con raccomandazioni"
+      "hint": "Raccomandazioni, condizioni e questioni irrisolte"
     }
   }
 }

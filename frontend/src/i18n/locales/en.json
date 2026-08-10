@@ -254,8 +254,8 @@
     "insights": "Insights",
     "tradeoffs": "Trade-offs",
     "recommendations": "Recommendations",
-    "essentialConditions": "Essential conditions",
-    "unresolvedQuestions": "Unresolved questions",
+    "essentialConditions": "Conditions / Red Lines",
+    "unresolvedQuestions": "Unresolved Issues",
     "changeSummary": "What changed",
     "statusDraft": "Working draft",
     "statusEndorsed": "Final / endorsed",
@@ -294,7 +294,7 @@
     },
     "policy": {
       "label": "Policy",
-      "hint": "Working policy proposal with recommendations"
+      "hint": "Recommendations, conditions, and unresolved issues"
     }
   },
   "settings": {

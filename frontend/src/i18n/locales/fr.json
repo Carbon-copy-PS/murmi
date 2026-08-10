@@ -271,8 +271,8 @@
     "surfaceTensions": "Faire émerger les tensions ouvertes",
     "modeNote": "mode {{mode}} · ",
     "recommendations": "Recommandations",
-    "essentialConditions": "Conditions essentielles",
-    "unresolvedQuestions": "Questions non résolues",
+    "essentialConditions": "Conditions / lignes rouges",
+    "unresolvedQuestions": "Questions en suspens",
     "changeSummary": "Ce qui a changé",
     "statusDraft": "Brouillon de travail",
     "statusEndorsed": "Final / approuvé",
@@ -547,7 +547,7 @@
     },
     "policy": {
       "label": "Politique",
-      "hint": "Proposition politique opérationnelle avec recommandations"
+      "hint": "Recommandations, conditions et questions en suspens"
     }
   }
 }
