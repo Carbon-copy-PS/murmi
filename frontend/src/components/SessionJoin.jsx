@@ -378,6 +378,8 @@ export default function SessionJoin({ onJoin }) {
           <a className="ls-footer-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
           <a className="ls-footer-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
           <a className="ls-footer-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+          <a className="ls-footer-link" href="/privacy">Privacy Policy</a>
+          <a className="ls-footer-link" href="/terms">Terms</a>
         </nav>
       </footer>
 

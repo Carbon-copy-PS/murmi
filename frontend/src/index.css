@@ -49,7 +49,8 @@ body {
 }
 
 /* ===== Murmi landing page ===== */
-#root:has(.ls) { max-width: none; }
+#root:has(.ls),
+#root:has(.legal-page) { max-width: none; }
 
 .ls {
   --ls-blue: #0200DD;
@@ -1037,6 +1038,163 @@ html:has(.ls) {
 
 .ls-footer-link:hover {
   color: #fff;
+}
+
+/* ===== Legal pages (Privacy / Terms) ===== */
+.legal-page {
+  --legal-ink: #171717;
+  --legal-muted: #5a5a66;
+  --legal-line: rgba(23, 23, 23, 0.12);
+  --legal-blue: #0200DD;
+  --legal-display: 'Familjen Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --legal-ui: 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 480px at 10% -10%, rgba(189, 189, 255, 0.35), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, rgba(2, 0, 221, 0.08), transparent 55%),
+    #f7f7fb;
+  color: var(--legal-ink);
+  font-family: var(--legal-ui);
+  color-scheme: light;
+}
+
+.legal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.15rem clamp(1.25rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--legal-line);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.legal-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: inherit;
+  text-decoration: none;
+  font-family: var(--legal-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+}
+
+.legal-brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.legal-top-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.legal-top-nav a {
+  color: var(--legal-muted);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.legal-top-nav a:hover,
+.legal-top-nav a.active {
+  color: var(--legal-blue);
+}
+
+.legal-main {
+  width: min(720px, calc(100% - 2.5rem));
+  margin: 2.5rem auto 3.5rem;
+  flex: 1;
+}
+
+.legal-kicker {
+  margin: 0 0 0.55rem;
+  color: var(--legal-blue);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legal-main h1 {
+  margin: 0;
+  font-family: var(--legal-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.legal-meta {
+  margin: 0.65rem 0 0;
+  color: var(--legal-muted);
+  font-size: 0.92rem;
+}
+
+.legal-draft {
+  margin: 1.1rem 0 0;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid rgba(2, 0, 221, 0.18);
+  border-radius: 10px;
+  background: rgba(189, 189, 255, 0.28);
+  color: #1c1c55;
+  font-size: 0.9rem;
+}
+
+.legal-section {
+  margin-top: 2rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid var(--legal-line);
+}
+
+.legal-section h2 {
+  margin: 0 0 0.7rem;
+  font-family: var(--legal-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.legal-section p {
+  margin: 0 0 0.85rem;
+  color: #2c2c34;
+  line-height: 1.65;
+  font-size: 1rem;
+}
+
+.legal-section p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.25rem;
+  padding: 1.25rem clamp(1.25rem, 4vw, 3rem) 2rem;
+  border-top: 1px solid var(--legal-line);
+  background: #fff;
+}
+
+.legal-footer a {
+  color: var(--legal-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.legal-footer a:hover {
+  color: var(--legal-blue);
+}
+
+.legal-footer-links {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 980px) {
