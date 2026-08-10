@@ -79,10 +79,18 @@ export default function LegalPage({ doc }) {
   return (
     <div className="legal-page" data-testid={`legal-${doc}`}>
       <header className="legal-top">
-        <a className="legal-brand" href="/">
-          <MurmiMark />
-          <span>{APP_NAME}</span>
-        </a>
+        <div className="legal-top-start">
+          <a className="legal-back" href="/" data-testid="legal-back">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </a>
+          <a className="legal-brand" href="/">
+            <MurmiMark />
+            <span>{APP_NAME}</span>
+          </a>
+        </div>
         <nav className="legal-top-nav" aria-label="Legal">
           <a href="/privacy-policy" className={doc === 'privacy' ? 'active' : undefined}>Privacy Policy</a>
           <a href="/terms-and-conditions" className={doc === 'terms' ? 'active' : undefined}>Terms of Service</a>
