@@ -1072,6 +1072,35 @@ html:has(.ls) {
   backdrop-filter: blur(10px);
 }
 
+.legal-top-start {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.legal-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.7rem 0.4rem 0.45rem;
+  border: 1px solid var(--legal-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--legal-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.legal-back:hover {
+  color: var(--legal-blue);
+  border-color: rgba(2, 0, 221, 0.28);
+  background: rgba(189, 189, 255, 0.22);
+}
+
 .legal-brand {
   display: inline-flex;
   align-items: center;
