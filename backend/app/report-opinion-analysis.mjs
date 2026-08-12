@@ -2,7 +2,7 @@ import process from "node:process";
 
 import { analyzePolisInspiredSession } from "../../data-analysis/polis-inspired-analysis.mjs";
 
-const MINIMUM_PUBLIC_CELL = 5;
+const MINIMUM_DENSITY_CELL = 5;
 const MAX_PRIORITY_STATEMENTS = 3;
 
 function round(value, digits = 4) {
@@ -27,7 +27,7 @@ function buildDensity(assignments, columns = 4, rows = 4) {
     return {
       columns,
       rows,
-      minimumCellCount: MINIMUM_PUBLIC_CELL,
+      minimumCellCount: MINIMUM_DENSITY_CELL,
       participantCount: 0,
       shownParticipants: 0,
       suppressedParticipants: 0,
@@ -65,14 +65,14 @@ function buildDensity(assignments, columns = 4, rows = 4) {
       const [row, column] = key.split(",").map(Number);
       return { row, column, count };
     })
-    .filter((cell) => cell.count >= MINIMUM_PUBLIC_CELL)
+    .filter((cell) => cell.count >= MINIMUM_DENSITY_CELL)
     .sort((left, right) => left.row - right.row || left.column - right.column);
   const shownParticipants = cells.reduce((total, cell) => total + cell.count, 0);
 
   return {
     columns,
     rows,
-    minimumCellCount: MINIMUM_PUBLIC_CELL,
+    minimumCellCount: MINIMUM_DENSITY_CELL,
     participantCount: points.length,
     shownParticipants,
     suppressedParticipants: points.length - shownParticipants,
@@ -284,13 +284,10 @@ function buildPublicResult(source, options) {
   }
 
   const profiles = tendencyProfiles(result, source);
-  const minimumMass = profiles.length
-    ? Math.min(...profiles.map((profile) => profile.membershipMass))
-    : 0;
-  if (!profiles.length || minimumMass < MINIMUM_PUBLIC_CELL) {
+  if (!profiles.length) {
     return {
       available: false,
-      reason: "privacy-threshold",
+      reason: "no-opinion-tendencies",
       method: diagnostics.method,
       eligibleParticipants: diagnostics.eligibleParticipantCount,
       excludedParticipants: diagnostics.excludedParticipantCount,

@@ -183,6 +183,64 @@ class ReportSnapshotAnalysisTests(unittest.TestCase):
         ):
             self.assertNotIn(participant_id, serialized)
 
+    def test_snapshot_prefers_endorsed_common_ground_and_keeps_it_anonymous(self):
+        self.session.common_ground_history = [
+            {
+                "id": "endorsed-version",
+                "status": "endorsed",
+                "mode": "policy",
+                "groupStatement": "The package participants carried forward.",
+                "recommendations": [{"id": "r1", "text": "Train workers."}],
+                "essentialConditions": [{"id": "c1", "text": "Keep human oversight."}],
+                "unresolvedQuestions": [{"id": "u1", "text": "Who funds access?"}],
+                "participantVotes": {
+                    "private-p1": {"vote": "agree", "name": "Private One"},
+                    "private-p2": {
+                        "vote": "disagree",
+                        "name": "Private Two",
+                        "reason": "Access still needs work.",
+                    },
+                },
+                "endorsedBy": "private-host",
+                "endorsedByName": "Private Host",
+                "endorsement": {
+                    "agree": 1,
+                    "disagree": 1,
+                    "total": 2,
+                    "respondentCount": 2,
+                    "rosterSize": 4,
+                    "remainingConcerns": [{"reason": "Access still needs work."}],
+                },
+            },
+            {
+                "id": "newer-draft",
+                "status": "working_draft",
+                "groupStatement": "A newer draft that was not endorsed.",
+                "participantVotes": {},
+            },
+        ]
+
+        snapshot = build_report_snapshot(self.session, version=1)
+        proposal = snapshot["commonGroundProposal"]
+        serialized = json.dumps(proposal)
+
+        self.assertEqual(proposal["id"], "endorsed-version")
+        self.assertEqual(proposal["votes"], {"agree": 1, "disagree": 1, "total": 2})
+        self.assertEqual(proposal["essentialConditions"][0]["text"], "Keep human oversight.")
+        self.assertEqual(
+            proposal["endorsement"]["remainingConcerns"],
+            [{"reason": "Access still needs work."}],
+        )
+        for private_value in (
+            "private-p1",
+            "private-p2",
+            "private-host",
+            "Private One",
+            "Private Two",
+            "Private Host",
+        ):
+            self.assertNotIn(private_value, serialized)
+
 
 if __name__ == "__main__":
     unittest.main()

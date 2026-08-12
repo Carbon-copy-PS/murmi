@@ -9,7 +9,7 @@ from itertools import combinations
 from pathlib import Path
 
 
-ANALYSIS_VERSION = "story-report-v3"
+ANALYSIS_VERSION = "story-report-v4"
 SUPPORT_VOTES = {"agree", "strongly_agree"}
 OPPOSE_VOTES = {"disagree", "strongly_disagree"}
 VALID_VOTES = SUPPORT_VOTES | OPPOSE_VOTES | {"neutral"}
@@ -351,7 +351,14 @@ def build_selected_overlaps(session, pair_specs: list[dict]) -> list[dict]:
 def _public_common_ground(history: list) -> dict | None:
     if not history:
         return None
-    item = history[-1]
+    item = next(
+        (
+            candidate
+            for candidate in reversed(history)
+            if candidate.get("status") == "endorsed"
+        ),
+        history[-1],
+    )
     participant_votes = item.get("participantVotes") or {}
     agree = sum(1 for value in participant_votes.values() if value.get("vote") == "agree")
     disagree = sum(1 for value in participant_votes.values() if value.get("vote") == "disagree")
@@ -359,6 +366,8 @@ def _public_common_ground(history: list) -> dict | None:
         "participantVotes",
         "generatedBy",
         "generatedByName",
+        "endorsedBy",
+        "endorsedByName",
     }
     public = {key: value for key, value in item.items() if key not in excluded}
     public["votes"] = {
