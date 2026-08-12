@@ -2132,6 +2132,76 @@ html.room-record-view #root {
   border-bottom: 1px solid var(--ds-border);
 }
 
+.participant-report-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(42, 157, 78, 0.35);
+  border-radius: 12px;
+  background: rgba(42, 157, 78, 0.09);
+}
+
+.participant-report-icon {
+  display: inline-flex;
+  flex: 0 0 1.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #2a9d4e;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.participant-report-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.participant-report-copy strong {
+  color: var(--ds-text);
+  font-size: 0.9rem;
+}
+
+.participant-report-copy span {
+  color: var(--ds-text-muted);
+  font-size: 0.8rem;
+}
+
+.participant-report-link {
+  flex-shrink: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: 999px;
+  background: var(--ds-accent);
+  color: var(--ds-on-accent);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.participant-report-link:hover {
+  opacity: 0.88;
+}
+
+@media (max-width: 560px) {
+  .participant-report-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .participant-report-link {
+    width: 100%;
+    text-align: center;
+  }
+}
+
 .room-bar {
   display: flex;
   align-items: center;
