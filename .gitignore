@@ -16,9 +16,13 @@ data-analysis/reports/*
 
 # Local review output and source exports are not publication artifacts.
 artifacts/
+outputs/
 data-analysis/screenshots/
 docs/polis-example/
 frontend/public/recovered-ramen-report.html
+
+# One-off publication builders may embed session-specific source mappings.
+data-analysis/build-four-workshops-publication.mjs
 
 # Keep locally licensed font binaries out of Git. Published reports use
 # repository-safe system font stacks and do not embed these files.
