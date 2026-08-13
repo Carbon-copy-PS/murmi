@@ -137,13 +137,13 @@ export default function AboutPage() {
               </ol>
               <div className="about-principle">
                 <p>
-                  This matters because any summary can smooth over important details. A conclusion may sound convincing while failing to represent everyone in the room. Murmi gives participants the chance to check how an outcome was reached and decide whether it truly reflects where the conversation has arrived.
+                  AI can recognise patterns in what has been said, but it does not understand a conversation in the way its participants do. It only sees what has been expressed and recorded. It cannot know the experience behind a contribution, decide which trade-offs are acceptable, or determine whether a shared formulation is fair. Any interpretation also reflects choices about what to foreground and what to leave out.
                 </p>
                 <p className="about-principle-line">
-                  It does not manufacture consensus or make disagreement disappear.
+                  Common ground should be judged by the people in the room, not declared by AI.
                 </p>
                 <p>
-                  It helps people see what they share, understand where they differ, and work towards an outcome they can recognise and stand behind. People should be able to see how their contributions shaped an outcome, what evidence supports it, and what remains unresolved.
+                  That is why Murmi presents AI-generated common ground as a working interpretation. Participants can trace it back to what was said, identify missing context, and challenge how agreement and disagreement have been framed. We are still learning how best to support this process. The aim is not to hand judgment to AI, but to use it carefully so people can understand and shape the outcome together.
                 </p>
               </div>
             </div>
