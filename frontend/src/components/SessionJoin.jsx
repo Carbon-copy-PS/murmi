@@ -225,8 +225,10 @@ export default function SessionJoin({ onJoin }) {
             <a className="ls-nav-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
             <a className="ls-nav-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
             <a className="ls-nav-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+            <a className="ls-nav-link" href="/about">About</a>
           </div>
           <div className="ls-nav-actions">
+            <a className="ls-nav-link ls-nav-about-compact" href="/about">About</a>
             <button type="button" className="ls-btn nav-join" onClick={() => switchMode('join')} data-testid="nav-join">
               Join
             </button>
@@ -378,6 +380,7 @@ export default function SessionJoin({ onJoin }) {
           <a className="ls-footer-link" href="#in-action" onClick={(e) => scrollToSection(e, 'in-action')}>In action</a>
           <a className="ls-footer-link" href="#features" onClick={(e) => scrollToSection(e, 'features')}>Why Murmi</a>
           <a className="ls-footer-link" href="#together" onClick={(e) => scrollToSection(e, 'together')}>Use cases</a>
+          <a className="ls-footer-link" href="/about">About</a>
           <a className="ls-footer-link" href="/privacy-policy">Privacy Policy</a>
           <a className="ls-footer-link" href="/terms-and-conditions">Terms of Service</a>
         </nav>

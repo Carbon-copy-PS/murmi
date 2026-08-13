@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import PublicResults from './components/public-results'
 import LegalPage from './components/legal/LegalPage'
+import AboutPage from './components/about/AboutPage'
 import './index.css'
 import './i18n'
 import { initTheme } from './theme'
@@ -27,6 +28,14 @@ const LEGAL_CANONICAL = {
 
 const legalDoc = LEGAL_ROUTES[path] || null
 
+if (path === '/about') {
+  document.title = 'About Murmi — Built from real conversations'
+  document.querySelector('meta[name="description"]')?.setAttribute(
+    'content',
+    'Murmi grew from public deliberation in Taiwan and Switzerland, helping groups turn real conversations into shared understanding.',
+  )
+}
+
 if (legalDoc && path !== LEGAL_CANONICAL[legalDoc] && window.history?.replaceState) {
   window.history.replaceState(null, '', LEGAL_CANONICAL[legalDoc])
 }
@@ -34,6 +43,9 @@ if (legalDoc && path !== LEGAL_CANONICAL[legalDoc] && window.history?.replaceSta
 function Root() {
   if (publicMatch) {
     return <PublicResults publicId={decodeURIComponent(publicMatch[1])} />
+  }
+  if (path === '/about') {
+    return <AboutPage />
   }
   if (legalDoc) {
     return <LegalPage doc={legalDoc} />
