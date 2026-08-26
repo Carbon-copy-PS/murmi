@@ -142,7 +142,7 @@ function tendencyProfiles(result, source) {
   const overall = new Map(
     (result.statementSummaries || []).map((statement) => [
       statement.statementId,
-      statement.supportRateDecided,
+      statement.supportRateObserved,
     ]),
   );
   const domain = tendencies.mapDomain;
@@ -153,16 +153,16 @@ function tendencyProfiles(result, source) {
   return tendencies.profiles.map((profile) => {
     const statementScores = profile.statements
       .filter((statement) => (
-        Number.isFinite(statement.supportRateDecided)
+        Number.isFinite(statement.supportRateObserved)
         && statement.coverage >= 0.4
       ))
       .map((statement) => {
         const overallSupport = overall.get(statement.statementId) ?? 0.5;
-        const contrast = statement.supportRateDecided - overallSupport;
+        const contrast = statement.supportRateObserved - overallSupport;
         return {
           statementId: statement.statementId,
           text: statements.get(String(statement.statementId)) || statement.text,
-          supportRate: statement.supportRateDecided,
+          supportRate: statement.supportRateObserved,
           coverageRate: statement.coverage,
           contrast,
           priorityScore: (
@@ -346,6 +346,8 @@ try {
   const result = buildPublicResult(request.source, {
     bootstrapReplicates: 100,
     minimumVotes,
+    minimumK: 2,
+    maximumK: 2,
     sensitivityThresholds: [...new Set([
       minimumVotes,
       Math.min(statementCount, Math.max(minimumVotes, 10)),

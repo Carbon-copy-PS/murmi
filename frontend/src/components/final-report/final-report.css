@@ -119,6 +119,27 @@
   font: 500 0.78rem/1.3 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+.story-data-warning {
+  max-width: 720px;
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(255, 203, 107, 0.48);
+  border-radius: 1rem;
+  background: rgba(255, 203, 107, 0.1);
+  color: #fff;
+  font: 500 0.86rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.story-data-warning strong {
+  display: block;
+  color: #ffdc9a;
+}
+
+.story-data-warning p {
+  margin: 0.25rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .story-section {
   display: grid;
   grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.45fr);

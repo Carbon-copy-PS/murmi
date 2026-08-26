@@ -9,10 +9,13 @@ from itertools import combinations
 from pathlib import Path
 
 
-ANALYSIS_VERSION = "story-report-v4"
+ANALYSIS_VERSION = "story-report-v5"
 SUPPORT_VOTES = {"agree", "strongly_agree"}
 OPPOSE_VOTES = {"disagree", "strongly_disagree"}
 VALID_VOTES = SUPPORT_VOTES | OPPOSE_VOTES | {"neutral"}
+MINIMUM_VOTERS_FOR_INSIGHTS = 15
+MINIMUM_STATEMENTS_FOR_INSIGHTS = 5
+MINIMUM_AVERAGE_RESPONSE_COVERAGE = 0.5
 OPINION_ANALYSIS_SCRIPT = Path(__file__).with_name(
     "report-opinion-analysis.mjs"
 )
@@ -30,6 +33,31 @@ def _median(values: list[float]) -> float:
     if len(ordered) % 2:
         return ordered[midpoint]
     return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def _data_sufficiency(
+    voter_count: int,
+    statement_count: int,
+    average_coverage: float,
+) -> dict:
+    reasons = []
+    if voter_count < MINIMUM_VOTERS_FOR_INSIGHTS:
+        reasons.append("few-voters")
+    if statement_count < MINIMUM_STATEMENTS_FOR_INSIGHTS:
+        reasons.append("few-statements")
+    if average_coverage < MINIMUM_AVERAGE_RESPONSE_COVERAGE:
+        reasons.append("low-response-coverage")
+    return {
+        "status": "limited" if reasons else "sufficient",
+        "reasons": reasons,
+        "thresholds": {
+            "minimumVoters": MINIMUM_VOTERS_FOR_INSIGHTS,
+            "minimumStatements": MINIMUM_STATEMENTS_FOR_INSIGHTS,
+            "minimumAverageResponseCoverage": (
+                MINIMUM_AVERAGE_RESPONSE_COVERAGE
+            ),
+        },
+    }
 
 
 def _source_hash(session, statements: list) -> str:
@@ -473,6 +501,11 @@ def build_report_snapshot(session, version: int) -> dict:
         "evidence": {
             "statements": results,
             "minimumEvidenceResponses": minimum_evidence,
+            "dataSufficiency": _data_sufficiency(
+                voter_count,
+                len(statements),
+                response_coverage,
+            ),
         },
         "commonGroundProposal": _public_common_ground(
             session.common_ground_history
