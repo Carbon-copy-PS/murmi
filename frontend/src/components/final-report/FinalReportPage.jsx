@@ -634,6 +634,17 @@ function ReportStats({ meta, copy }) {
   )
 }
 
+function dataSufficiency(report, meta, coverageSummary, resultCount) {
+  if (report.evidence?.dataSufficiency) {
+    return report.evidence.dataSufficiency
+  }
+  const reasons = []
+  if ((meta.voterCount || 0) < 15) reasons.push('few-voters')
+  if ((meta.statementCount || resultCount || 0) < 5) reasons.push('few-statements')
+  if ((coverageSummary.averageRate || 0) < 0.5) reasons.push('low-response-coverage')
+  return { status: reasons.length > 0 ? 'limited' : 'sufficient', reasons }
+}
+
 function StorySection({ kicker, title, lead, children, className = '' }) {
   return (
     <section className={`story-section ${className}`}>
@@ -678,6 +689,7 @@ export default function FinalReportPage({ report, preview = false }) {
     oppose: results.reduce((total, result) => total + (result.oppose || 0), 0),
     responses: results.reduce((total, result) => total + (result.responded || 0), 0),
   }
+  const sufficiency = dataSufficiency(report, meta, coverageSummary, results.length)
   const openQuestions = (report.story?.openQuestionStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
@@ -748,6 +760,15 @@ export default function FinalReportPage({ report, preview = false }) {
         <h1>{narrative?.headline || copy.openingTitle}</h1>
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
         <ReportStats meta={meta} copy={copy} />
+        {sufficiency.status === 'limited' && (
+          <aside className="story-data-warning" role="note">
+            <strong>{copy.limitedDataTitle}</strong>
+            <p>{copy.limitedDataNotice({
+              voterCount: meta.voterCount || 0,
+              statementCount: meta.statementCount || results.length,
+            })}</p>
+          </aside>
+        )}
       </section>
 
       <CommonGroundProposal

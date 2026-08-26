@@ -945,7 +945,7 @@ function fuzzyProfileSpread(points, memberships, center, tendencyIndex, fuzzifie
   };
 }
 
-function buildSoftOpinionTendencies(normalized, eligibleIndexes, pca, requestedK = 3) {
+function buildSoftOpinionTendencies(normalized, eligibleIndexes, pca, requestedK = 2) {
   const points = eligibleIndexes.map((index) => pca.coordinates[index]);
   const fuzzy = fuzzyCMeans(points, requestedK);
   if (!fuzzy) return null;
@@ -1410,6 +1410,7 @@ export function analyzePolisInspiredSession(source, options = {}) {
     normalized,
     eligibleIndexes,
     pca,
+    selected.k,
   );
   const selectedKs = sensitivity
     .map((summary) => summary.selectedK)

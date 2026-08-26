@@ -202,7 +202,7 @@ Respond ONLY with JSON:
   ]
 }
 
-Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 3 tendencies, 4 open questions, 4 implications, and 4 limitations."""
+Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 2 tendencies, 4 open questions, 4 implications, and 4 limitations."""
 
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
@@ -860,7 +860,7 @@ class AnalysisService:
                     "description": description,
                     "evidenceStatementIds": evidence_ids,
                 })
-            if len(tendencies) == 3:
+            if len(tendencies) == 2:
                 break
 
         overlap_pairs = []

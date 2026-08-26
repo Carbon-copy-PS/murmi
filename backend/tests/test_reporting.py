@@ -113,6 +113,18 @@ class ReportSnapshotAnalysisTests(unittest.TestCase):
             ],
             [4.0, 2.0, 2.0],
         )
+        self.assertEqual(
+            snapshot["evidence"]["dataSufficiency"],
+            {
+                "status": "limited",
+                "reasons": ["few-voters", "few-statements"],
+                "thresholds": {
+                    "minimumVoters": 15,
+                    "minimumStatements": 5,
+                    "minimumAverageResponseCoverage": 0.5,
+                },
+            },
+        )
 
     def test_editorial_overlap_pair_uses_exact_ballots(self):
         def statement(statement_id, votes):

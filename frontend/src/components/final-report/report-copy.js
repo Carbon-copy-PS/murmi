@@ -6,6 +6,9 @@ const COPY = {
     openingTitle: 'What the room found',
     intro: ({ voterCount, statementCount, responseCount }) =>
       `${voterCount} people voted across ${statementCount} statements, contributing ${responseCount} responses. This report follows the strongest shared signals first, then shows where the conversation remains open.`,
+    limitedDataTitle: 'Limited data — treat these insights as early signals',
+    limitedDataNotice: ({ voterCount, statementCount }) =>
+      `${voterCount} people voted on ${statementCount} statements. The report still shows patterns in their recorded responses, but there is not enough evidence for reliable or generalisable conclusions.`,
     voters: 'people voted',
     statements: 'statements',
     responses: 'responses',
@@ -59,10 +62,10 @@ const COPY = {
     opinionTitle: 'People combined these priorities in different ways',
     opinionLead: 'The map shows recurring patterns among people with enough responses for comparison. The tendencies can overlap and should not be read as fixed camps.',
     opinionReadingKicker: 'How to read the map',
-    opinionReadingTitle: 'Three overlapping patterns—not three camps',
+    opinionReadingTitle: 'Two overlapping patterns—not fixed camps',
     opinionReadingIntro: 'Position shows relative emphasis, while the shaded regions show aggregate spread. The interpretation below explains what each area tends to prioritise.',
     opinionDimensionsLabel: 'Two main contrasts',
-    opinionTendenciesLabel: 'Three recurring tendencies',
+    opinionTendenciesLabel: 'Two recurring tendencies',
     opinionTendencyFallback: 'A recurring combination of voting priorities.',
     opinionReadingCaveat: 'Counts are rounded tendency weights. Because patterns overlap, they are not exclusive group assignments.',
     opinionUnavailableLead: 'This analysis looks for recurring combinations of priorities across participants’ responses.',
@@ -192,7 +195,7 @@ const COPY = {
       },
       {
         title: 'Describe overlapping tendencies',
-        text: 'Fuzzy tendency analysis gives each eligible response pattern partial membership in three recurring tendencies.',
+        text: 'Fuzzy tendency analysis gives each eligible response pattern partial membership in two recurring tendencies.',
         meaning: 'A person can resemble more than one tendency, so these are deliberately not presented as mutually exclusive camps.',
       },
       {
@@ -227,6 +230,9 @@ const COPY = {
     openingTitle: '這場討論告訴我們什麼',
     intro: ({ voterCount, statementCount, responseCount }) =>
       `${voterCount} 位參與者針對 ${statementCount} 項主張投票，共留下 ${responseCount} 筆回應。這份報告先呈現最明確的共同訊號，再說明仍待討論之處。`,
+    limitedDataTitle: '資料有限——請將以下洞見視為初步訊號',
+    limitedDataNotice: ({ voterCount, statementCount }) =>
+      `${voterCount} 位參與者針對 ${statementCount} 項主張投票。本報告仍呈現已記錄回應中的模式，但目前證據不足以支持可靠或可推廣的一般性結論。`,
     voters: '位參與者投票',
     statements: '項主張',
     responses: '筆回應',
@@ -280,10 +286,10 @@ const COPY = {
     opinionTitle: '參與者以不同方式組合這些優先目標',
     opinionLead: '這張圖呈現回應資料足以比較的參與者中，反覆出現的意見模式。各種傾向可能重疊，不代表固定陣營。',
     opinionReadingKicker: '如何閱讀這張圖',
-    opinionReadingTitle: '三種重疊的模式，而非三個陣營',
+    opinionReadingTitle: '兩種重疊的模式，而非固定陣營',
     opinionReadingIntro: '位置呈現相對重視方向，半透明區域呈現彙整後的分布。以下解讀說明各區域通常重視哪些面向。',
     opinionDimensionsLabel: '兩個主要差異面向',
-    opinionTendenciesLabel: '三種反覆出現的傾向',
+    opinionTendenciesLabel: '兩種反覆出現的傾向',
     opinionTendencyFallback: '一種反覆出現的投票優先組合。',
     opinionReadingCaveat: '數字是四捨五入後的傾向權重。由於模式彼此重疊，它們並不是互斥的群組分配。',
     opinionUnavailableLead: '這項分析會從參與者的回答中尋找反覆出現的優先順序組合。',
@@ -413,7 +419,7 @@ const COPY = {
       },
       {
         title: '描述可重疊的意見傾向',
-        text: '模糊傾向分析讓每一種符合資格的回應模式，可部分屬於三種反覆出現的傾向。',
+        text: '模糊傾向分析讓每一種符合資格的回應模式，可部分屬於兩種反覆出現的傾向。',
         meaning: '同一人可以接近多種傾向，因此這些傾向不會被呈現為互斥陣營。',
       },
       {
@@ -451,6 +457,9 @@ COPY.de = {
   openingTitle: 'Was die Gruppe herausgefunden hat',
   intro: ({ voterCount, statementCount, responseCount }) =>
     `${voterCount} Personen stimmten über ${statementCount} Aussagen ab und gaben ${responseCount} Antworten. Der Bericht beginnt mit den stärksten gemeinsamen Signalen und zeigt danach die offenen Fragen.`,
+  limitedDataTitle: 'Begrenzte Daten — diese Erkenntnisse sind erste Hinweise',
+  limitedDataNotice: ({ voterCount, statementCount }) =>
+    `${voterCount} Personen stimmten über ${statementCount} Aussagen ab. Der Bericht zeigt weiterhin Muster in den erfassten Antworten, doch die Evidenz reicht nicht für belastbare oder verallgemeinerbare Schlussfolgerungen.`,
   voters: 'Abstimmende',
   statements: 'Aussagen',
   responses: 'Antworten',
@@ -504,10 +513,10 @@ COPY.de = {
   opinionTitle: 'Prioritäten wurden unterschiedlich miteinander verbunden',
   opinionLead: 'Die Karte zeigt wiederkehrende Muster bei Personen mit genügend Antworten für einen Vergleich. Die Tendenzen können sich überschneiden und sind keine festen Lager.',
   opinionReadingKicker: 'So ist die Karte zu lesen',
-  opinionReadingTitle: 'Drei überlappende Muster – keine drei Lager',
+  opinionReadingTitle: 'Zwei überlappende Muster – keine festen Lager',
   opinionReadingIntro: 'Die Position zeigt relative Gewichtungen, die schattierten Bereiche die aggregierte Streuung. Die Einordnung erklärt, welche Prioritäten in jedem Bereich häufiger zusammenkommen.',
   opinionDimensionsLabel: 'Zwei zentrale Kontraste',
-  opinionTendenciesLabel: 'Drei wiederkehrende Tendenzen',
+  opinionTendenciesLabel: 'Zwei wiederkehrende Tendenzen',
   opinionTendencyFallback: 'Eine wiederkehrende Kombination von Abstimmungsprioritäten.',
   opinionReadingCaveat: 'Die Zahlen sind gerundete Tendenzgewichte. Da sich die Muster überlappen, sind sie keine eindeutigen Gruppenzuordnungen.',
   opinionUnavailableLead: 'Diese Analyse sucht nach wiederkehrenden Kombinationen von Prioritäten in den Antworten der Teilnehmenden.',
@@ -637,7 +646,7 @@ COPY.de = {
     },
     {
       title: 'Überlappende Tendenzen beschreiben',
-      text: 'Eine Fuzzy-Tendenzanalyse ordnet jedem geeigneten Antwortmuster eine teilweise Zugehörigkeit zu drei wiederkehrenden Tendenzen zu.',
+      text: 'Eine Fuzzy-Tendenzanalyse ordnet jedem geeigneten Antwortmuster eine teilweise Zugehörigkeit zu zwei wiederkehrenden Tendenzen zu.',
       meaning: 'Eine Person kann mehreren Tendenzen ähneln; deshalb werden sie nicht als gegenseitig ausschliessende Lager dargestellt.',
     },
     {
@@ -673,6 +682,9 @@ COPY.fr = {
   openingTitle: 'Ce que le groupe a fait ressortir',
   intro: ({ voterCount, statementCount, responseCount }) =>
     `${voterCount} personnes ont voté sur ${statementCount} propositions et fourni ${responseCount} réponses. Le rapport présente d’abord les signaux communs les plus solides, puis les questions encore ouvertes.`,
+  limitedDataTitle: 'Données limitées — ces enseignements sont des signaux préliminaires',
+  limitedDataNotice: ({ voterCount, statementCount }) =>
+    `${voterCount} personnes ont voté sur ${statementCount} propositions. Le rapport montre néanmoins les tendances des réponses enregistrées, mais les données ne suffisent pas pour tirer des conclusions fiables ou généralisables.`,
   voters: 'personnes ont voté',
   statements: 'propositions',
   responses: 'réponses',
@@ -726,10 +738,10 @@ COPY.fr = {
   opinionTitle: 'Les priorités ont été combinées de différentes manières',
   opinionLead: 'La carte montre des schémas récurrents chez les personnes ayant assez répondu pour être comparées. Les tendances peuvent se chevaucher et ne constituent pas des camps fixes.',
   opinionReadingKicker: 'Comment lire la carte',
-  opinionReadingTitle: 'Trois schémas qui se chevauchent, pas trois camps',
+  opinionReadingTitle: 'Deux schémas qui se chevauchent, pas des camps fixes',
   opinionReadingIntro: 'La position indique les priorités relatives et les zones ombrées leur dispersion agrégée. L’interprétation précise ce que chaque zone tend à privilégier.',
   opinionDimensionsLabel: 'Deux contrastes principaux',
-  opinionTendenciesLabel: 'Trois tendances récurrentes',
+  opinionTendenciesLabel: 'Deux tendances récurrentes',
   opinionTendencyFallback: 'Une combinaison récurrente de priorités de vote.',
   opinionReadingCaveat: 'Les nombres sont des poids de tendance arrondis. Comme les schémas se chevauchent, ils ne constituent pas des groupes exclusifs.',
   opinionUnavailableLead: 'Cette analyse recherche des combinaisons récurrentes de priorités dans les réponses des participants.',
@@ -859,7 +871,7 @@ COPY.fr = {
     },
     {
       title: 'Décrire des tendances qui se chevauchent',
-      text: 'L’analyse floue attribue à chaque schéma de réponse admissible une appartenance partielle à trois tendances récurrentes.',
+      text: 'L’analyse floue attribue à chaque schéma de réponse admissible une appartenance partielle à deux tendances récurrentes.',
       meaning: 'Une personne peut ressembler à plusieurs tendances ; celles-ci ne sont donc pas présentées comme des camps mutuellement exclusifs.',
     },
     {
@@ -895,6 +907,9 @@ COPY.it = {
   openingTitle: 'Che cosa è emerso dal gruppo',
   intro: ({ voterCount, statementCount, responseCount }) =>
     `${voterCount} persone hanno votato su ${statementCount} affermazioni, fornendo ${responseCount} risposte. Il rapporto parte dai segnali condivisi più solidi e passa poi alle questioni ancora aperte.`,
+  limitedDataTitle: 'Dati limitati — considera questi risultati come segnali preliminari',
+  limitedDataNotice: ({ voterCount, statementCount }) =>
+    `${voterCount} persone hanno votato su ${statementCount} affermazioni. Il rapporto mostra comunque gli schemi nelle risposte registrate, ma i dati non bastano per conclusioni affidabili o generalizzabili.`,
   voters: 'persone hanno votato',
   statements: 'affermazioni',
   responses: 'risposte',
@@ -948,10 +963,10 @@ COPY.it = {
   opinionTitle: 'Le priorità sono state combinate in modi diversi',
   opinionLead: 'La mappa mostra schemi ricorrenti tra le persone con abbastanza risposte per il confronto. Le tendenze possono sovrapporsi e non sono schieramenti fissi.',
   opinionReadingKicker: 'Come leggere la mappa',
-  opinionReadingTitle: 'Tre schemi sovrapposti, non tre schieramenti',
+  opinionReadingTitle: 'Due schemi sovrapposti, non schieramenti fissi',
   opinionReadingIntro: 'La posizione mostra l’enfasi relativa, mentre le aree ombreggiate mostrano la dispersione aggregata. L’interpretazione spiega quali priorità caratterizzano ciascuna area.',
   opinionDimensionsLabel: 'Due contrasti principali',
-  opinionTendenciesLabel: 'Tre tendenze ricorrenti',
+  opinionTendenciesLabel: 'Due tendenze ricorrenti',
   opinionTendencyFallback: 'Una combinazione ricorrente di priorità di voto.',
   opinionReadingCaveat: 'I numeri sono pesi di tendenza arrotondati. Poiché gli schemi si sovrappongono, non rappresentano gruppi esclusivi.',
   opinionUnavailableLead: 'Questa analisi cerca combinazioni ricorrenti di priorità nelle risposte dei partecipanti.',
@@ -1081,7 +1096,7 @@ COPY.it = {
     },
     {
       title: 'Descrivere tendenze sovrapposte',
-      text: 'L’analisi fuzzy assegna a ogni schema di risposta idoneo un’appartenenza parziale a tre tendenze ricorrenti.',
+      text: 'L’analisi fuzzy assegna a ogni schema di risposta idoneo un’appartenenza parziale a due tendenze ricorrenti.',
       meaning: 'Una persona può assomigliare a più di una tendenza, quindi queste non sono presentate come schieramenti mutuamente esclusivi.',
     },
     {
