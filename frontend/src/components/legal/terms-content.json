@@ -1,0 +1,1332 @@
+{
+  "title": "Murmi – Terms of Service",
+  "updated": "10 August 2026",
+  "sections": [
+    {
+      "heading": "1. About These Terms",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "These Terms of Service (“Terms”) govern access to and use of the Murmi website, web application, platform and related services available through murmi.org and associated domains (together, the “Services”)."
+        },
+        {
+          "type": "p",
+          "text": "The Services are provided by Carbon Copy Association, an association organised under Swiss law (“Carbon Copy”, “we”, “us”, “our”)."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is a digital sense-making tool designed to help groups understand conversations, contributions and collective perspectives. Depending on the relevant use case, Murmi may help collect and structure participant input, identify themes or claims, enable participants to evaluate statements, and present areas of agreement, disagreement, uncertainty or diversity."
+        },
+        {
+          "type": "p",
+          "text": "These Terms apply to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "individuals participating in Murmi Sessions (“Participants”);",
+            "persons creating, commissioning or managing Sessions (“Organisers”);",
+            "organisations, institutions, researchers, public authorities, companies and associations using Murmi; and",
+            "other persons accessing or using the Services."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "An Organiser or other person using Murmi in a professional, institutional or commercial capacity is referred to as a “Business User” where relevant."
+        },
+        {
+          "type": "p",
+          "text": "Where we require you to accept these Terms, you agree to them by selecting the relevant acceptance option, creating an account or Session, or otherwise expressly accepting them after having had a reasonable opportunity to review them."
+        },
+        {
+          "type": "p",
+          "text": "Where a Session can be accessed without an account, the applicable Session interface or invitation may make these Terms available before participation."
+        },
+        {
+          "type": "p",
+          "text": "If you do not agree to these Terms, you must not use the Services."
+        },
+        {
+          "type": "p",
+          "text": "If you use Murmi on behalf of an organisation or other legal entity, you confirm that you are authorised to act on its behalf."
+        },
+        {
+          "type": "p",
+          "text": "Acceptance of these Terms does not constitute consent to participate in a research study and does not replace consent required under data protection, research ethics or other applicable law."
+        }
+      ]
+    },
+    {
+      "heading": "2. Provider",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "The Services are provided by:"
+        },
+        {
+          "type": "address",
+          "lines": [
+            "Carbon Copy Association",
+            "Oescherstrasse 26",
+            "CH-8702 Zollikon",
+            "Switzerland",
+            "Email: hi@carbon-copy.org"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "The contractual provider of Murmi is Carbon Copy Association."
+        }
+      ]
+    },
+    {
+      "heading": "3. Other Applicable Documents",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Use of Murmi may also be subject to other documents, depending on the context."
+        },
+        {
+          "type": "p",
+          "text": "These may include:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "the Murmi Privacy Policy;",
+            "a Session-specific privacy notice;",
+            "participant information;",
+            "informed-consent documentation;",
+            "research protocols;",
+            "institutional agreements;",
+            "data processing agreements;",
+            "order forms; or",
+            "additional participation rules."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "These documents serve different purposes."
+        },
+        {
+          "type": "p",
+          "text": "The Privacy Policy explains the processing of personal data. These Terms govern use of the platform."
+        },
+        {
+          "type": "p",
+          "text": "Where Murmi is used in a research study, agreeing to these Terms is separate from consenting to participate in the research."
+        },
+        {
+          "type": "p",
+          "text": "Where Carbon Copy and an Organiser or institutional customer enter into a separate written agreement, that agreement prevails over these Terms to the extent that it specifically governs the same subject matter."
+        },
+        {
+          "type": "p",
+          "text": "Study-specific participant information and informed-consent documentation govern the relevant research participation and do not become broader merely because Murmi has additional technical capabilities."
+        }
+      ]
+    },
+    {
+      "heading": "4. The Services",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is a tool for collective sense-making."
+        },
+        {
+          "type": "p",
+          "text": "Depending on the available features and Session configuration, Murmi may enable users to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "create or participate in Sessions;",
+            "submit statements, arguments, responses or other contributions;",
+            "process notes, transcripts or other source material;",
+            "use AI-supported systems to identify themes, claims, perspectives or patterns;",
+            "group or structure related contributions;",
+            "evaluate, react to or vote on statements;",
+            "identify areas of agreement and disagreement;",
+            "explore minority or less common perspectives;",
+            "generate summaries, reports or visualisations; and",
+            "export or share authorised Session results."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Murmi is designed to support human understanding and deliberation."
+        },
+        {
+          "type": "p",
+          "text": "Murmi does not determine what a group objectively “thinks”, and computational outputs do not replace participants' original contributions or human judgement."
+        }
+      ]
+    },
+    {
+      "heading": "5. Accounts and Access",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Some Murmi features may require an account. Other Sessions may be accessible through a link, invitation or access code."
+        },
+        {
+          "type": "p",
+          "text": "If you create an account, you agree to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "provide reasonably accurate information;",
+            "protect your login credentials;",
+            "not knowingly allow unauthorised use of your account; and",
+            "notify us if you reasonably suspect that your account has been compromised."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "You must not attempt to access another person's account or a Session for which you are not authorised."
+        },
+        {
+          "type": "p",
+          "text": "You are responsible for activities conducted through your account to the extent reasonably within your control."
+        }
+      ]
+    },
+    {
+      "heading": "6. Sessions and Organisers",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "A “Session” means a room, workshop, consultation, meeting, research activity, deliberative process or other organised use of Murmi."
+        },
+        {
+          "type": "p",
+          "text": "An Organiser may determine aspects of a Session such as:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "who may participate;",
+            "the subject of the Session;",
+            "what information is requested;",
+            "which Murmi features are used;",
+            "who can access Session information;",
+            "whether contributions are displayed anonymously or pseudonymously;",
+            "whether results may be exported or published; and",
+            "applicable Session rules.",
+            "Carbon Copy provides the Murmi platform.",
+            "Unless Carbon Copy itself acts as the Organiser, providing the platform does not make Carbon Copy responsible for the Organiser's purpose, research design, decisions or substantive content."
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "7. Responsibilities of Organisers",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Organisers are responsible for ensuring that their use of Murmi is lawful and appropriate."
+        },
+        {
+          "type": "p",
+          "text": "In particular, an Organiser is responsible, where applicable, for:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "establishing an appropriate legal basis for processing personal data;",
+            "providing legally required information to Participants;",
+            "obtaining consent where consent is required;",
+            "ensuring Participants understand the purpose of the Session;",
+            "obtaining necessary permissions before recording conversations;",
+            "having the right to upload transcripts, recordings, documents or other material;",
+            "complying with confidentiality obligations;",
+            "configuring access permissions appropriately;",
+            "complying with applicable research, employment, educational, accessibility, public-law and sector-specific requirements;",
+            "applying appropriate safeguards where sensitive data is processed; and",
+            "interpreting and using Murmi outputs responsibly."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Organisers must not knowingly present an AI-generated output as an objective, complete or authoritative statement of what Participants think where doing so would be misleading."
+        }
+      ]
+    },
+    {
+      "heading": "8. Research and Institution-Led Use",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may be used as technical infrastructure in academic, scientific or institutional research."
+        },
+        {
+          "type": "p",
+          "text": "Where Murmi is used in research:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "the relevant research institution or Organiser determines the study purposes and methodology unless otherwise agreed;",
+            "Participants must receive any information and consent process required for the study;",
+            "Murmi must be used within the scope authorised for that study;",
+            "research data must be handled according to the applicable research documentation, privacy information, contractual arrangements and law;",
+            "withdrawal rights are governed by the relevant research documentation and applicable law;",
+            "Carbon Copy does not acquire ownership of academic findings or research datasets merely because Murmi provides technical infrastructure; and",
+            "Murmi's general technical capabilities do not expand the purposes authorised for the study."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where ethics approval or other institutional approval is required, the Organiser is responsible for obtaining and complying with that approval."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy will reasonably cooperate with institutional requirements where agreed as part of the relevant project."
+        }
+      ]
+    },
+    {
+      "heading": "9. Participants",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Depending on the Session, contributions submitted by Participants may:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "be analysed using AI-supported systems;",
+            "be structured into themes or claims;",
+            "be grouped with related contributions;",
+            "be presented to other Participants;",
+            "be evaluated or voted on;",
+            "contribute to aggregated Session results; or",
+            "be accessible to authorised Organisers."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "The relevant Session information should explain the intended processing where appropriate."
+        },
+        {
+          "type": "p",
+          "text": "Participants should avoid submitting unnecessary personal or sensitive information."
+        },
+        {
+          "type": "p",
+          "text": "Where available, Participants may use validation, disagreement, correction or feedback mechanisms if they believe that a generated claim or summary does not fairly reflect their contribution."
+        }
+      ]
+    },
+    {
+      "heading": "10. Anonymous and Pseudonymous Participation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may provide functionality intended to reduce the influence of identity, hierarchy or dominant voices."
+        },
+        {
+          "type": "p",
+          "text": "There is an important distinction between:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Anonymous presentation: other Participants may not be shown who made a contribution.",
+            "Pseudonymised data: identifying information has been separated or replaced, but a link to an individual may still exist.",
+            "Anonymised data: information can no longer reasonably be attributed to an identifiable individual."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "A contribution displayed anonymously inside Murmi is therefore not necessarily technically or legally anonymised data."
+        },
+        {
+          "type": "p",
+          "text": "Technical information relating to accounts, Sessions, security, devices or system activity may still be processed where necessary."
+        },
+        {
+          "type": "p",
+          "text": "Where Murmi is used in research, the applicable study information or privacy notice should explain whether and when data is identifiable, pseudonymised or anonymised."
+        },
+        {
+          "type": "p",
+          "text": "Users must not attempt to identify Participants behind anonymous or pseudonymous contributions except where lawful and genuinely necessary, for example to investigate security incidents or unlawful conduct."
+        }
+      ]
+    },
+    {
+      "heading": "11. User Content",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "“User Content” means material submitted, transmitted, uploaded or otherwise provided through Murmi."
+        },
+        {
+          "type": "p",
+          "text": "This may include:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "statements;",
+            "arguments;",
+            "responses;",
+            "votes;",
+            "evaluations;",
+            "notes;",
+            "transcripts;",
+            "documents;",
+            "questions; and",
+            "other Session material."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "You retain any ownership or other rights you have in your User Content."
+        },
+        {
+          "type": "p",
+          "text": "Providing User Content to Murmi does not transfer ownership of that content to Carbon Copy."
+        }
+      ]
+    },
+    {
+      "heading": "12. Your Rights to Submit Content",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "You must have the rights or lawful authority necessary to provide User Content through Murmi."
+        },
+        {
+          "type": "p",
+          "text": "You must not knowingly submit material that:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "is unlawful;",
+            "unlawfully infringes intellectual-property rights;",
+            "unlawfully breaches confidentiality;",
+            "contains personal data that you have no lawful basis to process or disclose; or",
+            "you otherwise have no right to provide."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "An Organiser uploading information about other individuals is responsible for ensuring that doing so is lawful."
+        }
+      ]
+    },
+    {
+      "heading": "13. Licence Necessary to Provide Murmi",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "You grant Carbon Copy a non-exclusive, worldwide, royalty-free licence to host, store, reproduce, transcribe, analyse, translate, structure, format and otherwise process User Content only to the extent reasonably necessary to provide, administer and secure the Services or the relevant Session."
+        },
+        {
+          "type": "p",
+          "text": "This may include processing necessary to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "generate claims, themes and summaries;",
+            "provide Session functionality;",
+            "display information according to Session settings;",
+            "provide authorised exports;",
+            "troubleshoot technical problems;",
+            "maintain security;",
+            "prevent abuse;",
+            "make authorised backups; and",
+            "comply with legal obligations.",
+            "Carbon Copy may permit service providers acting on its behalf to perform such processing only to the extent necessary for the services they provide and subject to applicable contractual and legal requirements."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "This licence does not give Carbon Copy ownership of User Content."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy does not sell Session Content for advertising purposes."
+        },
+        {
+          "type": "p",
+          "text": "Research or institutional Session Content will not be used by Carbon Copy to train unrelated general-purpose AI models unless this is expressly agreed with the responsible Organiser or controller, appropriately disclosed where required, and lawful."
+        }
+      ]
+    },
+    {
+      "heading": "14. AI-Supported Processing",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may use artificial intelligence, language models, statistical methods and other computational techniques."
+        },
+        {
+          "type": "p",
+          "text": "These systems may assist with:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "transcription;",
+            "summarisation;",
+            "claim extraction;",
+            "identification of themes;",
+            "grouping of similar contributions;",
+            "comparison of perspectives;",
+            "translation;",
+            "labelling; and",
+            "identification of patterns."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where AI-generated information materially forms part of the Murmi experience, Murmi is intended to make this role reasonably understandable to users."
+        },
+        {
+          "type": "p",
+          "text": "AI-generated material should be understood as a computational interpretation of input, rather than an authoritative record of what an individual or group believes."
+        }
+      ]
+    },
+    {
+      "heading": "15. AI Outputs Can Be Incomplete or Incorrect",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Artificial intelligence and statistical systems are imperfect."
+        },
+        {
+          "type": "p",
+          "text": "Murmi outputs may:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "omit information;",
+            "misunderstand context;",
+            "lose nuance;",
+            "incorrectly combine contributions;",
+            "use wording a Participant would not have chosen;",
+            "overstate agreement;",
+            "understate disagreement;",
+            "fail to surface a minority perspective;",
+            "misclassify information; or",
+            "otherwise differ from Participants' intentions.",
+            "Carbon Copy therefore does not warrant that every AI-generated claim, theme, cluster, summary or other output perfectly represents all underlying contributions."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Users and Organisers must interpret such outputs critically and in context."
+        }
+      ]
+    },
+    {
+      "heading": "16. Participant Validation and Human Oversight",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Where appropriate to the Session design, Murmi may enable Participants or facilitators to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "validate;",
+            "reject;",
+            "refine;",
+            "disagree with;",
+            "contextualise; or",
+            "otherwise evaluate AI-generated representations."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Generated claims, themes, clusters and summaries should generally be understood as provisional representations rather than final judgements."
+        },
+        {
+          "type": "p",
+          "text": "Where participant validation is required by a research protocol or Session design, an Organiser must not knowingly present the relevant output as a final participant conclusion before that validation has occurred."
+        }
+      ]
+    },
+    {
+      "heading": "17. No Autonomous Significant Decisions",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is designed as a sense-making and decision-support tool."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is not intended to autonomously determine an individual's:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "employment;",
+            "eligibility for public services or benefits;",
+            "creditworthiness;",
+            "insurance;",
+            "medical treatment;",
+            "educational admission or assessment;",
+            "legal rights;",
+            "political rights;",
+            "sanctions; or",
+            "similarly significant status."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Users must not use Murmi outputs as the sole basis for decisions producing legal or similarly significant effects on an individual where doing so is unlawful."
+        },
+        {
+          "type": "p",
+          "text": "Responsibility for decisions made using Murmi remains with the person or organisation making those decisions."
+        }
+      ]
+    },
+    {
+      "heading": "18. Restricted and High-Risk Uses",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Certain uses of AI may be subject to additional legal or regulatory requirements depending on the jurisdiction and context."
+        },
+        {
+          "type": "p",
+          "text": "Business Users must not deploy Murmi for a legally regulated or high-risk use involving individual employment, education, credit, essential public services, biometric identification, healthcare or comparable consequential decisions unless Carbon Copy has agreed to that use in writing and the required legal and organisational safeguards have been established."
+        },
+        {
+          "type": "p",
+          "text": "This restriction does not prevent Murmi from being used for research, consultation, deliberation or collective sense-making concerning those topics where Murmi itself is not making consequential decisions about individuals."
+        }
+      ]
+    },
+    {
+      "heading": "19. No Covert Manipulation",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is intended to support understanding rather than covertly manipulate Participants."
+        },
+        {
+          "type": "p",
+          "text": "Murmi must not be used to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "secretly manipulate Participants toward predetermined opinions;",
+            "generate undisclosed personalised political persuasion;",
+            "deceptively alter information to influence an individual;",
+            "use hidden optimisation objectives to create a false appearance of consensus; or",
+            "rank the legitimacy or value of Participants on the basis of protected personal characteristics."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "This does not prevent transparent facilitation, legitimate research interventions that have received the required approvals and disclosures, or ordinary presentation and organisation of information."
+        }
+      ]
+    },
+    {
+      "heading": "20. Diversity, Disagreement and Minority Perspectives",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Collective sense-making necessarily involves some aggregation and simplification."
+        },
+        {
+          "type": "p",
+          "text": "Aggregation can unintentionally reduce the visibility of uncommon views."
+        },
+        {
+          "type": "p",
+          "text": "Murmi is designed to help users understand areas of agreement and disagreement, but Carbon Copy does not guarantee that every viewpoint receives equal prominence in every computational output."
+        },
+        {
+          "type": "p",
+          "text": "Organisers should avoid falsely presenting disagreement as consensus and should interpret aggregated outputs together with relevant dissenting, minority and uncertain perspectives."
+        }
+      ]
+    },
+    {
+      "heading": "21. Session Outputs",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi may produce Session Outputs including:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "claims;",
+            "themes;",
+            "summaries;",
+            "clusters;",
+            "voting results;",
+            "aggregate statistics;",
+            "visualisations; and",
+            "reports."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Subject to applicable law, confidentiality, third-party rights and any project-specific agreement, authorised users may use Session Outputs made available to them for the intended purpose of the relevant Session."
+        },
+        {
+          "type": "p",
+          "text": "Access to an output does not necessarily mean that the recipient has the right to publish it publicly."
+        },
+        {
+          "type": "p",
+          "text": "The Organiser remains responsible for determining whether publication or onward disclosure is permitted."
+        },
+        {
+          "type": "p",
+          "text": "AI-generated outputs may not be unique, and similar outputs may be generated in other contexts."
+        },
+        {
+          "type": "p",
+          "text": "To the extent Carbon Copy holds intellectual-property rights in a Session Output, Carbon Copy grants authorised users a non-exclusive right to use that output for the intended purposes of the Session, subject to any separate agreement."
+        }
+      ]
+    },
+    {
+      "heading": "22. Sensitive and Confidential Information",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Some Sessions may involve potentially sensitive topics or information."
+        },
+        {
+          "type": "p",
+          "text": "Contributions may reveal information concerning matters such as:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "political opinions;",
+            "religious or philosophical beliefs;",
+            "health;",
+            "ethnicity;",
+            "employment;",
+            "personal circumstances;",
+            "organisational disputes; or",
+            "other sensitive information.",
+            "Participants should avoid providing unnecessary sensitive or identifying information."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Organisers processing sensitive personal data are responsible for ensuring that an appropriate legal basis and safeguards exist."
+        },
+        {
+          "type": "p",
+          "text": "A Session being private or access-restricted does not remove confidentiality, professional secrecy or other obligations that independently apply."
+        }
+      ]
+    },
+    {
+      "heading": "23. Data Protection Roles",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "The processing of personal data is described more fully in the Murmi Privacy Policy and, where relevant, Session-specific information."
+        },
+        {
+          "type": "p",
+          "text": "Depending on the processing activity:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Carbon Copy may act as controller for processing it independently determines, such as platform administration, security, abuse prevention and management of its contractual relationships;",
+            "an Organiser or institution may act as controller for Session-specific processing;",
+            "Carbon Copy may act as processor on behalf of that Organiser or institution; or",
+            "different roles may apply to different processing activities.",
+            "Carbon Copy's operation of the Murmi platform does not by itself make Carbon Copy controller of an Organiser's underlying research, consultation or decision-making purpose."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where an applicable data processing or institutional agreement determines the relevant roles, that agreement governs those roles."
+        },
+        {
+          "type": "p",
+          "text": "Nothing in these Terms limits data-subject rights under the Swiss Federal Act on Data Protection (“FADP”), the GDPR where applicable, or other mandatory data protection law."
+        }
+      ]
+    },
+    {
+      "heading": "24. Service Providers and Subprocessors",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy may use specialised service providers to operate Murmi, including providers of:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "hosting;",
+            "databases;",
+            "authentication;",
+            "security;",
+            "artificial intelligence;",
+            "transcription;",
+            "communications; and",
+            "technical infrastructure."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where such providers process personal data, their involvement is subject to applicable data protection requirements and contractual safeguards."
+        },
+        {
+          "type": "p",
+          "text": "Where Carbon Copy acts as a processor, use of subprocessors will be handled in accordance with the relevant data processing agreement and controller instructions."
+        },
+        {
+          "type": "p",
+          "text": "Where applicable, information concerning recipients, categories of recipients, international transfers and processing locations will be provided in the Murmi Privacy Policy or project-specific documentation."
+        }
+      ]
+    },
+    {
+      "heading": "25. Security",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy implements reasonable technical and organisational measures appropriate to the nature and risk of the Services to protect information against unauthorised access, loss, alteration or disclosure."
+        },
+        {
+          "type": "p",
+          "text": "No internet-based service can be guaranteed to be completely secure."
+        },
+        {
+          "type": "p",
+          "text": "Users and Organisers are responsible for protecting their own:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "credentials;",
+            "devices;",
+            "Session access links;",
+            "access codes; and",
+            "exported data."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "If you become aware of a suspected security vulnerability involving Murmi, please report it to hi@carbon-copy.org."
+        },
+        {
+          "type": "p",
+          "text": "You must not knowingly exploit a vulnerability or use it to access data without authorisation."
+        }
+      ]
+    },
+    {
+      "heading": "26. Acceptable Use",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "You must not use Murmi to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "violate applicable law;",
+            "unlawfully infringe another person's rights;",
+            "harass, threaten or unlawfully discriminate against another person;",
+            "impersonate another person;",
+            "introduce malicious software or code;",
+            "interfere with Murmi's infrastructure;",
+            "circumvent technical or access restrictions;",
+            "obtain unauthorised access to information;",
+            "scrape or systematically extract information without authorisation;",
+            "deliberately manipulate voting or Session results;",
+            "submit fraudulent or coordinated contributions intended to distort results;",
+            "use automated systems to undermine genuine participation;",
+            "unlawfully attempt to identify anonymous Participants;",
+            "facilitate unlawful surveillance;",
+            "deceptively manipulate Participants;",
+            "knowingly misrepresent provisional AI outputs as verified facts or binding decisions; or",
+            "otherwise materially compromise the integrity or security of the Services."
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "27. Integrity, Moderation and Protective Measures",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy may reasonably restrict content, functionality or access where necessary to:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "protect the Services;",
+            "protect Participants or third parties;",
+            "investigate suspected abuse;",
+            "respond to security incidents;",
+            "comply with legal obligations;",
+            "enforce these Terms; or",
+            "preserve the integrity of a Session."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where appropriate and reasonably practicable, we will notify the affected account holder or Organiser."
+        },
+        {
+          "type": "p",
+          "text": "Organisers may separately moderate Sessions for which they are responsible."
+        }
+      ]
+    },
+    {
+      "heading": "28. Carbon Copy Intellectual Property",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi's software, interface, branding, trademarks, logos, documentation, designs and other materials provided by Carbon Copy or its licensors are protected by applicable intellectual-property law."
+        },
+        {
+          "type": "p",
+          "text": "This does not include User Content."
+        },
+        {
+          "type": "p",
+          "text": "Subject to these Terms, Carbon Copy grants you a limited, non-exclusive, non-transferable right to access and use Murmi for its intended purposes."
+        },
+        {
+          "type": "p",
+          "text": "Except where permitted by law, an applicable licence or Carbon Copy's written permission, you may not:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "reproduce or commercially exploit protected parts of Murmi;",
+            "resell unauthorised access to the Services;",
+            "remove proprietary notices;",
+            "reproduce substantial parts of Murmi's databases; or",
+            "unlawfully reverse engineer proprietary components."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Nothing in these Terms limits rights expressly granted under an applicable open-source licence."
+        }
+      ]
+    },
+    {
+      "heading": "29. Paid Services",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Some Murmi functionality may be available free of charge, while other Services may be offered for payment."
+        },
+        {
+          "type": "p",
+          "text": "Where fees apply, the applicable:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "price;",
+            "service scope;",
+            "billing arrangements;",
+            "subscription period;",
+            "cancellation conditions; and",
+            "taxes"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "will be communicated before the relevant paid commitment is entered into or specified in a separate offer, order form or agreement."
+        },
+        {
+          "type": "p",
+          "text": "Where a separate commercial agreement exists, its commercial provisions prevail."
+        },
+        {
+          "type": "p",
+          "text": "Mandatory consumer rights remain unaffected."
+        }
+      ]
+    },
+    {
+      "heading": "30. Availability and Changes to the Services",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Murmi is an evolving service."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy may modify, improve, replace or discontinue features for legitimate technical, security, operational, legal or product-development reasons."
+        },
+        {
+          "type": "p",
+          "text": "We aim to avoid unnecessary disruption to active institutional projects and paid Services."
+        },
+        {
+          "type": "p",
+          "text": "Where a change materially and adversely affects an ongoing paid Service, Carbon Copy will provide reasonable notice where practicable unless immediate action is required for security, legal or abuse-prevention reasons."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy does not guarantee uninterrupted availability of the Services."
+        }
+      ]
+    },
+    {
+      "heading": "31. Suspension and Termination",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "You may stop using Murmi at any time."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy may suspend or restrict access where reasonably necessary because of:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "a material or repeated breach of these Terms;",
+            "unlawful activity;",
+            "a significant security risk;",
+            "fraud or abuse;",
+            "non-payment of applicable fees;",
+            "legal requirements; or",
+            "discontinuation of the relevant Service."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Where reasonably possible, Carbon Copy will provide notice and an opportunity to remedy the issue before permanent termination."
+        },
+        {
+          "type": "p",
+          "text": "Immediate action may be taken where reasonably necessary for security, legal compliance or protection of Participants or third parties."
+        },
+        {
+          "type": "p",
+          "text": "An Organiser may separately control access to its own Session."
+        },
+        {
+          "type": "p",
+          "text": "Stopping use of Murmi does not automatically constitute withdrawal from a research study. A research participant wishing to withdraw should follow the process communicated by the responsible research institution."
+        }
+      ]
+    },
+    {
+      "heading": "32. No Professional Advice",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Unless expressly agreed otherwise, Murmi and its outputs do not constitute:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "legal advice;",
+            "medical advice;",
+            "financial advice;",
+            "psychological advice;",
+            "professional research conclusions; or",
+            "official governmental decisions."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Users remain responsible for obtaining appropriate professional advice where necessary."
+        }
+      ]
+    },
+    {
+      "heading": "33. Disclaimers",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "To the extent permitted by applicable law, Murmi is provided on an “as available” basis."
+        },
+        {
+          "type": "p",
+          "text": "Carbon Copy does not warrant that:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "the Services will always be uninterrupted or error-free;",
+            "every technical error will immediately be corrected;",
+            "AI-generated outputs will always be accurate, complete, neutral or free from bias;",
+            "summaries will capture every nuance of a discussion;",
+            "aggregated results represent a wider population;",
+            "User Content will be accurate or truthful; or"
+          ]
+        },
+        {
+          "type": "p",
+          "text": "Murmi will satisfy every specific requirement unless expressly agreed in writing."
+        },
+        {
+          "type": "p",
+          "text": "Murmi outputs are tools for sense-making and interpretation and should be considered together with the underlying context and human judgement."
+        },
+        {
+          "type": "p",
+          "text": "Nothing in these Terms excludes warranties or rights that cannot lawfully be excluded."
+        }
+      ]
+    },
+    {
+      "heading": "34. Responsibility for Decisions",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy provides tools for organising and understanding information."
+        },
+        {
+          "type": "p",
+          "text": "Except where liability arises from Carbon Copy's own conduct under applicable law, Carbon Copy is not responsible for decisions independently made by an Organiser, institution, researcher, Participant or third party on the basis of Session information or outputs."
+        },
+        {
+          "type": "p",
+          "text": "When interpreting Murmi outputs, users should consider, as appropriate:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "underlying contributions;",
+            "the composition of the participating group;",
+            "methodological limitations;",
+            "uncertainty;",
+            "potential bias;",
+            "minority viewpoints; and",
+            "the possibility of computational error."
+          ]
+        }
+      ]
+    },
+    {
+      "heading": "35. Limitation of Liability",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Nothing in these Terms excludes or limits liability where exclusion or limitation is prohibited by applicable law."
+        },
+        {
+          "type": "p",
+          "text": "In particular, Carbon Copy does not exclude liability for wilful misconduct or gross negligence to the extent such liability cannot lawfully be excluded."
+        },
+        {
+          "type": "h3",
+          "text": "Individual Participants and Consumers"
+        },
+        {
+          "type": "p",
+          "text": "For individual Participants and consumers, Carbon Copy's liability is governed by applicable mandatory law."
+        },
+        {
+          "type": "p",
+          "text": "No monetary liability cap in these Terms limits rights that a consumer or Participant has under mandatory law."
+        },
+        {
+          "type": "h3",
+          "text": "Business Users"
+        },
+        {
+          "type": "p",
+          "text": "For Business Users, to the extent permitted by law:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "Carbon Copy is liable for damage caused by slight negligence only for reasonably foreseeable direct loss resulting from a breach of an essential contractual obligation;",
+            "Carbon Copy is not liable for indirect or consequential economic loss, including loss of anticipated profits, opportunity or savings, caused by slight negligence; and",
+            "Carbon Copy's aggregate liability for slight negligence arising from the relevant Service is limited to the greater of CHF 1,000 or the fees paid or payable to Carbon Copy for that Service during the 12 months preceding the event giving rise to the claim."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "These limitations do not apply to wilful misconduct, gross negligence, liability for death or personal injury where it cannot be limited, or other liability that cannot lawfully be excluded or limited."
+        },
+        {
+          "type": "p",
+          "text": "Where a separate written agreement contains specific liability provisions, those provisions prevail for the relevant contractual relationship."
+        }
+      ]
+    },
+    {
+      "heading": "36. Responsibility of Business Organisers for Third-Party Claims",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "This Section applies only to Business Users acting as Organisers."
+        },
+        {
+          "type": "p",
+          "text": "If a Business Organiser materially breaches these Terms or applicable law by, for example:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "knowingly uploading information it has no right to process;",
+            "unlawfully recording individuals;",
+            "materially violating Participant rights;",
+            "unlawfully publishing confidential Session information; or",
+            "intentionally using Murmi for unlawful purposes,",
+            "and that breach directly causes a third-party claim against Carbon Copy, the Business Organiser will reimburse Carbon Copy for reasonable and documented losses and external costs directly resulting from that breach, to the extent permitted by law.",
+            "Carbon Copy must take reasonable steps to mitigate such losses."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "This provision does not apply to the extent a claim was caused by Carbon Copy's own breach, unlawful conduct, gross negligence or wilful misconduct."
+        },
+        {
+          "type": "p",
+          "text": "This Section does not apply to ordinary Participants acting as consumers."
+        }
+      ]
+    },
+    {
+      "heading": "37. Changes to These Terms",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Carbon Copy may update these Terms where reasonably necessary, for example because of changes in:"
+        },
+        {
+          "type": "ul",
+          "items": [
+            "the Services;",
+            "applicable law;",
+            "regulatory requirements;",
+            "security requirements; or",
+            "Carbon Copy's organisational structure."
+          ]
+        },
+        {
+          "type": "p",
+          "text": "The current version will be made available through murmi.org."
+        },
+        {
+          "type": "p",
+          "text": "Changes generally apply prospectively."
+        },
+        {
+          "type": "p",
+          "text": "Where a change materially affects an existing paid contractual relationship, Carbon Copy will provide reasonable advance notice and obtain additional acceptance where required by applicable law or the relevant agreement."
+        },
+        {
+          "type": "p",
+          "text": "Changes to these general Terms do not retroactively modify research consent, an ethics-approved research protocol or previously agreed project-specific data-processing instructions."
+        }
+      ]
+    },
+    {
+      "heading": "38. Governing Law",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "These Terms are governed by the substantive laws of Switzerland, excluding its conflict-of-laws rules."
+        },
+        {
+          "type": "p",
+          "text": "For consumers, this choice of law does not deprive them of mandatory protections applicable under the law that cannot validly be excluded by agreement."
+        }
+      ]
+    },
+    {
+      "heading": "39. Jurisdiction",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "For Business Users, the courts at the registered office of Carbon Copy Association in the Canton of Zurich, Switzerland, have exclusive jurisdiction over disputes arising from these Terms, unless a separate written agreement provides otherwise."
+        },
+        {
+          "type": "p",
+          "text": "This provision does not apply where mandatory law provides another forum."
+        },
+        {
+          "type": "p",
+          "text": "In particular, Participants or consumers retain any mandatory jurisdiction rights available to them under applicable law."
+        }
+      ]
+    },
+    {
+      "heading": "40. Severability",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "If a provision of these Terms is invalid or unenforceable, the remaining provisions remain effective."
+        },
+        {
+          "type": "p",
+          "text": "The invalid provision will, where legally permissible, be interpreted or replaced in a way that most closely reflects its lawful intended purpose."
+        }
+      ]
+    },
+    {
+      "heading": "41. No Waiver",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "A failure or delay by Carbon Copy to exercise a right under these Terms does not constitute a waiver of that right."
+        }
+      ]
+    },
+    {
+      "heading": "42. Entire Agreement",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "These Terms constitute the general agreement concerning use of Murmi."
+        },
+        {
+          "type": "p",
+          "text": "They may operate together with additional documents described in Section 3."
+        },
+        {
+          "type": "p",
+          "text": "A separate project, research, data processing or commercial agreement prevails to the extent that it specifically regulates the same subject matter."
+        },
+        {
+          "type": "p",
+          "text": "Nothing in these Terms modifies an individual's statutory data-protection rights or a research participant's rights under applicable study documentation."
+        }
+      ]
+    },
+    {
+      "heading": "43. Contact",
+      "blocks": [
+        {
+          "type": "p",
+          "text": "Questions, concerns or notices relating to Murmi or these Terms may be sent to:"
+        },
+        {
+          "type": "address",
+          "lines": [
+            "Carbon Copy Association",
+            "Oescherstrasse 26",
+            "CH-8702 Zollikon",
+            "Switzerland",
+            "hi@carbon-copy.org"
+          ]
+        }
+      ]
+    }
+  ]
+}

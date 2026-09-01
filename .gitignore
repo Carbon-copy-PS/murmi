@@ -1,0 +1,33 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+dist/
+.venv/
+venv/
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/
+*.pem
+*.key
+credentials.json
+murmi-page-source
+
+# Local analysis data contains participant identifiers and individual vote
+# patterns. Keep the reproducible tooling tracked, but never commit session data
+# or generated reports.
+data-analysis/sessions/
+data-analysis/reports/*
+
+# Local review output and source exports are not publication artifacts.
+artifacts/
+data-analysis/screenshots/
+docs/polis-example/
+frontend/public/recovered-ramen-report.html
+
+# Keep locally licensed font binaries out of Git. Published reports use
+# repository-safe system font stacks and do not embed these files.
+data-analysis/fonts/
