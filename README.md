@@ -13,6 +13,10 @@ The hosted product at [murmi.org](https://murmi.org) is operated by [Carbon Copy
 - Anonymous votes show where a room agrees, disagrees, or is split — without putting anyone on the spot.
 - Common-ground drafts and end-of-session reports turn a discussion into something the group can take away.
 
+## Research origins
+
+Murmi grew out of research led by Joshua C. Yang at the Computational Social Science Lab, ETH Zurich. The research team developed the original concept and continues to guide the platform’s research direction.
+
 ## Prerequisites
 
 - **Python 3.10+**
