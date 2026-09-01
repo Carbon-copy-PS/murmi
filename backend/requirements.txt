@@ -4,6 +4,6 @@ websockets==12.0
 openai==1.50.0
 httpx<0.28
 python-dotenv==1.0.1
-python-multipart==0.0.9
+python-multipart==0.0.32
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
