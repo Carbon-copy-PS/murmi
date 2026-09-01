@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "driver.js": "^1.4.0",
-    "i18next": "^26.3.4",
+    "i18next": "^26.4.0",
     "motion": "^12.40.0",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
