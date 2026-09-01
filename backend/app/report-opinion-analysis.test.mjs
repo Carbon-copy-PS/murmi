@@ -23,6 +23,62 @@ function syntheticSource() {
   return { sessionId: "synthetic", statements, votes };
 }
 
+function smallTendencySource() {
+  const statements = Array.from({ length: 12 }, (_, index) => ({
+    id: `statement-${index}`,
+    text: `Public statement ${index}`,
+    created_at: index,
+  }));
+  const votes = [];
+  for (let participant = 0; participant < 30; participant += 1) {
+    for (let statement = 0; statement < statements.length; statement += 1) {
+      let vote;
+      if (participant < 14) {
+        vote = statement < 6 ? "agree" : "disagree";
+      } else if (participant < 28) {
+        vote = statement < 6 ? "disagree" : "agree";
+      } else {
+        vote = statement % 2 === 0 ? "agree" : "disagree";
+      }
+      votes.push({
+        participant_id: `private-participant-${participant}`,
+        statement_id: statements[statement].id,
+        vote,
+      });
+    }
+  }
+  return { sessionId: "small-tendency", statements, votes };
+}
+
+function hualienSource() {
+  const statements = [
+    { id: "user-needs", text: "Focus on user needs", created_at: 1 },
+    { id: "transparency", text: "Monitor policy implementation", created_at: 2 },
+  ];
+  const patterns = [
+    ["strongly_agree", "strongly_agree"],
+    ["strongly_agree", "strongly_agree"],
+    ["agree", "agree"],
+    ["agree", "strongly_agree"],
+    ["strongly_agree", "neutral"],
+    ["strongly_agree", "neutral"],
+    ["neutral", "neutral"],
+    ["agree", null],
+  ];
+  const votes = [];
+  patterns.forEach((pattern, participant) => {
+    pattern.forEach((vote, statement) => {
+      if (!vote) return;
+      votes.push({
+        participant_id: `private-participant-${participant}`,
+        statement_id: statements[statement].id,
+        vote,
+      });
+    });
+  });
+  return { sessionId: "hualien-regression", statements, votes };
+}
+
 function runWrapper(source) {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -57,8 +113,9 @@ test("publishes aggregate tendencies without participant-level fields", async ()
 
   assert.equal(result.available, true);
   assert.equal(result.eligibleParticipants, 30);
-  assert.ok(result.tendencies.profiles.length >= 2);
-  assert.ok(result.tendencies.profiles.every((profile) => profile.membershipMass >= 5));
+  assert.equal(result.tendencies.count, 2);
+  assert.equal(result.tendencies.profiles.length, 2);
+  assert.ok(result.tendencies.profiles.every((profile) => profile.membershipMass > 0));
   assert.ok(result.tendencies.profiles.every((profile) => (
     Number.isFinite(profile.shape.radiusMajor)
     && Number.isFinite(profile.shape.radiusMinor)
@@ -90,4 +147,46 @@ test("publishes aggregate tendencies without participant-level fields", async ()
   ]) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+test("limits published opinion analysis to two recurring tendencies", async () => {
+  const result = await runWrapper(smallTendencySource());
+
+  assert.equal(result.available, true);
+  assert.equal(result.reliability.selectedK, 2);
+  assert.equal(result.tendencies.count, 2);
+  assert.equal(result.tendencies.profiles.length, 2);
+
+  const serialized = JSON.stringify(result);
+  for (const forbidden of [
+    "private-participant",
+    "participant_id",
+    "participantIndex",
+    "assignments",
+    "coordinates",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+});
+
+test("does not manufacture a third tendency for the Hualien response pattern", async () => {
+  const result = await runWrapper(hualienSource());
+
+  assert.equal(result.available, true);
+  assert.equal(result.eligibleParticipants, 7);
+  assert.equal(result.excludedParticipants, 1);
+  assert.equal(result.reliability.selectedK, 2);
+  assert.equal(result.tendencies.count, 2);
+  assert.equal(result.tendencies.profiles.length, 2);
+  assert.deepEqual(
+    result.tendencies.profiles.map((profile) => profile.tendencyId),
+    [1, 2],
+  );
+  assert.ok(result.tendencies.profiles.every((profile) => (
+    profile.distinctive.some((statement) => Math.abs(statement.contrast) > 0.1)
+  )));
+  assert.notDeepEqual(
+    result.tendencies.profiles[0].distinctive,
+    result.tendencies.profiles[1].distinctive,
+  );
 });

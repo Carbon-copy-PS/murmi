@@ -130,92 +130,51 @@ function CoverageOverview({ results, summary, voterCount, copy, language }) {
           ))}
         </div>
       )}
+      <div className="story-coverage-trend-head">
+        <p>{copy.coverageChartHint}</p>
+        <div className="story-coverage-trend-legend" aria-hidden="true">
+          <span><i className="support" />{copy.support}</span>
+          <span><i className="neutral" />{copy.neutral}</span>
+          <span><i className="oppose" />{copy.oppose}</span>
+        </div>
+      </div>
       <div
         className="story-coverage-trend"
         role="img"
         aria-label={copy.coverageTrendAria}
       >
-        {results.map((result, index) => (
-          <i
-            key={result.id}
-            className={lowIds.has(result.id) ? 'is-lower-reach' : ''}
-            style={{ height: widthPercent(result.coverageRate) }}
-            title={`${index + 1}. ${result.responded}/${voterCount} ${copy.responses}`}
-          />
-        ))}
+        {results.map((result, index) => {
+          const supportShare = result.supportRate
+            ?? responseRate(result.support, result.responded)
+          const neutralShare = result.neutralRate
+            ?? responseRate(result.neutral, result.responded)
+          const opposeShare = result.opposeRate
+            ?? responseRate(result.oppose, result.responded)
+          const title = [
+            `${index + 1}. ${result.responded}/${voterCount} ${copy.responses}`,
+            `${percent(supportShare, language)} ${copy.support}`,
+            `${percent(neutralShare, language)} ${copy.neutral}`,
+            `${percent(opposeShare, language)} ${copy.oppose}`,
+          ].join(' · ')
+          return (
+            <i
+              key={result.id}
+              className={lowIds.has(result.id) ? 'is-lower-reach' : ''}
+              style={{ height: widthPercent(result.coverageRate) }}
+              title={title}
+            >
+              <span className="support" style={{ height: widthPercent(supportShare) }} />
+              <span className="neutral" style={{ height: widthPercent(neutralShare) }} />
+              <span className="oppose" style={{ height: widthPercent(opposeShare) }} />
+            </i>
+          )
+        })}
       </div>
       <div className="story-coverage-axis">
         <span>1</span>
         <span>{results.length}</span>
       </div>
     </div>
-  )
-}
-
-function ReliabilityPanel({ landscape, copy, language }) {
-  const reliability = landscape?.reliability
-  if (!landscape?.available || !reliability) return null
-  const variance = (landscape.explainedVariance || [])
-    .reduce((total, value) => total + (value || 0), 0)
-  const completed = reliability.bootstrapReplicatesCompleted || 0
-  const median = reliability.bootstrapMedianAdjustedRand
-  const threshold = reliability.bootstrapThreshold
-  const isPublishable = reliability.hardGroupStatus === 'publishable'
-
-  return (
-    <aside className="story-reliability">
-      <div className="story-reliability-head">
-        <div>
-          <p className="story-kicker">{copy.reliabilityKicker}</p>
-          <h3>{copy.reliabilityTitle}</h3>
-        </div>
-        <span className={isPublishable ? 'passes' : 'withheld'}>
-          {isPublishable ? copy.hardGroupsPublishable : copy.hardGroupsWithheld}
-        </span>
-      </div>
-      <dl>
-        <div><dt>{percent(variance, language)}</dt><dd>{copy.varianceExplained}</dd></div>
-        <div><dt>{landscape.eligibleParticipants || 0}</dt><dd>{copy.eligibleParticipants}</dd></div>
-        <div><dt>{landscape.excludedParticipants || 0}</dt><dd>{copy.excludedParticipants}</dd></div>
-        <div><dt>{landscape.minimumVotes || 0}</dt><dd>{copy.minimumVotesForMap}</dd></div>
-      </dl>
-      {completed > 0 && (
-        <>
-          <div
-            className="story-bootstrap-grid"
-            role="img"
-            aria-label={copy.bootstrapAria(completed)}
-          >
-            {(reliability.bootstrapRuns || []).map((run, index) => (
-              <i
-                key={`${run.selectedK}-${index}`}
-                className={`k${Math.min(5, Math.max(2, run.selectedK || 2))}`}
-                title={`K=${run.selectedK}`}
-              />
-            ))}
-          </div>
-          <ul className="story-bootstrap-legend">
-            {Object.entries(reliability.bootstrapSelectedKFrequency || {})
-              .sort(([left], [right]) => Number(left) - Number(right))
-              .map(([selectedK, count]) => (
-                <li key={selectedK}>
-                  <i className={`k${Math.min(5, Math.max(2, Number(selectedK) || 2))}`} />
-                  {copy.bootstrapFrequency(selectedK, count)}
-                </li>
-              ))}
-          </ul>
-          <p>
-            {copy.reliabilitySummary({
-              completed,
-              median,
-              threshold,
-              passCount: reliability.bootstrapPassCount || 0,
-            })}
-          </p>
-        </>
-      )}
-      <p>{copy.reliabilityCaveat}</p>
-    </aside>
   )
 }
 
@@ -299,9 +258,49 @@ function VennFigure({ overlap, statements, copy, language }) {
 
 const TENDENCY_COLORS = ['#1f6b4f', '#a16b2e', '#5f5a9c']
 
-function OpinionLandscape({ landscape, narrative, copy, language }) {
+function wrapMapLabel(value, maximumCharacters = 20) {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return []
+  const lines = []
+  for (const word of words) {
+    const current = lines[lines.length - 1]
+    if (!current || `${current} ${word}`.length > maximumCharacters) {
+      lines.push(word)
+    } else {
+      lines[lines.length - 1] = `${current} ${word}`
+    }
+  }
+  if (lines.length <= 2) return lines
+  return [lines[0], `${lines.slice(1).join(' ').slice(0, maximumCharacters - 1).trim()}…`]
+}
+
+function allocateTendencyCounts(profiles, total) {
+  const target = Math.max(0, Math.round(total || 0))
+  const masses = profiles.map((profile) => Math.max(0, Number(profile.membershipMass) || 0))
+  const massTotal = masses.reduce((sum, mass) => sum + mass, 0)
+  if (target === 0 || massTotal === 0) {
+    return new Map(profiles.map((profile) => [profile.tendencyId, 0]))
+  }
+  const apportioned = masses.map((mass) => mass / massTotal * target)
+  const counts = apportioned.map(Math.floor)
+  const remainderOrder = apportioned
+    .map((value, index) => ({ index, remainder: value - counts[index] }))
+    .sort((left, right) => right.remainder - left.remainder || left.index - right.index)
+  let remaining = target - counts.reduce((sum, count) => sum + count, 0)
+  for (const item of remainderOrder) {
+    if (remaining <= 0) break
+    counts[item.index] += 1
+    remaining -= 1
+  }
+  return new Map(profiles.map((profile, index) => [profile.tendencyId, counts[index]]))
+}
+
+function OpinionLandscape({ landscape, narrative, copy }) {
   if (!landscape?.available) {
-    return <p className="story-opinion-unavailable">{copy.opinionUnavailable}</p>
+    const message = landscape?.reason === 'privacy-threshold'
+      ? copy.opinionNeedsRegeneration
+      : copy.opinionUnavailable
+    return <p className="story-opinion-unavailable">{message}</p>
   }
   const profiles = landscape.tendencies?.profiles || []
   const tendencyNarrative = new Map(
@@ -316,6 +315,30 @@ function OpinionLandscape({ landscape, narrative, copy, language }) {
   const insetY = 34
   const plotWidth = width - insetX * 2
   const plotHeight = height - insetY * 2
+  const tendencyCounts = allocateTendencyCounts(
+    profiles,
+    landscape.eligibleParticipants || 0,
+  )
+  const peopleLabel = (profile) => copy.opinionMapPeople({
+    count: tendencyCounts.get(profile.tendencyId) || 0,
+    total: landscape.eligibleParticipants || 0,
+  })
+  const mapProfiles = profiles.map((profile, index) => {
+    const editorial = tendencyNarrative.get(profile.tendencyId)
+    const fallbackRadius = 0.08 + 0.1 * Math.sqrt(profile.membershipShare || 0)
+    return {
+      ...profile,
+      color: TENDENCY_COLORS[index % TENDENCY_COLORS.length],
+      letter: String.fromCharCode(65 + index),
+      labelLines: wrapMapLabel(editorial?.title || copy.tendency),
+      peopleLabel: peopleLabel(profile),
+      x: insetX + profile.position.x * plotWidth,
+      y: insetY + profile.position.y * plotHeight,
+      radiusX: (profile.shape?.radiusMajor || fallbackRadius) * plotWidth,
+      radiusY: (profile.shape?.radiusMinor || fallbackRadius) * plotHeight,
+      rotation: profile.shape?.rotation || 0,
+    }
+  })
 
   return (
     <div className="story-opinion">
@@ -328,29 +351,43 @@ function OpinionLandscape({ landscape, narrative, copy, language }) {
           >
             <line x1={insetX} y1={height / 2} x2={width - insetX} y2={height / 2} />
             <line x1={width / 2} y1={insetY} x2={width / 2} y2={height - insetY} />
-            {profiles.map((profile, index) => {
-              const x = insetX + profile.position.x * plotWidth
-              const y = insetY + profile.position.y * plotHeight
-              const fallbackRadius = 0.08 + 0.1 * Math.sqrt(profile.membershipShare || 0)
-              const radiusX = (profile.shape?.radiusMajor || fallbackRadius) * plotWidth
-              const radiusY = (profile.shape?.radiusMinor || fallbackRadius) * plotHeight
-              const rotation = profile.shape?.rotation || 0
-              return (
-                <g className="story-opinion-tendency" key={profile.tendencyId}>
-                  <ellipse
-                    cx={x}
-                    cy={y}
-                    rx={radiusX}
-                    ry={radiusY}
-                    transform={`rotate(${rotation} ${x} ${y})`}
-                    style={{ '--tendency-color': TENDENCY_COLORS[index % TENDENCY_COLORS.length] }}
-                  />
-                  <text x={x} y={y + 5}>
-                    {String.fromCharCode(65 + index)}
-                  </text>
-                </g>
-              )
-            })}
+            {mapProfiles.map((profile) => (
+              <g className="story-opinion-tendency" key={`shape-${profile.tendencyId}`}>
+                <ellipse
+                  cx={profile.x}
+                  cy={profile.y}
+                  rx={profile.radiusX}
+                  ry={profile.radiusY}
+                  transform={`rotate(${profile.rotation} ${profile.x} ${profile.y})`}
+                  style={{ '--tendency-color': profile.color }}
+                />
+              </g>
+            ))}
+            {mapProfiles.map((profile) => (
+              <g className="story-opinion-tendency" key={`label-${profile.tendencyId}`}>
+                <text className="story-opinion-marker-letter" x={profile.x} y={profile.y - 16}>
+                  {profile.letter}
+                </text>
+                <text className="story-opinion-marker-label" x={profile.x} y={profile.y + 5}>
+                  {profile.labelLines.map((line, lineIndex) => (
+                    <tspan
+                      key={`${line}-${lineIndex}`}
+                      x={profile.x}
+                      dy={lineIndex === 0 ? 0 : 17}
+                    >
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+                <text
+                  className="story-opinion-marker-count"
+                  x={profile.x}
+                  y={profile.y + 23 + (profile.labelLines.length - 1) * 17}
+                >
+                  {profile.peopleLabel}
+                </text>
+              </g>
+            ))}
             {horizontalDimension && (
               <>
                 <text className="story-opinion-axis-label left" x={insetX} y={height - 8}>
@@ -405,10 +442,13 @@ function OpinionLandscape({ landscape, narrative, copy, language }) {
                   <span style={{ background: TENDENCY_COLORS[index % TENDENCY_COLORS.length] }}>
                     {String.fromCharCode(65 + index)}
                   </span>
-                  <p>
-                    <b>{editorial?.title || `${copy.tendency} ${String.fromCharCode(65 + index)}`}</b>
-                    {editorial?.description || copy.opinionTendencyFallback}
-                  </p>
+                  <div className="story-opinion-tendency-summary">
+                    <h4>
+                      {editorial?.title || `${copy.tendency} ${String.fromCharCode(65 + index)}`}
+                      <small>{peopleLabel(profile)}</small>
+                    </h4>
+                    <p>{editorial?.description || copy.opinionTendencyFallback}</p>
+                  </div>
                 </div>
               )
             })}
@@ -435,55 +475,6 @@ function OpinionLandscape({ landscape, narrative, copy, language }) {
         </aside>
       </div>
 
-      {dimensions.length > 0 && (
-        <div className="story-dimensions">
-          {dimensions.map((dimension) => (
-            <div key={dimension.axis}>
-              <p className="story-kicker">{copy.dimension} {dimension.axis}</p>
-              <h3>{dimension.label}</h3>
-              <div className="story-dimension-ends">
-                <span>{dimension.negativeLabel}</span>
-                <span>{dimension.positiveLabel}</span>
-              </div>
-              <p>{dimension.explanation}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="story-tendency-list">
-        {profiles.map((profile, index) => {
-          const editorial = tendencyNarrative.get(profile.tendencyId)
-          return (
-            <section key={profile.tendencyId}>
-              <div className="story-tendency-title">
-                <span style={{ background: TENDENCY_COLORS[index % TENDENCY_COLORS.length] }}>
-                  {String.fromCharCode(65 + index)}
-                </span>
-                <div>
-                  <h3>{editorial?.title || `${copy.tendency} ${String.fromCharCode(65 + index)}`}</h3>
-                  <p>{copy.approximateShare(percent(profile.membershipShare, language))}</p>
-                </div>
-              </div>
-              {editorial?.description && <p className="story-tendency-description">{editorial.description}</p>}
-              <strong>{copy.tendencyPriorities}</strong>
-              <ul>
-                {(profile.priorities || []).map((priority) => (
-                  <li key={priority.statementId}>{priority.text}</li>
-                ))}
-              </ul>
-            </section>
-          )
-        })}
-      </div>
-
-      {landscape.tendencies?.overlapSummary && (
-        <p className="story-opinion-overlap">
-          <strong>{landscape.tendencies.overlapSummary.participantsWithMultipleTendencies}</strong>
-          {' '}
-          {copy.multiTendency}
-        </p>
-      )}
     </div>
   )
 }
@@ -508,6 +499,150 @@ function NarrativeEvidence({ item, statements, copy, language, showBar = true })
       )}
     </>
   )
+}
+
+function commonGroundItemText(item) {
+  if (typeof item === 'string') return item
+  return item?.text || ''
+}
+
+function CommonGroundItems({ title, items, className = '' }) {
+  const visibleItems = (items || []).filter((item) => commonGroundItemText(item))
+  if (visibleItems.length === 0) return null
+  return (
+    <section className={`story-proposal-list ${className}`.trim()}>
+      <h3>{title}</h3>
+      <ul>
+        {visibleItems.map((item, index) => (
+          <li key={item?.id || `${title}-${index}`}>{commonGroundItemText(item)}</li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function CommonGroundProposal({ proposal, meta, copy, language }) {
+  if (!proposal?.groupStatement) return null
+  const endorsed = proposal.status === 'endorsed' && Boolean(proposal.endorsement)
+  const validation = endorsed ? proposal.endorsement : (proposal.votes || {})
+  const agree = Number(validation.agree) || 0
+  const disagree = Number(validation.disagree) || 0
+  const total = Number(validation.respondentCount ?? validation.total) || agree + disagree
+  const rosterSize = Number(validation.rosterSize) || Number(meta.participantCount) || 0
+  const agreementRate = total > 0 ? agree / total : 0
+  const participationRate = rosterSize > 0 ? Math.min(total / rosterSize, 1) : 0
+  const agreementText = total > 0
+    ? copy.proposalAgreement({ agree, total, rate: percent(agreementRate, language) })
+    : ''
+  const participationText = rosterSize > 0
+    ? copy.proposalParticipation({ total, rosterSize })
+    : ''
+  const concerns = (proposal.endorsement?.remainingConcerns || [])
+    .map((item) => item?.reason?.trim())
+    .filter(Boolean)
+  const hasTradeoffs = (proposal.tradeoffs || []).some((item) => commonGroundItemText(item))
+
+  return (
+    <StorySection
+      kicker={endorsed ? copy.proposalVerifiedKicker : copy.proposalDraftKicker}
+      title={copy.proposalSectionTitle}
+      className={`story-proposal-section ${endorsed ? 'is-endorsed' : 'is-draft'}`}
+    >
+      <div className="story-proposal-body">
+        {total > 0 ? (
+          <div className="story-proposal-metrics">
+            <div className="story-proposal-metric">
+              <div className="story-proposal-metric-head">
+                <span>{copy.proposalAgreementMetric}</span>
+                <strong>{percent(agreementRate, language)}</strong>
+              </div>
+              <div
+                className="story-proposal-bar is-agreement"
+                role="img"
+                aria-label={agreementText}
+              >
+                <span style={{ width: `${agreementRate * 100}%` }} />
+              </div>
+              <small>{agreementText}</small>
+            </div>
+            {rosterSize > 0 && (
+              <div className="story-proposal-metric">
+                <div className="story-proposal-metric-head">
+                  <span>{copy.proposalParticipationMetric}</span>
+                  <strong>{percent(participationRate, language)}</strong>
+                </div>
+                <div
+                  className="story-proposal-bar is-participation"
+                  role="img"
+                  aria-label={participationText}
+                >
+                  <span style={{ width: `${participationRate * 100}%` }} />
+                </div>
+                <small>{participationText}</small>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="story-proposal-unvalidated">{copy.proposalUnvalidated}</p>
+        )}
+        <blockquote>{proposal.groupStatement}</blockquote>
+        <div className="story-proposal-package">
+          <CommonGroundItems
+            title={copy.proposalRecommendations}
+            items={proposal.recommendations}
+          />
+          <CommonGroundItems
+            title={copy.proposalConditions}
+            items={proposal.essentialConditions}
+          />
+          <CommonGroundItems
+            title={copy.proposalUnresolved}
+            items={proposal.unresolvedQuestions}
+          />
+        </div>
+        {hasTradeoffs && (
+          <details className="story-proposal-tradeoffs">
+            <summary>{copy.proposalTradeoffs}</summary>
+            <CommonGroundItems
+              title={copy.proposalTradeoffs}
+              items={proposal.tradeoffs}
+            />
+          </details>
+        )}
+        {concerns.length > 0 && (
+          <aside className="story-proposal-concerns">
+            <h3>{copy.proposalRemainingConcerns}</h3>
+            <ul>
+              {concerns.map((reason, index) => (
+                <li key={`${reason}-${index}`}>{reason}</li>
+              ))}
+            </ul>
+          </aside>
+        )}
+      </div>
+    </StorySection>
+  )
+}
+
+function ReportStats({ meta, copy }) {
+  return (
+    <dl className="story-stats">
+      <div><dt>{meta.voterCount || 0}</dt><dd>{copy.voters}</dd></div>
+      <div><dt>{meta.statementCount || 0}</dt><dd>{copy.statements}</dd></div>
+      <div><dt>{meta.responseCount || 0}</dt><dd>{copy.responses}</dd></div>
+    </dl>
+  )
+}
+
+function dataSufficiency(report, meta, coverageSummary, resultCount) {
+  if (report.evidence?.dataSufficiency) {
+    return report.evidence.dataSufficiency
+  }
+  const reasons = []
+  if ((meta.voterCount || 0) < 15) reasons.push('few-voters')
+  if ((meta.statementCount || resultCount || 0) < 5) reasons.push('few-statements')
+  if ((coverageSummary.averageRate || 0) < 0.5) reasons.push('low-response-coverage')
+  return { status: reasons.length > 0 ? 'limited' : 'sufficient', reasons }
 }
 
 function StorySection({ kicker, title, lead, children, className = '' }) {
@@ -554,6 +689,7 @@ export default function FinalReportPage({ report, preview = false }) {
     oppose: results.reduce((total, result) => total + (result.oppose || 0), 0),
     responses: results.reduce((total, result) => total + (result.responded || 0), 0),
   }
+  const sufficiency = dataSufficiency(report, meta, coverageSummary, results.length)
   const openQuestions = (report.story?.openQuestionStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
@@ -621,15 +757,43 @@ export default function FinalReportPage({ report, preview = false }) {
       {report.status === 'stale' && <p className="story-stale">{copy.stale}</p>}
 
       <section className="story-opening">
-        <p className="story-kicker">{copy.finalReport} · {copy.version} {report.version}</p>
         <h1>{narrative?.headline || copy.openingTitle}</h1>
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
-        <dl className="story-stats">
-          <div><dt>{meta.voterCount || 0}</dt><dd>{copy.voters}</dd></div>
-          <div><dt>{meta.statementCount || 0}</dt><dd>{copy.statements}</dd></div>
-          <div><dt>{meta.responseCount || 0}</dt><dd>{copy.responses}</dd></div>
-        </dl>
+        <ReportStats meta={meta} copy={copy} />
+        {sufficiency.status === 'limited' && (
+          <aside className="story-data-warning" role="note">
+            <strong>{copy.limitedDataTitle}</strong>
+            <p>{copy.limitedDataNotice({
+              voterCount: meta.voterCount || 0,
+              statementCount: meta.statementCount || results.length,
+            })}</p>
+          </aside>
+        )}
       </section>
+
+      <CommonGroundProposal
+        proposal={proposal}
+        meta={meta}
+        copy={copy}
+        language={language}
+      />
+
+      {report.opinionLandscape && (
+        <StorySection
+          kicker={copy.opinionKicker}
+          title={copy.opinionTitle}
+          lead={report.opinionLandscape.available
+            ? copy.opinionLead
+            : copy.opinionUnavailableLead}
+          className="story-opinion-section"
+        >
+          <OpinionLandscape
+            landscape={report.opinionLandscape}
+            narrative={narrative}
+            copy={copy}
+          />
+        </StorySection>
+      )}
 
       {takeaways.length > 0 && (
         <StorySection
@@ -663,7 +827,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {keyStatements.length > 0 && (
+      {!proposal?.groupStatement && keyStatements.length > 0 && (
         <StorySection
           kicker={copy.commonKicker}
           title={copy.commonTitle}
@@ -680,7 +844,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {principles.length > 0 && (
+      {!proposal?.groupStatement && principles.length > 0 && (
         <StorySection
           kicker={copy.principlesKicker}
           title={copy.principlesTitle}
@@ -706,7 +870,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {actionAreas.length > 0 && (
+      {!proposal?.groupStatement && actionAreas.length > 0 && (
         <StorySection
           kicker={copy.actionKicker}
           title={copy.actionTitle}
@@ -778,27 +942,6 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {report.opinionLandscape && (
-        <StorySection
-          kicker={copy.opinionKicker}
-          title={copy.opinionTitle}
-          lead={copy.opinionLead}
-          className="story-opinion-section"
-        >
-          <OpinionLandscape
-            landscape={report.opinionLandscape}
-            narrative={narrative}
-            copy={copy}
-            language={language}
-          />
-          <ReliabilityPanel
-            landscape={report.opinionLandscape}
-            copy={copy}
-            language={language}
-          />
-        </StorySection>
-      )}
-
       {(narrativeQuestions.length > 0 || openQuestions.length > 0) && (
         <StorySection
           kicker={copy.questionsKicker}
@@ -836,53 +979,35 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {proposal?.groupStatement && (
+      {!proposal?.groupStatement && (
         <StorySection
-          kicker={copy.proposalKicker}
-          title={copy.proposalTitle}
-          className="story-proposal-section"
+          kicker={implications.length > 0 ? copy.implicationsKicker : copy.nextKicker}
+          title={implications.length > 0 ? copy.implicationsTitle : copy.nextTitle}
         >
-          <blockquote>{proposal.groupStatement}</blockquote>
-          <div className="story-proposal-validation">
-            <strong>{copy.participantValidation}</strong>
-            {proposal.votes?.total > 0 ? (
-              <span>
-                {proposal.votes.agree} {copy.agreed}
-                {' · '}
-                {proposal.votes.disagree} {copy.disagreed}
-              </span>
-            ) : <span>{copy.proposalUnvalidated}</span>}
-          </div>
+          {implications.length > 0 ? (
+            <ol className="story-next-list story-implications-list">
+              {implications.map((item, index) => (
+                <li key={`${item.title}-${index}`}>
+                  <h3>{item.title}</h3>
+                  <NarrativeEvidence
+                    item={item}
+                    statements={statements}
+                    copy={copy}
+                    language={language}
+                    showBar={false}
+                  />
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <ol className="story-next-list">
+              <li>{copy.nextCommon}</li>
+              <li>{copy.nextOpen}</li>
+              <li>{copy.nextCoverage}</li>
+            </ol>
+          )}
         </StorySection>
       )}
-
-      <StorySection
-        kicker={implications.length > 0 ? copy.implicationsKicker : copy.nextKicker}
-        title={implications.length > 0 ? copy.implicationsTitle : copy.nextTitle}
-      >
-        {implications.length > 0 ? (
-          <ol className="story-next-list story-implications-list">
-            {implications.map((item, index) => (
-              <li key={`${item.title}-${index}`}>
-                <h3>{item.title}</h3>
-                <NarrativeEvidence
-                  item={item}
-                  statements={statements}
-                  copy={copy}
-                  language={language}
-                  showBar={false}
-                />
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <ol className="story-next-list">
-            <li>{copy.nextCommon}</li>
-            <li>{copy.nextOpen}</li>
-            <li>{copy.nextCoverage}</li>
-          </ol>
-        )}
-      </StorySection>
 
       <AllStatementsTable
         results={results}

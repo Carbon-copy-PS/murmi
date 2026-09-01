@@ -24,6 +24,7 @@ import {
 import { createRoomSocket } from '../utils/room-socket'
 import CommonGroundPopup from './common-ground-popup'
 import { DEFAULT_CG_MODE } from '../constants/common-ground-mode'
+import { getReportCopy } from './final-report/report-copy'
 
 const noop = () => {}
 
@@ -158,6 +159,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const participantIdRef = useRef(null)
   const isHostRef = useRef(false)
   const isRecorderRef = useRef(false)
+  const publicIdRef = useRef(null)
+  const reportStatusRef = useRef('none')
 
   const unvotedCount = statements.filter((s) => s.approved && !s.hasVoted).length
   const pendingCount = statements.filter((s) => !s.approved).length
@@ -289,8 +292,13 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           setTranscript(msg.transcript || [])
           setStatements(msg.statements || [])
           setTopic(msg.topic || null)
-          if (msg.publicId) setPublicId(msg.publicId)
-          setReportStatus(msg.reportStatus || 'none')
+          if (msg.publicId) {
+            setPublicId(msg.publicId)
+            publicIdRef.current = msg.publicId
+          }
+          const joinedReportStatus = msg.reportStatus || 'none'
+          setReportStatus(joinedReportStatus)
+          reportStatusRef.current = joinedReportStatus
           setReportVersion(msg.reportVersion || 0)
           setReportSnapshot(msg.report || null)
           setRoomLanguage(msg.recorderLanguage || 'en')
@@ -369,7 +377,30 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           setRoomLanguage(msg.language || 'en')
           break
         case 'report_status_updated':
-          setReportStatus(msg.reportStatus || 'none')
+          {
+            const nextReportStatus = msg.reportStatus || 'none'
+            const reportWasPublished = reportStatusRef.current === 'published'
+            setReportStatus(nextReportStatus)
+            reportStatusRef.current = nextReportStatus
+            if (
+              !isHostRef.current
+              && nextReportStatus === 'published'
+              && !reportWasPublished
+              && publicIdRef.current
+            ) {
+              const reportUrl = `/r/${encodeURIComponent(publicIdRef.current)}`
+              const copy = getReportCopy(resolveUiLanguage(roomLanguage))
+              const notification = notify(APP_NAME, copy.participantReady, {
+                tag: `report-published-${msg.reportVersion || 0}`,
+              })
+              if (notification) {
+                notification.onclick = () => {
+                  notification.close()
+                  window.location.assign(reportUrl)
+                }
+              }
+            }
+          }
           setReportVersion(msg.reportVersion || 0)
           if (msg.report) setReportSnapshot(msg.report)
           break
@@ -923,6 +954,13 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
 
   const activeLanguage = getLanguage(roomLanguage) || getLanguage('en')
   const cgPopupItem = cgPopup ? commonGroundHistory.find((item) => item.id === cgPopup) : null
+  const reportCopy = getReportCopy(resolveUiLanguage(roomLanguage))
+  const publicReportUrl = publicId ? `/r/${encodeURIComponent(publicId)}` : null
+  const participantCanOpenReport = (
+    !isHost
+    && publicReportUrl
+    && ['published', 'stale'].includes(reportStatus)
+  )
 
   function openCommonGroundResults() {
     setView('results')
@@ -1083,6 +1121,30 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           onClose={() => setCgPopup(null)}
           onVote={voteCommonGround}
         />
+      )}
+
+      {participantCanOpenReport && (
+        <section
+          className="participant-report-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="participant-report-banner"
+        >
+          <span className="participant-report-icon" aria-hidden="true">✓</span>
+          <div className="participant-report-copy">
+            <strong>{reportCopy.published}</strong>
+            <span>{reportCopy.participantReady}</span>
+          </div>
+          <a
+            className="participant-report-link"
+            href={publicReportUrl}
+            target="_blank"
+            rel="noreferrer"
+            data-testid="participant-report-link"
+          >
+            {reportCopy.openReport}
+          </a>
+        </section>
       )}
 
       <div className="tabs-wrap" ref={tabsWrapRef} data-testid="tabs-wrap">

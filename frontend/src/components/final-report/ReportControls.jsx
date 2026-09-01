@@ -40,7 +40,7 @@ export default function ReportControls({
           </button>
         )}
         {status === 'draft_ready' && (
-          <button onClick={onPublish}>{copy.publish}</button>
+          <button onClick={onPublish}>{copy.publishAndShare || copy.publish}</button>
         )}
         {status === 'stale' && (
           <button onClick={onGenerate}>{copy.regenerate}</button>
