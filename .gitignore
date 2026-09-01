@@ -2,17 +2,25 @@ node_modules/
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
 dist/
 .venv/
 venv/
 *.egg-info/
+.DS_Store
+.idea/
+.vscode/
+*.pem
+*.key
+credentials.json
+murmi-page-source
 
 # Local analysis data contains participant identifiers and individual vote
-# patterns. Keep the reproducible tooling tracked, but never commit session data.
+# patterns. Keep the reproducible tooling tracked, but never commit session data
+# or generated reports.
 data-analysis/sessions/
 data-analysis/reports/*
-!data-analysis/reports/479D4D/
-!data-analysis/reports/479D4D/**
 
 # Local review output and source exports are not publication artifacts.
 artifacts/

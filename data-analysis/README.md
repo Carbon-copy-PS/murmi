@@ -1,6 +1,6 @@
-# HearTheRoom data analysis
+# Murmi data analysis
 
-This folder contains reproducible conversion tooling for turning a HearTheRoom
+This folder contains reproducible conversion tooling for turning a Murmi
 raw session export into CSV files shaped like Pol.is report exports.
 
 Session data is written under data-analysis/sessions/<session-id> and is ignored
@@ -12,7 +12,7 @@ matrix still exposes each pseudonymous participant's voting pattern.
 
 From the repository root:
 
-    node data-analysis/convert-heartheroom-to-polis.mjs /path/to/HearTheRoom_raw_votes.json
+    node data-analysis/convert-heartheroom-to-polis.mjs /path/to/session_raw_votes.json
 
 For each session the converter creates:
 
@@ -75,13 +75,12 @@ not leak into the generated CSV text.
 
 ## Generate the bilingual visual report
 
-The report generator reads the protected raw snapshot and writes aggregate-only
-presentation assets to data-analysis/reports/<session-id>. New report outputs
-are ignored by default so they can be reviewed before anything is shared; the
-reviewed 479D4D example is explicitly allowlisted in .gitignore.
+The report generator reads a local raw snapshot and writes aggregate-only
+presentation assets to data-analysis/reports/<session-id>. Report outputs are
+gitignored so they can be reviewed locally and are never committed.
 
     node data-analysis/generate-deliberation-report.mjs \
-      data-analysis/sessions/479D4D/raw/HearTheRoom_479D4D_raw_votes_2026-07-17.json
+      /path/to/session_raw_votes.json
 
 The output includes parallel Taiwan Traditional Chinese and English reports:
 

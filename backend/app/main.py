@@ -149,12 +149,6 @@ app.add_middleware(
 )
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-EXAMPLE_REPORT_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data-analysis"
-    / "reports"
-    / "479D4D"
-)
 realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
 realtime_unavailable: set[tuple[str, str]] = set()
 realtime_errors_seen: set[tuple[str, str]] = set()
@@ -1469,14 +1463,6 @@ def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
         f'    <meta property="og:url" content="{url}" />\n  </head>',
     )
     return html
-
-
-if EXAMPLE_REPORT_DIR.is_dir():
-    app.mount(
-        "/reports/ai-safety-governance-2026",
-        StaticFiles(directory=EXAMPLE_REPORT_DIR, html=True),
-        name="example-report",
-    )
 
 
 if FRONTEND_DIST.is_dir():

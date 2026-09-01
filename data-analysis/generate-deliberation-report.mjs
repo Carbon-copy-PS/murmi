@@ -9,13 +9,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { analyzePolisInspiredSession } from "./polis-inspired-analysis.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_INPUT = path.join(
-  SCRIPT_DIR,
-  "sessions",
-  "479D4D",
-  "raw",
-  "HearTheRoom_479D4D_raw_votes_2026-07-17.json",
-);
 const DEFAULT_REPORTS_DIR = path.join(SCRIPT_DIR, "reports");
 const VERSION = "1.14.0";
 
@@ -2487,7 +2480,11 @@ async function writeAggregateFile(filePath, content) {
 }
 
 async function main() {
-  const inputPath = path.resolve(process.argv[2] || DEFAULT_INPUT);
+  if (!process.argv[2]) {
+    console.error("Usage: node data-analysis/generate-deliberation-report.mjs <raw-export.json> [reports-dir]");
+    process.exit(1);
+  }
+  const inputPath = path.resolve(process.argv[2]);
   const reportsDirectory = path.resolve(process.argv[3] || DEFAULT_REPORTS_DIR);
   const rawBuffer = await fs.readFile(inputPath);
   const raw = JSON.parse(rawBuffer.toString("utf8"));
@@ -2496,19 +2493,9 @@ async function main() {
   const groupAnalysis = buildReportSafeGroupAnalysis(polisAnalysis);
   assert(/^[A-Za-z0-9_-]+$/.test(analysis.sessionId), "Unsafe session id for output path.");
   assert(polisAnalysis.sessionId === analysis.sessionId, "Aggregate and opinion-group session IDs differ.");
-  assert(JSON.stringify(analysis.tensionOverlaps.map((overlap) => [overlap.jointN, overlap.counts.both, overlap.counts.leftOnly, overlap.counts.rightOnly, overlap.counts.neither])) === JSON.stringify([
-    [60, 27, 17, 16, 0],
-    [36, 24, 9, 3, 0],
-    [26, 15, 2, 4, 5],
-  ]), "Current-session tension overlap validation failed.");
-  assert(highestNeutralMetrics(analysis.metrics, 3).map((metric) => metric.index).join(",") === "23,12,20", "Current-session pause ranking validation failed.");
-  assert(JSON.stringify(groupAnalysis.bootstrapSelectedKFrequency) === JSON.stringify({ "2": 32, "3": 35, "4": 12, "5": 21 }), "Current-session bootstrap K frequencies changed unexpectedly.");
-  assert(groupAnalysis.bootstrapReplicates === 100 && groupAnalysis.bootstrapPassCount === 0, "Current-session bootstrap validation failed.");
-  assert(groupAnalysis.pcaDensity.participantCount === 54 && groupAnalysis.pcaDensity.shownParticipants === 44 && groupAnalysis.pcaDensity.suppressedParticipants === 10, "Current-session PCA density validation failed.");
-  assert(groupAnalysis.pcaDensity.cells.every((cell) => cell.count >= 5), "PCA density includes a cell below the privacy threshold.");
-  assert(groupAnalysis.opinionTendencies.available && groupAnalysis.opinionTendencies.tendencyCount === 3, "Current-session soft opinion tendencies are unavailable.");
-  assert(groupAnalysis.opinionTendencies.profiles.map((profile) => profile.key).join(",") === "care,prevention,adaptive", "Current-session opinion tendency roles changed unexpectedly.");
-  assert(groupAnalysis.opinionTendencies.overlapSummary.participantsWithMultipleTendencies === 15, "Current-session soft-tendency overlap changed unexpectedly.");
+  if (groupAnalysis.pcaDensity && Array.isArray(groupAnalysis.pcaDensity.cells)) {
+    assert(groupAnalysis.pcaDensity.cells.every((cell) => cell.count >= 5), "PCA density includes a cell below the privacy threshold.");
+  }
   assert(!/(participantIndex|coordinates|groupId|groupLabel)/.test(JSON.stringify(groupAnalysis)), "Participant-level PCA data crossed the report privacy boundary.");
 
   const reportDirectory = path.join(reportsDirectory, analysis.sessionId);
