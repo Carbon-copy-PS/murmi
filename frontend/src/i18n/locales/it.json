@@ -122,7 +122,8 @@
     "searchPlaceholder": "Cerca testo, autore, tag, voti…",
     "searchAria": "Cerca enunciati",
     "clearSearch": "Cancella ricerca",
-    "noSearchResults": "Nessun enunciato corrisponde"
+    "noSearchResults": "Nessun enunciato corrisponde",
+    "originalContribution": "Contributo originale"
   },
   "swipe": {
     "of": "di {{total}}",
@@ -138,7 +139,12 @@
     "stampNeutral": "NEUTRO",
     "stampStronglyAgree": "DEL TUTTO D'ACCORDO",
     "stampStronglyDisagree": "PER NIENTE D'ACCORDO",
-    "strongly": "Del tutto"
+    "strongly": "Del tutto",
+    "commentOptional": "Commento (facoltativo)",
+    "commentPlaceholder": "Aggiungi una breve nota su questo enunciato…",
+    "editComment": "Modifica commento",
+    "deleteComment": "Elimina commento",
+    "addComment": "Aggiungi un commento"
   },
   "revote": {
     "you": "Tu:",
@@ -256,6 +262,7 @@
     "groupPerspectives": "Prospettive dei gruppi",
     "groupNote": "Gruppo {{group}}:",
     "latest": "Più recente",
+    "latestShort": "Recente",
     "yourReaction": "La tua reazione",
     "youAgree": "Abbastanza buono",
     "youDisagree": "Non abbastanza buono",
@@ -264,6 +271,10 @@
     "why": "Perché?",
     "optional": "(facoltativo)",
     "reasonPlaceholder": "Condividi cosa ti convince o cosa manca…",
+    "submitFeedback": "Invia feedback",
+    "feedbackSaved": "Salvato",
+    "unsaved": "Non salvato",
+    "unsavedFeedback": "Hai un feedback non salvato. Uscire comunque?",
     "removeVersion": "Rimuovi versione",
     "removeVersionAria": "Rimuovi questa versione del terreno comune",
     "voters": "{{count}} votanti",
@@ -276,6 +287,7 @@
     "changeSummary": "Cosa è cambiato",
     "statusDraft": "Bozza di lavoro",
     "statusEndorsed": "Finale / approvato",
+    "statusEndorsedShort": "Finale",
     "markFinal": "Segna come Finale / approvato",
     "basedOnPrevious": "Basato sulla versione precedente {{id}}",
     "remainingConcerns": "Preoccupazioni residue"
@@ -339,7 +351,12 @@
       "lifetime": "Durata impostata su {{duration}}"
     },
     "cgMode": "Modalità del terreno comune IA",
-    "cgModeHint": "Modalità usata per generare il terreno comune dai voti."
+    "cgModeHint": "Modalità usata per generare il terreno comune dai voti.",
+    "cgInstructions": "Istruzioni per il terreno comune IA",
+    "cgInstructionsHint": "Indicazioni facoltative su come scrivere il terreno comune. Sicurezza e formato JSON restano fissi.",
+    "resetDefault": "Ripristina predefinito",
+    "showVoteComments": "Mostra i commenti a tutti",
+    "showVoteCommentsHint": "Se disattivo, solo gli host vedono i commenti altrui. Ognuno può modificare o eliminare il proprio."
   },
   "voting": {
     "closedTitle": "La votazione è chiusa",

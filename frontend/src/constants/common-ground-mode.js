@@ -45,3 +45,6 @@ export function isPolicyCommonGround(item) {
 }
 
 export const CG_VOTE_REASON_MAX = 280
+
+export const DEFAULT_CG_INSTRUCTIONS =
+  'Emphasize what the group already shares, then name remaining concerns in plain language. Keep recommendations concrete and grounded in the votes. Do not flatten minority concerns. Prefer participant wording over abstract jargon when both are available.'

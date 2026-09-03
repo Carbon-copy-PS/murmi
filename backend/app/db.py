@@ -57,6 +57,8 @@ class SessionRow(Base):
     )
     common_ground_history: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     common_ground_mode: Mapped[str] = mapped_column(String(16), default="policy", server_default="policy")
+    common_ground_instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    vote_comments_public: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
     transcript = relationship(
         "TranscriptRow", cascade="all, delete-orphan", passive_deletes=True
@@ -94,6 +96,8 @@ class StatementRow(Base):
     tension: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     edited: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[float] = mapped_column(Float, default=0.0)
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_speaker: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
 
 class VoteRow(Base):
@@ -112,6 +116,7 @@ class VoteRow(Base):
     participant_id: Mapped[str] = mapped_column(String(64))
     vote: Mapped[str] = mapped_column(String(16))
     voted_at: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ParticipantRow(Base):
@@ -279,6 +284,26 @@ class Database:
                 "ADD COLUMN IF NOT EXISTS common_ground_mode varchar(16) NOT NULL DEFAULT 'policy'"
             ))
             await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS common_ground_instructions text"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE sessions "
+                "ADD COLUMN IF NOT EXISTS vote_comments_public boolean NOT NULL DEFAULT true"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE statements "
+                "ADD COLUMN IF NOT EXISTS source_text text"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE statements "
+                "ADD COLUMN IF NOT EXISTS source_speaker varchar(120)"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE votes "
+                "ADD COLUMN IF NOT EXISTS comment text"
+            ))
+            await conn.execute(text(
                 """
                 UPDATE sessions
                 SET common_ground_mode = 'policy'
@@ -323,6 +348,8 @@ class Database:
             ),
             "common_ground_history": getattr(session, "common_ground_history", []) or [],
             "common_ground_mode": getattr(session, "common_ground_mode", "policy") or "policy",
+            "common_ground_instructions": getattr(session, "common_ground_instructions", None),
+            "vote_comments_public": bool(getattr(session, "vote_comments_public", True)),
         }
 
     async def _ensure_session(self, db, session):
@@ -345,10 +372,18 @@ class Database:
                 tension=getattr(s, "tension", False),
                 edited=getattr(s, "edited", False),
                 created_at=float(s.created_at),
+                source_text=getattr(s, "source_text", None),
+                source_speaker=getattr(s, "source_speaker", None),
             )
             .on_conflict_do_update(
                 index_elements=["id"],
-                set_={"approved": s.approved, "text": s.text, "edited": getattr(s, "edited", False)},
+                set_={
+                    "approved": s.approved,
+                    "text": s.text,
+                    "edited": getattr(s, "edited", False),
+                    "source_text": getattr(s, "source_text", None),
+                    "source_speaker": getattr(s, "source_speaker", None),
+                },
             )
         )
 
@@ -487,6 +522,30 @@ class Database:
                 return None
             return await self._build_session_dict(db, row)
 
+    async def update_common_ground_instructions(self, session):
+        if not self.enabled or session is None:
+            return
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(common_ground_instructions=getattr(session, "common_ground_instructions", None))
+            )
+            await db.commit()
+
+    async def update_vote_comments_public(self, session):
+        if not self.enabled or session is None:
+            return
+        async with self._sessionmaker() as db:
+            await self._ensure_session(db, session)
+            await db.execute(
+                update(SessionRow)
+                .where(SessionRow.id == session.id)
+                .values(vote_comments_public=bool(getattr(session, "vote_comments_public", True)))
+            )
+            await db.commit()
+
     async def update_topic(self, session_id: str, topic: str | None):
         if not self.enabled:
             return
@@ -548,10 +607,14 @@ class Database:
             )
             await db.commit()
 
-    async def save_vote(self, session, statement, participant_id: str, vote: str):
+    async def save_vote(self, session, statement, participant_id: str, vote: str, comment: str | None = None):
         if not self.enabled or statement is None:
             return
         now = time.time()
+        comment_value = comment
+        if comment_value is None:
+            comments = getattr(statement, "vote_comments", None) or {}
+            comment_value = comments.get(participant_id)
         async with self._sessionmaker() as db:
             await self._ensure_session(db, session)
             await self._ensure_statement(db, session.id, statement)
@@ -564,10 +627,11 @@ class Database:
                     participant_id=participant_id,
                     vote=vote,
                     voted_at=now,
+                    comment=comment_value or None,
                 )
                 .on_conflict_do_update(
                     index_elements=["statement_id", "participant_id"],
-                    set_={"vote": vote, "voted_at": now},
+                    set_={"vote": vote, "voted_at": now, "comment": comment_value or None},
                 )
             )
             await db.commit()
@@ -755,11 +819,15 @@ class Database:
 
         votes_by_statement: dict[str, dict[str, str]] = {}
         vote_times_by_statement: dict[str, dict[str, float]] = {}
+        comments_by_statement: dict[str, dict[str, str]] = {}
         for v in votes:
             votes_by_statement.setdefault(v.statement_id, {})[v.participant_id] = v.vote
             voted_at = float(getattr(v, "voted_at", 0) or 0)
             if voted_at > 0:
                 vote_times_by_statement.setdefault(v.statement_id, {})[v.participant_id] = voted_at
+            comment = getattr(v, "comment", None)
+            if comment:
+                comments_by_statement.setdefault(v.statement_id, {})[v.participant_id] = comment
 
         statement_payloads = []
         for s in statements:
@@ -777,8 +845,11 @@ class Database:
                 "tension": getattr(s, "tension", False),
                 "edited": getattr(s, "edited", False),
                 "created_at": s.created_at,
+                "source_text": getattr(s, "source_text", None),
+                "source_speaker": getattr(s, "source_speaker", None),
                 "votes": stmt_votes,
                 "vote_times": vote_times,
+                "vote_comments": comments_by_statement.get(s.id, {}),
                 "last_vote_at": last_vote_at,
             })
 
@@ -812,6 +883,8 @@ class Database:
             "common_ground_mode": getattr(row, "common_ground_mode", None)
                 or getattr(row, "common_ground_depth", None)
                 or "policy",
+            "common_ground_instructions": getattr(row, "common_ground_instructions", None),
+            "vote_comments_public": bool(getattr(row, "vote_comments_public", True)),
             "transcript": [t.payload for t in transcript],
             "statements": statement_payloads,
             "members": {

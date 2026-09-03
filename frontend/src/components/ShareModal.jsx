@@ -91,7 +91,7 @@ export default function ShareModal({ sessionId, topic, publicId, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose} data-testid="share-backdrop">
       <div
-        className="modal"
+        className="modal share-modal"
         role="dialog"
         aria-modal="true"
         aria-label={t('room.shareSession')}

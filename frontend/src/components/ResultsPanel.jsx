@@ -598,27 +598,30 @@ function CgVersionPicker({ sorted, selectedId, onSelect }) {
           const isLatest = index === 0
           const versionNum = sorted.length - index
           const isSelected = item.id === selectedId
+          const chipLabel = [
+            `v${versionNum}`,
+            formatCgTimestamp(item.generatedAt, t),
+            modeLabelFor(item, t),
+            isLatest ? t('cg.latest') : '',
+            item.status === 'endorsed' ? t('cg.statusEndorsed') : '',
+          ].filter(Boolean).join(' · ')
           return (
             <button
               key={item.id}
               type="button"
               role="tab"
               aria-selected={isSelected}
+              aria-label={chipLabel}
               className={`cg-version-chip ${isSelected ? 'on' : ''}`}
               data-testid={`cg-tab-${item.id}`}
-              title={formatCgTimestamp(item.generatedAt, t)}
+              title={chipLabel}
               onClick={() => onSelect(item.id)}
             >
               <span className="cg-version-chip-top">
                 <span className="cg-version-chip-ver">v{versionNum}</span>
-                {isLatest && <span className="cg-version-chip-latest">{t('cg.latest')}</span>}
-                {resolveCgMode(item) && (
-                  <span className={`cg-version-chip-mode mode-${resolveCgMode(item)}`}>
-                    {modeLabelFor(item, t)}
-                  </span>
-                )}
+                {isLatest && <span className="cg-version-chip-latest">{t('cg.latestShort')}</span>}
                 {item.status === 'endorsed' && (
-                  <span className="cg-version-chip-endorsed">{t('cg.statusEndorsed')}</span>
+                  <span className="cg-version-chip-endorsed">{t('cg.statusEndorsedShort')}</span>
                 )}
               </span>
               <span className="cg-version-chip-time">{formatCgRelative(item.generatedAt, t)}</span>
@@ -635,6 +638,10 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   const { t } = useTranslation()
   const [reason, setReason] = useState(myReason || '')
   const [pendingVote, setPendingVote] = useState(null)
+  const [dirty, setDirty] = useState(false)
+  const [savedFlash, setSavedFlash] = useState(false)
+  const savedTimer = useRef(null)
+  const pendingSave = useRef(null)
   const activeVote = myVote || pendingVote
   const agree = votes?.agree || 0
   const disagree = votes?.disagree || 0
@@ -642,12 +649,54 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
   const reasonInvalid = reasonLen > CG_VOTE_REASON_MAX
 
   useEffect(() => {
+    if (dirty) return
     setReason(myReason || '')
-  }, [myReason, myVote, cgId])
+  }, [myReason, myVote, cgId, dirty])
 
   useEffect(() => {
     if (myVote) setPendingVote(null)
   }, [myVote])
+
+  useEffect(() => {
+    if (pendingSave.current === null) return
+    if ((myReason || '') === pendingSave.current) {
+      pendingSave.current = null
+      markSaved()
+    }
+  }, [myReason])
+
+  useEffect(() => {
+    if (!dirty) return undefined
+    function onBeforeUnload(e) {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    function onClick(e) {
+      const tab = e.target.closest?.('.tab')
+      if (!tab) return
+      if (!window.confirm(t('cg.unsavedFeedback'))) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    document.addEventListener('click', onClick, true)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      document.removeEventListener('click', onClick, true)
+    }
+  }, [dirty, t])
+
+  useEffect(() => () => {
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+  }, [])
+
+  function markSaved() {
+    setDirty(false)
+    setSavedFlash(true)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
+    savedTimer.current = setTimeout(() => setSavedFlash(false), 2200)
+  }
 
   function submitVote(vote) {
     const next = myVote === vote ? 'undo' : vote
@@ -655,11 +704,21 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
     if (next !== 'undo' && trimmed.length > CG_VOTE_REASON_MAX) return
     setPendingVote(next === 'undo' ? null : next)
     onVote(next, next === 'undo' ? '' : trimmed)
+    if (next === 'undo') {
+      setDirty(false)
+      setReason('')
+    }
   }
 
   function saveReason() {
     if (!activeVote || reasonInvalid) return
-    onVote(activeVote, reason.trim())
+    const trimmed = reason.trim()
+    pendingSave.current = trimmed
+    onVote(activeVote, trimmed)
+    if ((myReason || '') === trimmed) {
+      pendingSave.current = null
+      markSaved()
+    }
   }
 
   return (
@@ -705,14 +764,32 @@ function CommonGroundVote({ cgId, votes, myVote, myReason, onVote }) {
             maxLength={CG_VOTE_REASON_MAX}
             rows={2}
             placeholder={t('cg.reasonPlaceholder')}
-            onChange={(e) => setReason(e.target.value)}
-            onBlur={saveReason}
+            onChange={(e) => {
+              setReason(e.target.value)
+              setDirty(true)
+              setSavedFlash(false)
+            }}
           />
           <div className="cg-reason-meta">
             <span className={reasonInvalid ? 'cg-reason-error' : 'cg-reason-count'} data-testid="cg-reason-count">
               {reasonLen}/{CG_VOTE_REASON_MAX}
             </span>
+            {savedFlash && !dirty && (
+              <span className="cg-reason-saved" data-testid="cg-reason-saved">{t('cg.feedbackSaved')}</span>
+            )}
+            {dirty && (
+              <span className="cg-reason-unsaved" data-testid="cg-reason-unsaved">{t('cg.unsaved')}</span>
+            )}
           </div>
+          <button
+            type="button"
+            className="btn primary sm cg-reason-submit"
+            onClick={saveReason}
+            disabled={!activeVote || reasonInvalid}
+            data-testid="cg-reason-submit"
+          >
+            {t('cg.submitFeedback')}
+          </button>
         </div>
       )}
       <CgVoteSummary votes={votes} testId="cg-vote-summary" />
@@ -757,6 +834,11 @@ export function CommonGroundCard({
               · {data.voterCountAtGeneration != null && t('cg.voters', { count: data.voterCountAtGeneration })}
               {data.voterCountAtGeneration != null && data.statementCountAtGeneration != null && ' · '}
               {data.statementCountAtGeneration != null && t('cg.stmts', { count: data.statementCountAtGeneration })}
+            </span>
+          )}
+          {isHost && data.promptVersion && (
+            <span className="cg-meta-prompt" data-testid="cg-meta-prompt">
+              · {data.promptVersion}
             </span>
           )}
         </div>

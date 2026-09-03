@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, animate } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { StatementTags, StatementByline } from './statement-tags'
 import NeutralIcon from './neutral-icon'
+import { VOTE_COMMENT_MAX } from '../constants/limits'
 
 const SWIPE_DISTANCE = 110
 const SWIPE_VELOCITY = 500
@@ -60,6 +61,10 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
   const { t } = useTranslation()
   const isLikert = voteType === 'likert'
   const [focus, setFocus] = useState(false)
+  const [comment, setComment] = useState('')
+  const [commentFocused, setCommentFocused] = useState(false)
+  const commentRef = useRef('')
+  commentRef.current = comment
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   const rotate = useTransform(x, [-240, 0, 240], [-14, 0, 14])
@@ -122,6 +127,8 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
     flinging.current = false
     x.set(0)
     y.set(0)
+    setComment('')
+    commentRef.current = ''
   }, [top?.id, x, y])
 
   useEffect(() => {
@@ -149,7 +156,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
         type: 'spring',
         stiffness: 260,
         damping: 30,
-        onComplete: () => onVote(top.id, 'pass'),
+        onComplete: () => onVote(top.id, 'pass', commentRef.current),
       })
     } else {
       const dir = choice === 'agree' || choice === 'strongly_agree' ? 1 : -1
@@ -159,7 +166,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
         type: 'spring',
         stiffness: strong ? 300 : 260,
         damping: 30,
-        onComplete: () => onVote(top.id, choice),
+        onComplete: () => onVote(top.id, choice, commentRef.current),
       })
     }
   }
@@ -277,7 +284,7 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
             scale: isLikert ? cardStrongScale : 1,
             boxShadow: isLikert ? cardStrongShadow : undefined,
           }}
-          drag
+          drag={!commentFocused}
           dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
           dragElastic={0.65}
           onDragStart={handleDragStart}
@@ -314,6 +321,25 @@ export default function SwipeDeck({ statements, onVote, votedCount = 0, hideFocu
             <span className="swipe-hint-text">{hintText}</span>
           </span>
         </motion.div>
+      </div>
+
+      <div className="swipe-comment">
+        <label className="swipe-comment-label" htmlFor={`swipe-comment-${top.id}`}>
+          {t('swipe.commentOptional')}
+        </label>
+        <textarea
+          id={`swipe-comment-${top.id}`}
+          className="swipe-comment-input"
+          data-testid="swipe-comment"
+          value={comment}
+          maxLength={VOTE_COMMENT_MAX}
+          rows={2}
+          placeholder={t('swipe.commentPlaceholder')}
+          onChange={(e) => setComment(e.target.value)}
+          onFocus={() => setCommentFocused(true)}
+          onBlur={() => setCommentFocused(false)}
+        />
+        <div className="swipe-comment-meta">{comment.length}/{VOTE_COMMENT_MAX}</div>
       </div>
 
       <div className={`swipe-controls ${isLikert ? 'likert' : ''}`}>

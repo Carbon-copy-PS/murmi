@@ -176,6 +176,12 @@ function commonGroundBlock(commonGround) {
     remainingConcerns: (endorsement?.remainingConcerns || [])
       .map((c) => (typeof c === 'string' ? c : c?.reason || ''))
       .filter(Boolean),
+    feedbackReasons: (commonGround.feedbackReasons || [])
+      .map((c) => ({
+        vote: c?.vote || '',
+        reason: typeof c === 'string' ? c : (c?.reason || ''),
+      }))
+      .filter((c) => c.reason),
     statement: commonGround.groupStatement,
     bridgingProposal: (commonGround.bridgingProposal || '').trim(),
     bridgingAlternatives: (commonGround.bridgingAlternatives || []).filter(Boolean),
@@ -225,6 +231,9 @@ export function buildCSV(ctx) {
     if (cg.status) row('Status', cg.status)
     if (cg.endorsementSummary) row('Endorsement', cg.endorsementSummary)
     cg.remainingConcerns.forEach((t) => row('Remaining concern', t))
+    ;(cg.feedbackReasons || []).forEach((item) => {
+      row(item.vote === 'agree' ? 'Working-draft agree reason' : 'Working-draft disagree reason', item.reason)
+    })
     row('Statement', cg.statement)
     if (cg.bridgingProposal) row('Bridging proposal', cg.bridgingProposal)
     cg.bridgingAlternatives.forEach((t) => row('Alternative bridge', t))
@@ -244,6 +253,17 @@ export function buildCSV(ctx) {
       row('Votes', 'No votes yet')
     }
   })
+
+  const voteComments = (ctx.statements || [])
+    .filter((s) => s.approved && Array.isArray(s.comments) && s.comments.length)
+  if (voteComments.length) {
+    lines.push('')
+    row('Vote comments')
+    row('Statement', 'Author', 'Comment')
+    voteComments.forEach((s) => {
+      s.comments.forEach((c) => row(s.text, c.isYou ? 'You' : (c.name || ''), c.text))
+    })
+  }
 
   const groups = groupRows(cluster, voteType)
   if (groups.length) {
@@ -329,6 +349,7 @@ export function buildJSON(ctx) {
       }
       if (cg.endorsementSummary) entry.endorsement = cg.endorsementSummary
       if (cg.remainingConcerns.length) entry.remainingConcerns = cg.remainingConcerns
+      if (cg.feedbackReasons?.length) entry.feedbackReasons = cg.feedbackReasons
       if (cg.bridgingProposal) entry.bridgingProposal = cg.bridgingProposal
       if (cg.bridgingAlternatives.length) entry.bridgingAlternatives = cg.bridgingAlternatives
       if (cg.sharedGround.length) entry.sharedGround = cg.sharedGround
@@ -371,6 +392,18 @@ export function buildJSON(ctx) {
 
   const divisive = statementResults(cluster?.divisive, voteType)
   if (divisive.length) data.mostDivisive = divisive
+
+  const voteComments = (ctx.statements || [])
+    .filter((s) => s.approved && Array.isArray(s.comments) && s.comments.length)
+    .map((s) => ({
+      id: s.id,
+      text: s.text,
+      comments: s.comments.map((c) => ({
+        name: c.isYou ? 'You' : (c.name || ''),
+        text: c.text,
+      })),
+    }))
+  if (voteComments.length) data.voteComments = voteComments
 
   return JSON.stringify(data, null, 2)
 }

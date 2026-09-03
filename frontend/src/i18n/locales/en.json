@@ -122,7 +122,8 @@
     "searchPlaceholder": "Search text, author, tags, votes…",
     "searchAria": "Search statements",
     "clearSearch": "Clear search",
-    "noSearchResults": "No statements match your search"
+    "noSearchResults": "No statements match your search",
+    "originalContribution": "Original contribution"
   },
   "swipe": {
     "of": "of {{total}}",
@@ -138,7 +139,12 @@
     "stampNeutral": "NEUTRAL",
     "stampStronglyAgree": "STRONGLY AGREE",
     "stampStronglyDisagree": "STRONGLY DISAGREE",
-    "strongly": "Strongly"
+    "strongly": "Strongly",
+    "commentOptional": "Comment (optional)",
+    "commentPlaceholder": "Add a short note about this statement…",
+    "editComment": "Edit comment",
+    "deleteComment": "Delete comment",
+    "addComment": "Add a comment"
   },
   "revote": {
     "you": "You:",
@@ -259,6 +265,7 @@
     "changeSummary": "What changed",
     "statusDraft": "Working draft",
     "statusEndorsed": "Final / endorsed",
+    "statusEndorsedShort": "Final",
     "markFinal": "Mark as Final / endorsed",
     "basedOnPrevious": "Based on previous version {{id}}",
     "remainingConcerns": "Remaining concerns",
@@ -266,6 +273,7 @@
     "groupPerspectives": "Group perspectives",
     "groupNote": "Group {{group}}:",
     "latest": "Latest",
+    "latestShort": "Latest",
     "yourReaction": "Your reaction",
     "youAgree": "Good enough",
     "youDisagree": "Not good enough",
@@ -274,6 +282,10 @@
     "why": "Why?",
     "optional": "(optional)",
     "reasonPlaceholder": "Share what resonates or what’s missing…",
+    "submitFeedback": "Submit feedback",
+    "feedbackSaved": "Saved",
+    "unsaved": "Unsaved",
+    "unsavedFeedback": "You have unsaved feedback. Leave anyway?",
     "removeVersion": "Remove version",
     "removeVersionAria": "Remove this common ground version",
     "voters": "{{count}} voters",
@@ -311,6 +323,11 @@
     "spokenLanguageHint": "Language used to transcribe the session audio.",
     "cgMode": "AI common ground mode",
     "cgModeHint": "Mode used when generating common ground from votes.",
+    "cgInstructions": "AI common ground instructions",
+    "cgInstructionsHint": "Optional guidance for how the AI should write common ground. Safety rules and the required JSON format stay fixed.",
+    "resetDefault": "Reset to default",
+    "showVoteComments": "Show vote comments to everyone",
+    "showVoteCommentsHint": "When off, only hosts see other people's comments. Voters can always edit or delete their own.",
     "recommended": "Recommended",
     "letParticipantsAdd": "Let participants add arguments",
     "letParticipantsAddHint": "Default for people who join from now on. Existing participants keep their current access (manage them in Participants).",
