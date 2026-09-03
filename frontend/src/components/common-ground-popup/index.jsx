@@ -8,11 +8,6 @@ const noop = () => {}
 
 export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
   const { t } = useTranslation()
-  const [vote, setVote] = useState(item?.myVote || null)
-
-  useEffect(() => {
-    setVote(item?.myVote || null)
-  }, [item?.id, item?.myVote])
 
   useEffect(() => {
     function onKey(e) {
@@ -26,12 +21,6 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
 
   const mode = resolveCgMode(item)
   const modeLabel = t(`cgMode.${mode}.label`, { defaultValue: mode })
-
-  function react(next) {
-    const value = vote === next ? 'undo' : next
-    setVote(value === 'undo' ? null : value)
-    onVote?.(item.id, value, '')
-  }
 
   return createPortal(
     <div className="modal-backdrop cg-popup-backdrop" onClick={onClose} data-testid="cg-popup-backdrop">
@@ -72,34 +61,11 @@ export default function CommonGroundPopup({ item, onView, onClose, onVote }) {
             isHost={false}
             onDismiss={noop}
             onVote={onVote}
-            hideVote
           />
           <p className="cg-popup-note">{t('cgPopup.note')}</p>
         </div>
 
         <div className="cg-popup-actions">
-          <div className="cg-popup-vote">
-            <div className="cg-popup-react" role="group" aria-label={t('cg.yourReaction')}>
-              <button
-                type="button"
-                className={`cg-vote-btn agree ${vote === 'agree' ? 'on' : ''}`}
-                onClick={() => react('agree')}
-                aria-pressed={vote === 'agree'}
-                data-testid="cg-popup-agree"
-              >
-                {t('cg.voteAgree')}
-              </button>
-              <button
-                type="button"
-                className={`cg-vote-btn disagree ${vote === 'disagree' ? 'on' : ''}`}
-                onClick={() => react('disagree')}
-                aria-pressed={vote === 'disagree'}
-                data-testid="cg-popup-disagree"
-              >
-                {t('cg.voteDisagree')}
-              </button>
-            </div>
-          </div>
           <button
             type="button"
             className="btn primary cg-popup-view"

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: mailto:hi@carbon-copy.org
+    about: Do not file public issues for security reports. Prefer GitHub Private Vulnerability Reporting, or email hi@carbon-copy.org. See SECURITY.md.

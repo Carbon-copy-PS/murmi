@@ -55,7 +55,7 @@ open "http://localhost:5173" 2>/dev/null || true
 
 echo ""
 echo "============================================"
-echo "  HearTheRoom is running"
+echo "  Murmi is running"
 echo "============================================"
 echo "  Browser:  http://localhost:5173"
 echo "  Phone:    http://${LOCAL_IP}:5173"

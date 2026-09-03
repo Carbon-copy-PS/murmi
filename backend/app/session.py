@@ -14,6 +14,12 @@ def normalize_statement(text: str) -> str:
 
 from fastapi import WebSocket
 
+from .analysis import (
+    CG_PROMPT_VERSION,
+    DEFAULT_COMMON_GROUND_INSTRUCTIONS,
+    sanitize_host_instructions,
+)
+
 
 @dataclass
 class Participant:
@@ -41,7 +47,10 @@ class Statement:
     snapshot: Optional[dict] = None
     votes: Dict[str, str] = field(default_factory=dict)
     vote_times: Dict[str, float] = field(default_factory=dict)
+    vote_comments: Dict[str, str] = field(default_factory=dict)
     last_vote_at: float = 0.0
+    source_text: Optional[str] = None
+    source_speaker: Optional[str] = None
 
 
 def sync_statement_last_vote_at(stmt: Statement) -> float:
@@ -86,12 +95,18 @@ class Session:
     report_version: int = 0
     finalized_at: Optional[float] = None
     report_snapshot: Optional[dict] = None
+    common_ground_instructions: str = DEFAULT_COMMON_GROUND_INSTRUCTIONS
+    vote_comments_public: bool = True
 
 
 SILENCE_THRESHOLD = 0.01
 LEVEL_STALE_SECONDS = 2.0
 ANALYSIS_BATCH_SIZE = 3
 COMMON_GROUND_REASON_MAX = 280
+STATEMENT_TEXT_MAX = 600
+SOURCE_TEXT_MAX = 2000
+VOTE_COMMENT_MAX = 280
+COMMON_GROUND_INSTRUCTIONS_MAX = 1500
 
 VOTE_TYPES = ("binary", "likert")
 DEFAULT_VOTING_LIFETIME_HOURS = 24.0
@@ -144,6 +159,8 @@ class SessionManager:
             expires_at=expires_at,
             voting_lifetime_hours=DEFAULT_VOTING_LIFETIME_HOURS,
             voting_expires_at=now + DEFAULT_VOTING_LIFETIME_HOURS * 3600,
+            common_ground_instructions=DEFAULT_COMMON_GROUND_INSTRUCTIONS,
+            vote_comments_public=True,
         )
 
     def _gen_public_id(self) -> str:
@@ -211,6 +228,14 @@ class SessionManager:
         session.finalized_at = data.get("finalized_at")
         session.report_snapshot = data.get("report_snapshot")
         session.started = bool(data.get("started")) or bool(session.transcript)
+        if data.get("common_ground_instructions") is None:
+            session.common_ground_instructions = DEFAULT_COMMON_GROUND_INSTRUCTIONS
+        else:
+            session.common_ground_instructions = sanitize_host_instructions(
+                data.get("common_ground_instructions")
+            )
+        if "vote_comments_public" in data and data["vote_comments_public"] is not None:
+            session.vote_comments_public = bool(data["vote_comments_public"])
         for client_id, member in data.get("members", {}).items():
             pid = member.get("participant_id")
             if client_id and pid:
@@ -240,9 +265,16 @@ class SessionManager:
                 tension=s.get("tension", False),
                 edited=s.get("edited", False),
                 created_at=s.get("created_at", time.time()),
+                author=s.get("author"),
+                snapshot=s.get("snapshot"),
                 votes=votes,
                 vote_times=vote_times,
+                vote_comments={
+                    k: str(v) for k, v in (s.get("vote_comments") or {}).items() if v
+                },
                 last_vote_at=last_vote_at,
+                source_text=s.get("source_text") or s.get("sourceText"),
+                source_speaker=s.get("source_speaker") or s.get("sourceSpeaker"),
             )
             sync_statement_last_vote_at(stmt)
             session.statements.append(stmt)
@@ -339,6 +371,12 @@ class SessionManager:
             "recorderLanguage": self.get_session_language(session_id),
             "commonGroundHistory": self.get_common_ground_history(session_id, participant_id),
             "publicId": session.public_id,
+            "voteCommentsPublic": session.vote_comments_public,
+            **(
+                {"commonGroundInstructions": session.common_ground_instructions}
+                if self._is_host(session, participant_id)
+                else {}
+            ),
             **self.report_state(
                 session_id,
                 include_snapshot=self._is_host(session, participant_id),
@@ -486,21 +524,33 @@ class SessionManager:
         if session:
             session.analysis_in_progress = False
 
-    def add_statements(self, session_id: str, texts: list[str]) -> list[Statement]:
+    def add_statements(
+        self,
+        session_id: str,
+        texts: list[str],
+        *,
+        source_text: str | None = None,
+        source_speaker: str | None = None,
+    ) -> list[Statement]:
         session = self.sessions.get(session_id)
         if not session:
             return []
         seen = {normalize_statement(s.text) for s in session.statements}
         added = []
+        src = (source_text or "").strip()[:SOURCE_TEXT_MAX] or None
+        speaker = (source_speaker or "").strip()[:120] or None
         for text in texts:
-            key = normalize_statement(text)
+            clean = (text or "").strip()[:STATEMENT_TEXT_MAX]
+            key = normalize_statement(clean)
             if not key or key in seen:
                 continue
             seen.add(key)
             stmt = Statement(
                 id=uuid.uuid4().hex[:8],
-                text=text,
+                text=clean,
                 round=1,
+                source_text=src,
+                source_speaker=speaker,
             )
             session.statements.append(stmt)
             added.append(stmt)
@@ -512,7 +562,7 @@ class SessionManager:
             return None
         stmt = Statement(
             id=uuid.uuid4().hex[:8],
-            text=text,
+            text=(text or "").strip()[:STATEMENT_TEXT_MAX],
             round=1,
             approved=True,
             custom=True,
@@ -527,7 +577,7 @@ class SessionManager:
         seen = {normalize_statement(s.text) for s in session.statements}
         added = []
         for raw in texts:
-            text = (raw or "").strip()[:240]
+            text = (raw or "").strip()[:STATEMENT_TEXT_MAX]
             if not text:
                 continue
             key = normalize_statement(text)
@@ -564,7 +614,7 @@ class SessionManager:
         stmt = next((s for s in session.statements if s.id == statement_id), None)
         if not stmt:
             return None
-        new_text = (text or "").strip()[:240]
+        new_text = (text or "").strip()[:STATEMENT_TEXT_MAX]
         if not new_text:
             return None
         if new_text != stmt.text:
@@ -656,7 +706,14 @@ class SessionManager:
             "votingActivity": session.voting_activity,
         }
 
-    def record_vote(self, session_id: str, participant_id: str, statement_id: str, vote: str) -> bool:
+    def record_vote(
+        self,
+        session_id: str,
+        participant_id: str,
+        statement_id: str,
+        vote: str,
+        comment: str | None = None,
+    ) -> bool:
         session = self.sessions.get(session_id)
         if not session:
             return False
@@ -667,6 +724,7 @@ class SessionManager:
             return False
         if vote == "undo":
             removed = stmt.votes.pop(participant_id, None) is not None
+            stmt.vote_comments.pop(participant_id, None)
             if removed:
                 stmt.vote_times.pop(participant_id, None)
                 sync_statement_last_vote_at(stmt)
@@ -674,20 +732,43 @@ class SessionManager:
         valid = VALID_LIKERT_VOTES if session.vote_type == "likert" else VALID_BINARY_VOTES
         if vote not in valid:
             return False
-        if stmt.votes.get(participant_id) == vote:
+        same_vote = stmt.votes.get(participant_id) == vote
+        comment_provided = comment is not None
+        if same_vote and not comment_provided:
             return False
         now = time.time()
-        stmt.votes[participant_id] = vote
-        stmt.vote_times[participant_id] = now
-        stmt.last_vote_at = now
+        if not same_vote:
+            stmt.votes[participant_id] = vote
+            stmt.vote_times[participant_id] = now
+            stmt.last_vote_at = now
+        if comment_provided:
+            trimmed = (comment or "").strip()[:VOTE_COMMENT_MAX]
+            if trimmed:
+                stmt.vote_comments[participant_id] = trimmed
+            else:
+                stmt.vote_comments.pop(participant_id, None)
         p = session.participants.get(participant_id)
         if p:
             p.last_vote_at = now
         return True
 
-    def format_statement(self, stmt: Statement, participant_id: str) -> dict:
+    def format_statement(self, stmt: Statement, participant_id: str, session: Session | None = None) -> dict:
         agrees = sum(1 for v in stmt.votes.values() if v in AGREE_VOTES)
         disagrees = sum(1 for v in stmt.votes.values() if v in DISAGREE_VOTES)
+        if session is None:
+            session = next((s for s in self.sessions.values() if stmt in s.statements), None)
+        is_host = bool(session and self._is_host(session, participant_id))
+        comments_public = bool(session.vote_comments_public) if session else True
+        comments = []
+        if is_host or comments_public:
+            for pid, text in (stmt.vote_comments or {}).items():
+                if not text:
+                    continue
+                comments.append({
+                    "name": self.get_participant_name(session.id, pid) if session else "",
+                    "text": text,
+                    "isYou": pid == participant_id,
+                })
         return {
             "id": stmt.id,
             "text": stmt.text,
@@ -699,10 +780,14 @@ class SessionManager:
             "author": stmt.author,
             "createdAt": stmt.created_at,
             "snapshot": stmt.snapshot,
+            "sourceText": stmt.source_text,
+            "sourceSpeaker": stmt.source_speaker,
             "agrees": agrees,
             "disagrees": disagrees,
             "hasVoted": participant_id in stmt.votes,
             "myVote": stmt.votes.get(participant_id),
+            "myComment": (stmt.vote_comments or {}).get(participant_id) or "",
+            "comments": comments,
             "lastVoteAt": sync_statement_last_vote_at(stmt),
         }
 
@@ -878,7 +963,7 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return None
-        clean = (text or "").strip()[:240]
+        clean = (text or "").strip()[:STATEMENT_TEXT_MAX]
         if not clean:
             return None
         if normalize_statement(clean) in {normalize_statement(s.text) for s in session.statements}:
@@ -915,11 +1000,21 @@ class SessionManager:
         mine = participant_votes.get(participant_id) or {}
         public = {k: v for k, v in item.items() if k != "participantVotes"}
         public["mode"] = normalize_common_ground_mode(public.get("mode") or public.get("depth"))
+        feedback_reasons = []
+        for entry in participant_votes.values():
+            reason = (entry.get("reason") or "").strip()
+            if not reason:
+                continue
+            feedback_reasons.append({
+                "vote": entry.get("vote"),
+                "reason": reason,
+            })
         return {
             **public,
             "votes": self._cg_vote_tally(participant_votes),
             "myVote": mine.get("vote"),
             "myReason": mine.get("reason") or "",
+            "feedbackReasons": feedback_reasons,
         }
 
     def get_common_ground_history(self, session_id: str, participant_id: str) -> list:
@@ -952,6 +1047,8 @@ class SessionManager:
             "statementCountAtGeneration": snapshot.get("statementCount"),
             "status": payload.get("status") or "working_draft",
             "participantVotes": {},
+            "promptVersion": payload.get("promptVersion") or CG_PROMPT_VERSION,
+            "customInstructionsUsed": payload.get("customInstructionsUsed") or "",
         }
         if normalize_common_ground_mode(item.get("mode")) == "policy" and "previousVersionId" not in item:
             item["previousVersionId"] = None
@@ -1092,7 +1189,7 @@ class SessionManager:
         if not session:
             return []
         return [
-            self.format_statement(s, participant_id)
+            self.format_statement(s, participant_id, session)
             for s in session.statements
             if include_pending or s.approved
         ]
@@ -1151,6 +1248,8 @@ class SessionManager:
                     "disagrees": disagrees,
                     "hasVoted": pid in stmt.votes,
                     "myVote": stmt.votes.get(pid),
+                    "myComment": (stmt.vote_comments or {}).get(pid) or "",
+                    "comments": self.format_statement(stmt, pid, session).get("comments") or [],
                     "lastVoteAt": sync_statement_last_vote_at(stmt),
                 })
             except Exception:
@@ -1224,6 +1323,20 @@ class SessionManager:
             return None
         session.common_ground_mode = mode
         return mode
+
+    def set_common_ground_instructions(self, session_id: str, text: str | None) -> str | None:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        session.common_ground_instructions = sanitize_host_instructions(text)
+        return session.common_ground_instructions
+
+    def set_vote_comments_public(self, session_id: str, public: bool) -> bool | None:
+        session = self.sessions.get(session_id)
+        if not session:
+            return None
+        session.vote_comments_public = bool(public)
+        return session.vote_comments_public
 
     def set_vote_type(self, session_id: str, vote_type: str) -> str | None:
         session = self.sessions.get(session_id)

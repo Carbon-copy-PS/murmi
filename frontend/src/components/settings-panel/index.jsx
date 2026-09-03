@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import LanguageSelect from '../language-select'
-import { CG_MODE_OPTIONS } from '../../constants/common-ground-mode'
+import { CG_MODE_OPTIONS, DEFAULT_CG_INSTRUCTIONS } from '../../constants/common-ground-mode'
+import { CG_INSTRUCTIONS_MAX } from '../../constants/limits'
 
 const VOTING_LIFETIME_OPTIONS = [
   { hours: 1, key: 'len1h' },
@@ -173,8 +174,22 @@ export default function SettingsPanel({
   votingActivity = [],
   onSetVotingOpen,
   onSetVotingLifetime,
+  voteCommentsPublic = true,
+  onToggleVoteCommentsPublic,
+  cgInstructions = DEFAULT_CG_INSTRUCTIONS,
+  onSaveCgInstructions,
 }) {
   const { t } = useTranslation()
+  const [instructionsDraft, setInstructionsDraft] = useState(cgInstructions || '')
+
+  useEffect(() => {
+    setInstructionsDraft(cgInstructions || '')
+  }, [cgInstructions])
+
+  const instructionsDirty = instructionsDraft !== (cgInstructions || '')
+  const instructionsLen = instructionsDraft.length
+  const instructionsInvalid = instructionsLen > CG_INSTRUCTIONS_MAX
+
   return (
     <div className="settings-panel" data-testid="settings-panel">
       <VotingControls
@@ -218,6 +233,63 @@ export default function SettingsPanel({
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="settings-section" data-testid="settings-cg-instructions">
+        <div className="settings-section-head">
+          <span className="settings-section-title">{t('settings.cgInstructions')}</span>
+          <span className="settings-section-hint">{t('settings.cgInstructionsHint')}</span>
+        </div>
+        <textarea
+          className="settings-instructions"
+          value={instructionsDraft}
+          maxLength={CG_INSTRUCTIONS_MAX}
+          rows={5}
+          onChange={(e) => setInstructionsDraft(e.target.value)}
+          placeholder={DEFAULT_CG_INSTRUCTIONS}
+          data-testid="settings-cg-instructions-input"
+        />
+        <div className="settings-instructions-meta">
+          <span>{instructionsLen}/{CG_INSTRUCTIONS_MAX}</span>
+          <span>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => {
+                setInstructionsDraft(DEFAULT_CG_INSTRUCTIONS)
+                onSaveCgInstructions?.(DEFAULT_CG_INSTRUCTIONS)
+              }}
+              data-testid="settings-cg-instructions-reset"
+            >
+              {t('settings.resetDefault')}
+            </button>
+            <button
+              type="button"
+              className="btn primary sm"
+              disabled={!instructionsDirty || instructionsInvalid}
+              onClick={() => onSaveCgInstructions?.(instructionsDraft)}
+              data-testid="settings-cg-instructions-save"
+            >
+              {t('common.save')}
+            </button>
+          </span>
+        </div>
+      </section>
+
+      <section className="settings-section" data-testid="settings-vote-comments">
+        <div className="settings-section-head">
+          <span className="settings-section-title">{t('settings.showVoteComments')}</span>
+          <span className="settings-section-hint">{t('settings.showVoteCommentsHint')}</span>
+        </div>
+        <label className="switch" data-testid="settings-vote-comments-public">
+          <input
+            type="checkbox"
+            checked={voteCommentsPublic}
+            onChange={(e) => onToggleVoteCommentsPublic(e.target.checked)}
+            data-testid="settings-vote-comments-public-input"
+          />
+          <span className="switch-slider" />
+        </label>
       </section>
 
       <section className="settings-section" data-testid="settings-participant-arguments">

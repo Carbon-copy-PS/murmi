@@ -137,6 +137,37 @@ export default function SessionJoin({ onJoin }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!mode) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function syncViewport() {
+      const height = window.visualViewport?.height || window.innerHeight
+      document.documentElement.style.setProperty('--vvh', `${height}px`)
+    }
+    function onFocusIn(e) {
+      const target = e.target
+      if (!(target instanceof HTMLElement)) return
+      if (!target.closest('.auth-modal')) return
+      requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'center', inline: 'nearest' })
+      })
+    }
+    syncViewport()
+    window.visualViewport?.addEventListener('resize', syncViewport)
+    window.visualViewport?.addEventListener('scroll', syncViewport)
+    window.addEventListener('resize', syncViewport)
+    document.addEventListener('focusin', onFocusIn)
+    return () => {
+      document.body.style.overflow = prev
+      document.documentElement.style.removeProperty('--vvh')
+      window.visualViewport?.removeEventListener('resize', syncViewport)
+      window.visualViewport?.removeEventListener('scroll', syncViewport)
+      window.removeEventListener('resize', syncViewport)
+      document.removeEventListener('focusin', onFocusIn)
+    }
+  }, [mode])
+
   const clearError = (key) =>
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev))
 
@@ -451,6 +482,7 @@ export default function SessionJoin({ onJoin }) {
                   handleCreate()
                 }}
               >
+                <div className="auth-form-fields">
                 <label className="field">
                   <span className="field-label">Your name <Req /></span>
                   <input
@@ -507,11 +539,13 @@ export default function SessionJoin({ onJoin }) {
                   <span className="field-hint">Locked once recording starts.</span>
                 </div>
 
-                <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="create-submit">
-                  {loading ? 'Creating…' : 'Create session'}
-                </button>
-
                 {errors.form && <p className="auth-form-error" data-testid="form-error">{errors.form}</p>}
+                </div>
+                <div className="auth-form-footer">
+                  <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="create-submit">
+                    {loading ? 'Creating…' : 'Create session'}
+                  </button>
+                </div>
               </form>
             )}
 
@@ -525,6 +559,7 @@ export default function SessionJoin({ onJoin }) {
                   handleJoin()
                 }}
               >
+                <div className="auth-form-fields">
                 <label className="field auth-code-field">
                   <span className="field-label">Session code <Req /></span>
                   <input
@@ -559,12 +594,13 @@ export default function SessionJoin({ onJoin }) {
                   />
                   {errors.name && <span className="field-error" data-testid="error-name">{errors.name}</span>}
                 </label>
-
-                <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="join-submit">
-                  {loading ? 'Joining…' : 'Join session'}
-                </button>
-
                 {errors.form && <p className="auth-form-error" data-testid="form-error">{errors.form}</p>}
+                </div>
+                <div className="auth-form-footer">
+                  <button type="submit" className="btn primary auth-submit" disabled={loading} data-testid="join-submit">
+                    {loading ? 'Joining…' : 'Join session'}
+                  </button>
+                </div>
               </form>
             )}
             </div>

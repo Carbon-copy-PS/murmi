@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./setup-https.sh <domain> [email]
-# Example: ./setup-https.sh hear.atgora.org you@example.com
+# Example: ./setup-https.sh example.com you@example.com
 #
 # Run AFTER the domain DNS A record points to this server's public IP.
 
@@ -11,7 +11,7 @@ EMAIL="${2:-}"
 
 if [ -z "$DOMAIN" ]; then
   echo "Usage: ./setup-https.sh <domain> [email]"
-  echo "Example: ./setup-https.sh hear.atgora.org you@example.com"
+    echo "Example: ./setup-https.sh example.com you@example.com"
   exit 1
 fi
 

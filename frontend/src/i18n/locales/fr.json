@@ -122,7 +122,8 @@
     "searchPlaceholder": "Rechercher texte, auteur, tags, votes…",
     "searchAria": "Rechercher des énoncés",
     "clearSearch": "Effacer la recherche",
-    "noSearchResults": "Aucun énoncé ne correspond"
+    "noSearchResults": "Aucun énoncé ne correspond",
+    "originalContribution": "Contribution originale"
   },
   "swipe": {
     "of": "sur {{total}}",
@@ -138,7 +139,12 @@
     "stampNeutral": "NEUTRE",
     "stampStronglyAgree": "TOUT À FAIT D'ACCORD",
     "stampStronglyDisagree": "PAS DU TOUT D'ACCORD",
-    "strongly": "Tout à fait"
+    "strongly": "Tout à fait",
+    "commentOptional": "Commentaire (facultatif)",
+    "commentPlaceholder": "Ajoutez une courte note sur cet énoncé…",
+    "editComment": "Modifier le commentaire",
+    "deleteComment": "Supprimer le commentaire",
+    "addComment": "Ajouter un commentaire"
   },
   "revote": {
     "you": "Vous :",
@@ -256,6 +262,7 @@
     "groupPerspectives": "Perspectives des groupes",
     "groupNote": "Groupe {{group}} :",
     "latest": "Récente",
+    "latestShort": "Récente",
     "yourReaction": "Votre réaction",
     "youAgree": "Assez bon",
     "youDisagree": "Pas assez bon",
@@ -264,6 +271,10 @@
     "why": "Pourquoi ?",
     "optional": "(facultatif)",
     "reasonPlaceholder": "Partagez ce qui résonne ou ce qui manque…",
+    "submitFeedback": "Envoyer le retour",
+    "feedbackSaved": "Enregistré",
+    "unsaved": "Non enregistré",
+    "unsavedFeedback": "Vous avez un retour non enregistré. Quitter quand même ?",
     "removeVersion": "Supprimer la version",
     "removeVersionAria": "Supprimer cette version du terrain d'entente",
     "voters": "{{count}} votants",
@@ -276,6 +287,7 @@
     "changeSummary": "Ce qui a changé",
     "statusDraft": "Brouillon de travail",
     "statusEndorsed": "Final / approuvé",
+    "statusEndorsedShort": "Final",
     "markFinal": "Marquer comme Final / approuvé",
     "basedOnPrevious": "Basé sur la version précédente {{id}}",
     "remainingConcerns": "Préoccupations restantes"
@@ -339,7 +351,12 @@
       "lifetime": "Durée définie sur {{duration}}"
     },
     "cgMode": "Mode du terrain d'entente IA",
-    "cgModeHint": "Mode utilisé pour générer le terrain d'entente à partir des votes."
+    "cgModeHint": "Mode utilisé pour générer le terrain d'entente à partir des votes.",
+    "cgInstructions": "Instructions pour le terrain d'entente IA",
+    "cgInstructionsHint": "Indications facultatives sur la rédaction. Les règles de sécurité et le format JSON restent fixes.",
+    "resetDefault": "Réinitialiser",
+    "showVoteComments": "Afficher les commentaires à tout le monde",
+    "showVoteCommentsHint": "Si désactivé, seuls les hôtes voient les commentaires des autres. Chacun peut modifier ou supprimer le sien."
   },
   "voting": {
     "closedTitle": "Le vote est fermé",

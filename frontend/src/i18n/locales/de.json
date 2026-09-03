@@ -122,7 +122,8 @@
     "searchPlaceholder": "Text, Autor, Tags, Stimmen suchen…",
     "searchAria": "Aussagen suchen",
     "clearSearch": "Suche löschen",
-    "noSearchResults": "Keine passenden Aussagen"
+    "noSearchResults": "Keine passenden Aussagen",
+    "originalContribution": "Originalbeitrag"
   },
   "swipe": {
     "of": "von {{total}}",
@@ -138,7 +139,12 @@
     "stampNeutral": "NEUTRAL",
     "stampStronglyAgree": "VOLL ZUSTIMMEN",
     "stampStronglyDisagree": "STARK ABLEHNEN",
-    "strongly": "Stark"
+    "strongly": "Stark",
+    "commentOptional": "Kommentar (optional)",
+    "commentPlaceholder": "Kurzer Kommentar zu dieser Aussage…",
+    "editComment": "Kommentar bearbeiten",
+    "deleteComment": "Kommentar löschen",
+    "addComment": "Kommentar hinzufügen"
   },
   "revote": {
     "you": "Du:",
@@ -256,6 +262,7 @@
     "groupPerspectives": "Gruppenperspektiven",
     "groupNote": "Gruppe {{group}}:",
     "latest": "Neueste",
+    "latestShort": "Neu",
     "yourReaction": "Deine Reaktion",
     "youAgree": "Gut genug",
     "youDisagree": "Nicht gut genug",
@@ -264,6 +271,10 @@
     "why": "Warum?",
     "optional": "(optional)",
     "reasonPlaceholder": "Teile mit, was zutrifft oder was fehlt…",
+    "submitFeedback": "Feedback senden",
+    "feedbackSaved": "Gespeichert",
+    "unsaved": "Ungespeichert",
+    "unsavedFeedback": "Du hast ungespeichertes Feedback. Trotzdem wechseln?",
     "removeVersion": "Version entfernen",
     "removeVersionAria": "Diese Nenner-Version entfernen",
     "voters": "{{count}} Abstimmende",
@@ -276,6 +287,7 @@
     "changeSummary": "Was sich geändert hat",
     "statusDraft": "Arbeitsentwurf",
     "statusEndorsed": "Final / unterstützt",
+    "statusEndorsedShort": "Final",
     "markFinal": "Als Final / unterstützt markieren",
     "basedOnPrevious": "Basierend auf vorheriger Version {{id}}",
     "remainingConcerns": "Verbleibende Bedenken"
@@ -339,7 +351,12 @@
       "lifetime": "Dauer auf {{duration}} gesetzt"
     },
     "cgMode": "KI-Nenner-Modus",
-    "cgModeHint": "Modus beim Erzeugen des gemeinsamen Nenners aus Stimmen."
+    "cgModeHint": "Modus beim Erzeugen des gemeinsamen Nenners aus Stimmen.",
+    "cgInstructions": "Anweisungen für KI-Nenner",
+    "cgInstructionsHint": "Optionale Hinweise, wie der KI-Nenner formuliert werden soll. Sicherheitsregeln und das JSON-Format bleiben fest.",
+    "resetDefault": "Standard wiederherstellen",
+    "showVoteComments": "Kommentare für alle sichtbar",
+    "showVoteCommentsHint": "Wenn aus, sehen nur Hosts die Kommentare anderer. Jede Person kann den eigenen Kommentar bearbeiten oder löschen."
   },
   "voting": {
     "closedTitle": "Abstimmung ist geschlossen",

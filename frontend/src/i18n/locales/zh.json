@@ -122,7 +122,8 @@
     "searchPlaceholder": "搜尋文字、作者、標籤、票數…",
     "searchAria": "搜尋陳述",
     "clearSearch": "清除搜尋",
-    "noSearchResults": "沒有符合的陳述"
+    "noSearchResults": "沒有符合的陳述",
+    "originalContribution": "原始發言"
   },
   "swipe": {
     "of": "／共 {{total}}",
@@ -138,7 +139,12 @@
     "stampNeutral": "中立",
     "stampStronglyAgree": "非常同意",
     "stampStronglyDisagree": "非常不同意",
-    "strongly": "非常"
+    "strongly": "非常",
+    "commentOptional": "評論（選填）",
+    "commentPlaceholder": "為此陳述留下短評…",
+    "editComment": "編輯評論",
+    "deleteComment": "刪除評論",
+    "addComment": "新增評論"
   },
   "revote": {
     "you": "你：",
@@ -256,6 +262,7 @@
     "groupPerspectives": "各組觀點",
     "groupNote": "第 {{group}} 組：",
     "latest": "最新",
+    "latestShort": "最新",
     "yourReaction": "你的反應",
     "youAgree": "夠好了",
     "youDisagree": "還不夠好",
@@ -264,6 +271,10 @@
     "why": "為什麼？",
     "optional": "（選填）",
     "reasonPlaceholder": "分享你認同之處或缺少什麼…",
+    "submitFeedback": "送出回饋",
+    "feedbackSaved": "已儲存",
+    "unsaved": "未儲存",
+    "unsavedFeedback": "你有未儲存的回饋。仍要離開嗎？",
     "removeVersion": "移除版本",
     "removeVersionAria": "移除此共識版本",
     "voters": "{{count}} 位投票者",
@@ -276,6 +287,7 @@
     "changeSummary": "變更說明",
     "statusDraft": "工作草稿",
     "statusEndorsed": "最終／已認可",
+    "statusEndorsedShort": "最終",
     "markFinal": "標記為最終／已認可",
     "basedOnPrevious": "基於上一版 {{id}}",
     "remainingConcerns": "尚存疑慮"
@@ -339,7 +351,12 @@
       "lifetime": "時長設為 {{duration}}"
     },
     "cgMode": "AI 共識模式",
-    "cgModeHint": "根據投票產生共識時使用的模式。"
+    "cgModeHint": "根據投票產生共識時使用的模式。",
+    "cgInstructions": "AI 共識自訂說明",
+    "cgInstructionsHint": "可選的寫作指引。安全規則與 JSON 格式維持不變。",
+    "resetDefault": "還原預設",
+    "showVoteComments": "向所有人顯示投票評論",
+    "showVoteCommentsHint": "關閉後，只有主持人看得到他人評論。每人仍可編輯或刪除自己的評論。"
   },
   "voting": {
     "closedTitle": "投票已關閉",

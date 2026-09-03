@@ -23,7 +23,7 @@ import {
 } from '../utils/room-tour'
 import { createRoomSocket } from '../utils/room-socket'
 import CommonGroundPopup from './common-ground-popup'
-import { DEFAULT_CG_MODE } from '../constants/common-ground-mode'
+import { DEFAULT_CG_MODE, DEFAULT_CG_INSTRUCTIONS } from '../constants/common-ground-mode'
 import { getReportCopy } from './final-report/report-copy'
 
 const noop = () => {}
@@ -106,6 +106,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [voteType, setVoteType] = useState('binary')
   const [voteTypeLocked, setVoteTypeLocked] = useState(false)
   const [cgMode, setCgMode] = useState(DEFAULT_CG_MODE)
+  const [cgInstructions, setCgInstructions] = useState(DEFAULT_CG_INSTRUCTIONS)
+  const [voteCommentsPublic, setVoteCommentsPublic] = useState(true)
   const [expiresAt, setExpiresAt] = useState(null)
   const [votingOpen, setVotingOpen] = useState(true)
   const [votingLifetimeHours, setVotingLifetimeHours] = useState(24)
@@ -306,6 +308,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           setVoteTypeLocked(!!msg.voteTypeLocked || !!msg.recording || (msg.transcript?.length > 0))
           if (msg.commonGroundMode) setCgMode(msg.commonGroundMode)
           else if (msg.commonGroundDepth) setCgMode(msg.commonGroundDepth === 'policy' ? 'policy' : 'generic')
+          if (typeof msg.commonGroundInstructions === 'string') setCgInstructions(msg.commonGroundInstructions)
+          if (typeof msg.voteCommentsPublic === 'boolean') setVoteCommentsPublic(msg.voteCommentsPublic)
           if (typeof msg.expiresAt === 'number') setExpiresAt(msg.expiresAt)
           if (typeof msg.votingOpen === 'boolean') setVotingOpen(msg.votingOpen)
           if (typeof msg.votingLifetimeHours === 'number') setVotingLifetimeHours(msg.votingLifetimeHours)
@@ -486,6 +490,8 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
                     disagrees: msg.disagrees,
                     hasVoted: msg.hasVoted,
                     myVote: msg.myVote,
+                    myComment: typeof msg.myComment === 'string' ? msg.myComment : s.myComment,
+                    comments: Array.isArray(msg.comments) ? msg.comments : s.comments,
                     lastVoteAt: typeof msg.lastVoteAt === 'number'
                       ? msg.lastVoteAt
                       : (s.lastVoteAt || Date.now() / 1000),
@@ -502,6 +508,12 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           break
         case 'common_ground_mode_updated':
           setCgMode(msg.mode || DEFAULT_CG_MODE)
+          break
+        case 'common_ground_instructions_updated':
+          if (typeof msg.instructions === 'string') setCgInstructions(msg.instructions)
+          break
+        case 'vote_comments_public_updated':
+          if (typeof msg.public === 'boolean') setVoteCommentsPublic(msg.public)
           break
         case 'common_ground_pending':
           setCgPending(true)
@@ -686,12 +698,14 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
     wsRef.current?.send(JSON.stringify({ type: 'set_recording', recording: nextRecording }))
   }
 
-  function handleVote(statementId, vote) {
+  function handleVote(statementId, vote, comment) {
     if (!votingActiveRef.current) {
       notify(APP_NAME, t('voting.closedToast'), { tag: 'voting-closed' })
       return
     }
-    wsRef.current?.send(JSON.stringify({ type: 'vote', statementId, vote }))
+    const payload = { type: 'vote', statementId, vote }
+    if (comment !== undefined) payload.comment = comment
+    wsRef.current?.send(JSON.stringify(payload))
   }
 
   function handleSetVotingOpen(open) {
@@ -722,6 +736,16 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   function handleSetCgMode(mode) {
     setCgMode(mode)
     wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_mode', mode }))
+  }
+
+  function handleSaveCgInstructions(instructions) {
+    setCgInstructions(instructions)
+    wsRef.current?.send(JSON.stringify({ type: 'set_common_ground_instructions', instructions }))
+  }
+
+  function handleToggleVoteCommentsPublic(value) {
+    setVoteCommentsPublic(value)
+    wsRef.current?.send(JSON.stringify({ type: 'set_vote_comments_public', public: value }))
   }
 
   function handleToggleStatementPermission(targetId, allowed) {
@@ -1284,6 +1308,10 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           onLanguageChange={handleLanguageChange}
           cgMode={cgMode}
           onCgModeChange={handleSetCgMode}
+          cgInstructions={cgInstructions}
+          onSaveCgInstructions={handleSaveCgInstructions}
+          voteCommentsPublic={voteCommentsPublic}
+          onToggleVoteCommentsPublic={handleToggleVoteCommentsPublic}
           autoApprove={autoApprove}
           onToggleAutoApprove={handleToggleAutoApprove}
           voteType={voteType}

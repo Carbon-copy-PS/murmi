@@ -18,7 +18,7 @@ from typing import Optional
 
 from .session import SessionManager, DEFAULT_COMMON_GROUND_MODE, normalize_common_ground_mode
 from .transcription import TranscriptionService
-from .analysis import AnalysisService
+from .analysis import AnalysisService, CG_PROMPT_VERSION
 from .realtime_transcription import RealtimeTranscriptionSession
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
@@ -149,12 +149,6 @@ app.add_middleware(
 )
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-EXAMPLE_REPORT_DIR = (
-    Path(__file__).resolve().parent.parent.parent
-    / "data-analysis"
-    / "reports"
-    / "479D4D"
-)
 realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
 realtime_unavailable: set[tuple[str, str]] = set()
 realtime_errors_seen: set[tuple[str, str]] = set()
@@ -548,7 +542,17 @@ async def run_common_ground(
     result = None
     try:
         result = await asyncio.wait_for(
-            analysis.generate_common_ground(payload, topic, language, mode=mode),
+            analysis.generate_common_ground(
+                payload,
+                topic,
+                language,
+                mode=mode,
+                custom_instructions=(
+                    sessions.get(session_id).common_ground_instructions
+                    if sessions.get(session_id)
+                    else None
+                ),
+            ),
             timeout=COMMON_GROUND_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
@@ -561,6 +565,11 @@ async def run_common_ground(
 
     if result:
         result["generatedAt"] = time.time()
+        session = sessions.get(session_id)
+        result["promptVersion"] = CG_PROMPT_VERSION
+        result["customInstructionsUsed"] = (
+            (session.common_ground_instructions or "") if session else ""
+        )
         snapshot = {
             "voterCount": payload.get("voterCount") or payload.get("rosterSize"),
             "statementCount": payload.get("statementCount"),
@@ -633,7 +642,12 @@ async def run_turn_analysis(session_id: str, entry_id: str):
     if not new_texts:
         return
 
-    added = sessions.add_statements(session_id, new_texts)
+    added = sessions.add_statements(
+        session_id,
+        new_texts,
+        source_text=pending_text,
+        source_speaker=entry.get("speaker"),
+    )
     auto_approve_if_no_host(session_id, added)
     await _safe_db(db.save_statements(session, added))
     await sessions.broadcast_statements(session_id)
@@ -968,6 +982,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     continue
                 ok = sessions.record_vote(
                     session_id, participant_id, statement_id, vote_value,
+                    comment=data.get("comment") if "comment" in data else None,
                 )
                 if ok:
                     await sessions.broadcast_vote(session_id, statement_id)
@@ -980,8 +995,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     if vote_value == "undo":
                         await _safe_db(db.delete_vote(statement_id, participant_id))
                     else:
+                        stored_comment = None
+                        if statement:
+                            stored_comment = (statement.vote_comments or {}).get(participant_id)
                         await _safe_db(db.save_vote(
-                            session, statement, participant_id, vote_value
+                            session, statement, participant_id, vote_value,
+                            comment=stored_comment,
                         ))
 
             elif msg_type == "get_results":
@@ -1332,6 +1351,35 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         "mode": mode,
                     })
 
+            elif msg_type == "set_common_ground_instructions":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                instructions = sessions.set_common_ground_instructions(
+                    session_id, data.get("instructions"),
+                )
+                if instructions is None:
+                    continue
+                await _safe_db(db.update_common_ground_instructions(sessions.get(session_id)))
+                await sessions.broadcast(session_id, {
+                    "type": "common_ground_instructions_updated",
+                    "instructions": instructions,
+                })
+
+            elif msg_type == "set_vote_comments_public":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                public = sessions.set_vote_comments_public(
+                    session_id, bool(data.get("public", True)),
+                )
+                if public is None:
+                    continue
+                await _safe_db(db.update_vote_comments_public(sessions.get(session_id)))
+                await sessions.broadcast(session_id, {
+                    "type": "vote_comments_public_updated",
+                    "public": public,
+                })
+                await sessions.broadcast_statements(session_id)
+
             elif msg_type == "set_topic":
                 if not sessions.is_host(session_id, participant_id):
                     continue
@@ -1469,14 +1517,6 @@ def _inject_public_meta(html: str, public_id: str, topic: Optional[str]) -> str:
         f'    <meta property="og:url" content="{url}" />\n  </head>',
     )
     return html
-
-
-if EXAMPLE_REPORT_DIR.is_dir():
-    app.mount(
-        "/reports/ai-safety-governance-2026",
-        StaticFiles(directory=EXAMPLE_REPORT_DIR, html=True),
-        name="example-report",
-    )
 
 
 if FRONTEND_DIST.is_dir():

@@ -5,6 +5,7 @@ import {
   canGenerateRecommendations,
   computeDivisiveStatements,
 } from '../../utils/recommendations-payload'
+import { STATEMENT_TEXT_MAX } from '../../constants/limits'
 
 const COUNT_OPTIONS = [1, 2, 3, 4, 5]
 
@@ -247,7 +248,7 @@ export default function RecommendationsPanel({
                           value={item.text}
                           onChange={(e) => updateText(item.id, e.target.value)}
                           rows={2}
-                          maxLength={240}
+                          maxLength={STATEMENT_TEXT_MAX}
                           data-testid={`recommendations-text-${item.id}`}
                         />
                         <button

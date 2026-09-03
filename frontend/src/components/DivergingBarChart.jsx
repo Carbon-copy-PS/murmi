@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import NeutralIcon from './neutral-icon'
+import { VOTE_COMMENT_MAX } from '../constants/limits'
 
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max) + '...' : text
@@ -26,6 +28,103 @@ const BINARY_CHIPS = [
   { vote: 'disagree', cls: 'disagree', glyph: '✕', labelKey: 'common.disagree' },
   { vote: 'pass', cls: 'pass', glyph: <NeutralIcon size={14} />, labelKey: 'common.neutral', match: 'neutral' },
 ]
+
+function VoteCommentEditor({ stmt, onChangeVote }) {
+  const { t } = useTranslation()
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(stmt.myComment || '')
+
+  useEffect(() => {
+    setDraft(stmt.myComment || '')
+    setEditing(false)
+  }, [stmt.id, stmt.myComment])
+
+  if (!stmt.myVote) return null
+
+  function save() {
+    onChangeVote(stmt.id, stmt.myVote, draft.trim())
+    setEditing(false)
+  }
+
+  const others = (stmt.comments || []).filter((c) => !c.isYou && c.text)
+
+  return (
+    <div className="vote-comment-box" data-testid={`vote-comment-${stmt.id}`}>
+      <div className="vote-comment-mine">
+        {editing ? (
+          <>
+            <textarea
+              className="vote-comment-input"
+              value={draft}
+              maxLength={VOTE_COMMENT_MAX}
+              rows={2}
+              onChange={(e) => setDraft(e.target.value)}
+              data-testid={`vote-comment-input-${stmt.id}`}
+            />
+            <div className="vote-comment-actions">
+              <button type="button" className="btn ghost sm" onClick={() => setEditing(false)}>
+                {t('common.cancel')}
+              </button>
+              <button type="button" className="btn primary sm" onClick={save} data-testid={`vote-comment-save-${stmt.id}`}>
+                {t('common.save')}
+              </button>
+            </div>
+          </>
+        ) : stmt.myComment ? (
+          <div className="vote-comment-row">
+            <p className="vote-comment-text">
+              <span className="vote-comment-name">{t('common.you')}</span>
+              {stmt.myComment}
+            </p>
+            <div className="vote-comment-actions">
+              <button
+                type="button"
+                className="vote-comment-icon-btn"
+                onClick={() => setEditing(true)}
+                aria-label={t('swipe.editComment')}
+                title={t('swipe.editComment')}
+                data-testid={`vote-comment-edit-${stmt.id}`}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="vote-comment-icon-btn danger"
+                onClick={() => onChangeVote(stmt.id, stmt.myVote, '')}
+                aria-label={t('swipe.deleteComment')}
+                title={t('swipe.deleteComment')}
+                data-testid={`vote-comment-delete-${stmt.id}`}
+              >
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M9 7V4h6v3" />
+                  <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                  <path d="M10 11v6M14 11v6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="btn ghost sm" onClick={() => setEditing(true)} data-testid={`vote-comment-add-${stmt.id}`}>
+            {t('swipe.addComment')}
+          </button>
+        )}
+      </div>
+      {others.length > 0 && (
+        <ul className="vote-comment-list" data-testid={`vote-comments-${stmt.id}`}>
+          {others.map((c, i) => (
+            <li key={`${c.name}-${i}`}>
+              <span className="vote-comment-name">{c.name}</span>
+              {c.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export default function DivergingBarChart({ statements, justVotedId, onAnimationDone, onChangeVote, voteType = 'binary' }) {
   const { t } = useTranslation()
@@ -94,6 +193,7 @@ export default function DivergingBarChart({ statements, justVotedId, onAnimation
                 </div>
               </div>
             )}
+            {onChangeVote && <VoteCommentEditor stmt={stmt} onChangeVote={onChangeVote} />}
           </div>
         )
       })}

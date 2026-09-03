@@ -4,6 +4,7 @@ import DivergingBarChart from './DivergingBarChart'
 import SwipeDeck from './SwipeDeck'
 import { isAiStatement, StatementTags, StatementByline } from './statement-tags'
 import { filterStatementsBySearch, sortStatementsByNewest } from '../utils/statement-list'
+import { STATEMENT_TEXT_MAX } from '../constants/limits'
 
 function PendingStatementCard({ statement, counting, onApprove, onHold, onReject, onEdit, canEdit }) {
   const { t } = useTranslation()
@@ -64,7 +65,7 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            maxLength={240}
+            maxLength={STATEMENT_TEXT_MAX}
             autoFocus
             data-testid={`edit-input-${statement.id}`}
           />
@@ -85,6 +86,16 @@ function PendingStatementCard({ statement, counting, onApprove, onHold, onReject
         </div>
       ) : (
         <p className="flash-card-text">{statement.text}</p>
+      )}
+
+      {statement.sourceText && !editing && (
+        <details className="pending-source" data-testid={`source-${statement.id}`}>
+          <summary>{t('statements.originalContribution')}</summary>
+          {statement.sourceSpeaker && (
+            <span className="pending-source-speaker">{statement.sourceSpeaker}</span>
+          )}
+          <p>{statement.sourceText}</p>
+        </details>
       )}
 
       {counting && !editing && (
@@ -184,7 +195,7 @@ function ManagedStatementCard({ statement, onEdit, onDelete }) {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            maxLength={240}
+            maxLength={STATEMENT_TEXT_MAX}
             autoFocus
             data-testid={`manage-edit-input-${statement.id}`}
           />
@@ -262,16 +273,16 @@ export default function StatementsPanel({
     return filterStatementsBySearch(sorted, manageSearch, t)
   }, [statements, manageSearch, t])
 
-  function handleVote(statementId, vote) {
+  function handleVote(statementId, vote, comment) {
     if (!votingActive) return
     const resolved = vote === 'pass' ? 'neutral' : vote
     setLocalVoted((prev) => new Set(prev).add(statementId))
-    onVote(statementId, resolved)
+    onVote(statementId, resolved, comment)
     setJustVotedId(statementId)
     setVotesOpen(true)
   }
 
-  function handleRevote(statementId, vote) {
+  function handleRevote(statementId, vote, comment) {
     if (!votingActive) return
     if (vote === 'undo') {
       setLocalVoted((prev) => {
@@ -282,7 +293,7 @@ export default function StatementsPanel({
       onVote(statementId, 'undo')
       return
     }
-    onVote(statementId, vote === 'pass' ? 'neutral' : vote)
+    onVote(statementId, vote === 'pass' ? 'neutral' : vote, comment)
     setJustVotedId(statementId)
   }
 
@@ -344,10 +355,10 @@ export default function StatementsPanel({
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder={t('statements.composerPlaceholder')}
                   rows={2}
-                  maxLength={240}
+                  maxLength={STATEMENT_TEXT_MAX}
                   data-testid="composer-input"
                 />
-                <span className="composer-count">{draft.length}/240</span>
+                <span className="composer-count">{draft.length}/{STATEMENT_TEXT_MAX}</span>
               </div>
               <div className="composer-footer">
                 <span className="composer-hint">
