@@ -1,6 +1,6 @@
 # Murmi
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0-or-later](https://shields.io)](https://gnu.org)(LICENSE)
 
 A web app for collaborative sense-making in live rooms. A host records the conversation; Murmi transcribes it, extracts claims, and lets everyone vote agree or disagree anonymously.
 
