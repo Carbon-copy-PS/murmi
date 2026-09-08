@@ -2151,12 +2151,12 @@ html:has(.about-page) {
   justify-content: center;
 }
 
-.auth-modal {
+.modal.auth-modal {
   position: relative;
   display: flex;
   flex-direction: column;
   width: min(100%, 440px);
-  max-width: none;
+  max-width: 440px;
   max-height: min(var(--vvh, 90dvh), 720px);
   padding: 0;
   overflow: hidden;
@@ -2177,8 +2177,9 @@ html:has(.about-page) {
   color-scheme: light;
 }
 
-.auth-modal.join {
+.modal.auth-modal.join {
   width: min(100%, 400px);
+  max-width: 400px;
 }
 
 .auth-modal-close {
@@ -2364,13 +2365,27 @@ html:has(.about-page) {
   color: var(--ds-text-muted);
 }
 
-.auth-vote-type {
+.vote-type-seg.auth-vote-type {
+  display: flex;
   width: 100%;
+  gap: 0;
 }
 
 .auth-vote-type .vote-type-opt {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
   text-align: center;
+  background: transparent;
+}
+
+.auth-vote-type .vote-type-opt.on {
+  background: #ffffff;
 }
 
 .auth-form-error {
@@ -2424,8 +2439,8 @@ html:has(.about-page) {
     padding: 0;
   }
 
-  .auth-modal,
-  .auth-modal.join {
+  .modal.auth-modal,
+  .modal.auth-modal.join {
     width: 100%;
     max-width: none;
     max-height: min(var(--vvh, 100dvh), 100%);
@@ -2480,7 +2495,7 @@ html:has(.about-page) {
 }
 
 @media (max-height: 640px) {
-  .auth-modal {
+  .modal.auth-modal {
     max-height: min(var(--vvh, 96dvh), 100%);
   }
 
