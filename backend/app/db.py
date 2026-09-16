@@ -114,7 +114,7 @@ class VoteRow(Base):
         ForeignKey("statements.id", ondelete="CASCADE"), index=True
     )
     participant_id: Mapped[str] = mapped_column(String(64))
-    vote: Mapped[str] = mapped_column(String(16))
+    vote: Mapped[str] = mapped_column(String(32))
     voted_at: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
@@ -193,6 +193,14 @@ class Database:
         self._sessionmaker = async_sessionmaker(self.engine, expire_on_commit=False)
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Existing databases used varchar(16), which rejects strongly_disagree.
+            vote_length = await conn.scalar(text(
+                "SELECT character_maximum_length FROM information_schema.columns "
+                "WHERE table_schema = current_schema() AND table_name = 'votes' "
+                "AND column_name = 'vote'"
+            ))
+            if vote_length is not None and vote_length < 32:
+                await conn.execute(text("ALTER TABLE votes ALTER COLUMN vote TYPE varchar(32)"))
             await conn.execute(text(
                 "ALTER TABLE participants "
                 "ADD COLUMN IF NOT EXISTS auto_approve boolean NOT NULL DEFAULT false"

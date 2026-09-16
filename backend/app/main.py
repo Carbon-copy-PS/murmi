@@ -684,7 +684,10 @@ def should_merge_transcript(last_entry: dict | None, speaker: str, now: float) -
     if not last_entry or last_entry.get("speaker") != speaker:
         return False
     last_updated = last_entry.get("updatedAt", last_entry.get("timestamp", 0))
-    return now - last_updated <= TRANSCRIPT_MERGE_WINDOW_SECONDS
+    return (
+        now - last_updated <= TRANSCRIPT_MERGE_WINDOW_SECONDS
+        and now - last_entry.get("timestamp", now) <= 30
+    )
 
 
 def merge_transcript_text(existing: str, addition: str) -> str:
@@ -715,6 +718,7 @@ async def add_transcript_text(
     text: str,
     speaker: str,
     item_id: str | None = None,
+    transcription_item: dict | None = None,
 ) -> bool:
     text = text.strip()
     if is_low_information_transcript(text):
@@ -731,6 +735,8 @@ async def add_transcript_text(
         last_entry.setdefault("itemIds", [])
         if item_id:
             last_entry["itemIds"].append(item_id)
+        if transcription_item:
+            last_entry.setdefault("transcriptionItems", []).append(transcription_item)
 
         await sessions.broadcast(session_id, {
             "type": "transcript_update",
@@ -753,6 +759,8 @@ async def add_transcript_text(
     if item_id:
         entry["itemId"] = item_id
         entry["itemIds"] = [item_id]
+    if transcription_item:
+        entry["transcriptionItems"] = [transcription_item]
 
     sessions.add_transcript_entry(session_id, entry)
     await sessions.broadcast(session_id, entry)
@@ -776,14 +784,19 @@ async def finalize_caption(
     speaker: str,
     item_id: str,
     transcript_text: str,
-    audio_bytes: Optional[bytes] = None,
+    language: str | None = None,
 ):
-    final_text = transcript_text
-    corrected_text = await transcription.transcribe_pcm16(audio_bytes or b"")
-    if corrected_text and not is_low_information_transcript(corrected_text):
-        final_text = corrected_text
-
-    added = await add_transcript_text(session_id, final_text, speaker, item_id=item_id)
+    # The completed Realtime event already belongs to this exact audio item.
+    # Do not retranscribe a shared microphone buffer: it can contain later turns.
+    added = await add_transcript_text(
+        session_id, transcript_text, speaker, item_id=item_id,
+        transcription_item={
+            "itemId": item_id,
+            "text": transcript_text,
+            "language": language,
+            "source": "realtime",
+        },
+    )
     if not added:
         await sessions.broadcast(session_id, {
             "type": "caption_rejected",
@@ -820,7 +833,13 @@ async def get_realtime_session(
         asyncio.create_task(existing.close())
 
     speaker = sessions.get_participant_name(session_id, participant_id)
-    language = sessions.get_participant_language(session_id, participant_id)
+    language = (
+        sessions.get_participant_language(session_id, participant_id)
+        or sessions.get_session_language(session_id)
+    )
+
+    async def on_bridge_final(sid: str, label: str, item_id: str, text: str):
+        await finalize_caption(sid, label, item_id, text, language=bridge.language)
 
     async def on_bridge_error(sid: str, message: str, code: str | None = None):
         realtime_unavailable.add((session_id, participant_id))
@@ -832,7 +851,7 @@ async def get_realtime_session(
         speaker=speaker,
         language=language,
         on_delta=broadcast_caption_delta,
-        on_final=finalize_caption,
+        on_final=on_bridge_final,
         on_error=on_bridge_error,
     )
     realtime_sessions[key] = bridge

@@ -6,6 +6,7 @@ import json
 import os
 import time
 from typing import Awaitable, Callable, Optional
+from collections import deque
 
 import websockets
 
@@ -13,7 +14,7 @@ from .languages import LANGUAGE_LABELS
 
 
 CaptionDeltaHandler = Callable[[str, str, str, str], Awaitable[None]]
-CaptionFinalHandler = Callable[[str, str, str, str, Optional[bytes]], Awaitable[None]]
+CaptionFinalHandler = Callable[[str, str, str, str], Awaitable[None]]
 CaptionErrorHandler = Callable[[str, str, Optional[str]], Awaitable[None]]
 
 
@@ -44,14 +45,13 @@ class RealtimeTranscriptionSession:
         self.transcription_model = os.environ.get("OPENAI_REALTIME_TRANSCRIPTION_MODEL", "gpt-4o-transcribe")
         self.prompt = os.environ.get(
             "OPENAI_REALTIME_TRANSCRIPTION_PROMPT",
-            self._default_prompt(language),
+            self._default_prompt(self.language),
         )
         self.turn_detection = os.environ.get("OPENAI_REALTIME_TURN_DETECTION", "server_vad")
         self.vad_threshold = float(os.environ.get("OPENAI_REALTIME_VAD_THRESHOLD", "0.5"))
         self.vad_prefix_padding_ms = int(os.environ.get("OPENAI_REALTIME_VAD_PREFIX_PADDING_MS", "300"))
         self.vad_silence_duration_ms = int(os.environ.get("OPENAI_REALTIME_VAD_SILENCE_DURATION_MS", "500"))
         self.commit_interval = float(os.environ.get("OPENAI_REALTIME_COMMIT_SECONDS", "1.0"))
-        self.max_turn_seconds = float(os.environ.get("OPENAI_REALTIME_MAX_TURN_SECONDS", "10"))
         self.url = os.environ.get(
             "OPENAI_REALTIME_URL",
             "wss://api.openai.com/v1/realtime?intent=transcription",
@@ -62,15 +62,10 @@ class RealtimeTranscriptionSession:
         self.receiver_task: Optional[asyncio.Task] = None
         self.send_lock = asyncio.Lock()
         self.bytes_since_commit = 0
-        self.max_turn_audio_bytes = int(
-            self.sample_rate
-            * self.bytes_per_sample
-            * float(os.environ.get("OPENAI_REALTIME_FINAL_AUDIO_MAX_SECONDS", "90"))
-        )
-        self.turn_audio = bytearray()
-        self.audio_energy_sum = 0.0
-        self.audio_energy_samples = 0
-        self.peak_sample = 0
+        self.pending_items: deque[str] = deque()
+        self.completed_items: dict[str, str] = {}
+        self.items_drained = asyncio.Event()
+        self.items_drained.set()
         self.closed = False
         self.finalized_items: set[str] = set()
 
@@ -119,8 +114,6 @@ class RealtimeTranscriptionSession:
 
         if not audio_bytes:
             return
-        self._track_audio_energy(audio_bytes)
-        self._track_turn_audio(audio_bytes)
 
         async with self.send_lock:
             if not self.is_open:
@@ -134,10 +127,6 @@ class RealtimeTranscriptionSession:
             if self._manual_turn_detection():
                 commit_bytes = int(self.sample_rate * self.bytes_per_sample * self.commit_interval)
                 if self.bytes_since_commit >= commit_bytes:
-                    await self._commit_locked()
-            else:
-                max_turn_bytes = int(self.sample_rate * self.bytes_per_sample * self.max_turn_seconds)
-                if max_turn_bytes > 0 and self.bytes_since_commit >= max_turn_bytes:
                     await self._commit_locked()
 
     async def close(self, flush: bool = True):
@@ -162,6 +151,12 @@ class RealtimeTranscriptionSession:
                 })
                 await asyncio.sleep(silence_ms / 1000)
             except Exception:
+                pass
+
+        if flush and self.receiver_task and not self.receiver_task.done():
+            try:
+                await asyncio.wait_for(self.items_drained.wait(), timeout=5)
+            except asyncio.TimeoutError:
                 pass
 
         if self.receiver_task:
@@ -222,6 +217,12 @@ class RealtimeTranscriptionSession:
         return self.turn_detection in ("manual", "none", "off", "null")
 
     def _default_prompt(self, language: str | None) -> str:
+        if language == "zh":
+            return (
+                "這是一場以台灣華語為主的現場討論。請忠實逐字轉錄，以繁體中文書寫中文內容，"
+                "保留實際說出的英文或其他語言，不要翻譯、補寫未說完的句子或加入說明。"
+                "忽略非語音的聲音；沒有說話時不要產生文字。"
+            )
         base = (
             "Transcribe a live discussion. Preserve the language being spoken; do not translate. "
             "Ignore non-speech sounds and brief filler noises."
@@ -270,26 +271,27 @@ class RealtimeTranscriptionSession:
                 elif event_type == "conversation.item.input_audio_transcription.completed":
                     item_id = event.get("item_id", "")
                     transcript = (event.get("transcript") or "").strip()
-                    turn_audio = bytes(self.turn_audio) if self.turn_audio else None
-                    if (
-                        item_id
-                        and transcript
-                        and item_id not in self.finalized_items
-                        and self._has_enough_audio_energy()
-                    ):
-                        self.finalized_items.add(item_id)
-                        await self.on_final(
-                            self.session_id,
-                            self.speaker,
-                            item_id,
-                            transcript,
-                            turn_audio,
-                        )
-                    self._reset_audio_energy()
-                    self._reset_turn_audio()
+                    if item_id and item_id not in self.finalized_items:
+                        if item_id not in self.pending_items:
+                            self.pending_items.append(item_id)
+                        self.items_drained.clear()
+                        self.completed_items[item_id] = transcript
+                        await self._publish_completed_items()
+
+                elif event_type == "input_audio_buffer.committed":
+                    # WebSocket commit events establish turn order; transcription
+                    # completions for those turns may arrive out of order.
+                    item_id = event.get("item_id", "")
+                    if item_id and item_id not in self.finalized_items and item_id not in self.pending_items:
+                        self.pending_items.append(item_id)
+                        self.items_drained.clear()
                     self.bytes_since_commit = 0
 
                 elif event_type == "conversation.item.input_audio_transcription.failed":
+                    item_id = event.get("item_id", "")
+                    if item_id in self.pending_items:
+                        self.completed_items[item_id] = ""
+                        await self._publish_completed_items()
                     error = event.get("error") or {}
                     code = error.get("code") or error.get("type") or ""
                     message = error.get("message") or "Realtime transcription failed"
@@ -326,31 +328,11 @@ class RealtimeTranscriptionSession:
                 except Exception:
                     pass
 
-    def _track_audio_energy(self, audio_bytes: bytes):
-        for i in range(0, len(audio_bytes) - 1, 2):
-            sample = int.from_bytes(audio_bytes[i:i + 2], "little", signed=True)
-            abs_sample = abs(sample)
-            self.audio_energy_sum += abs_sample
-            self.audio_energy_samples += 1
-            if abs_sample > self.peak_sample:
-                self.peak_sample = abs_sample
-
-    def _track_turn_audio(self, audio_bytes: bytes):
-        self.turn_audio.extend(audio_bytes)
-        overflow = len(self.turn_audio) - self.max_turn_audio_bytes
-        if overflow > 0:
-            del self.turn_audio[:overflow]
-
-    def _has_enough_audio_energy(self) -> bool:
-        if self.audio_energy_samples == 0:
-            return False
-        mean = self.audio_energy_sum / self.audio_energy_samples
-        return mean >= 140 or self.peak_sample >= 1200
-
-    def _reset_audio_energy(self):
-        self.audio_energy_sum = 0.0
-        self.audio_energy_samples = 0
-        self.peak_sample = 0
-
-    def _reset_turn_audio(self):
-        self.turn_audio.clear()
+    async def _publish_completed_items(self):
+        while self.pending_items and self.pending_items[0] in self.completed_items:
+            item_id = self.pending_items.popleft()
+            transcript = self.completed_items.pop(item_id)
+            self.finalized_items.add(item_id)
+            await self.on_final(self.session_id, self.speaker, item_id, transcript)
+        if not self.pending_items:
+            self.items_drained.set()
