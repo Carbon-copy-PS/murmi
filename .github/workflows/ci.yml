@@ -28,6 +28,20 @@ jobs:
   tests:
     name: Backend and analysis tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: murmi_test
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U murmi_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,6 +53,8 @@ jobs:
       - name: Install Python dependencies
         run: python -m pip install -r backend/requirements.txt
       - name: Python unit tests
+        env:
+          MURMI_TEST_POSTGRES_PORT: "5432"
         run: python -m unittest discover -s backend/tests -t .
       - name: Node tests
         run: |
