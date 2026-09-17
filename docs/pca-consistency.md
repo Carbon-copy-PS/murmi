@@ -172,6 +172,37 @@ themes replaced them, and the published report stayed unchanged. A DOM observer
 confirmed that no “Theme emerging” placeholder appeared during that update. This
 check made no provider calls and is not a production deployment rehearsal.
 
+### Deployment verification — 2026-09-18
+
+The subsequent release check ran all 83 backend tests against a disposable local
+PostgreSQL 14.19 instance, with no skips, and all 25 JavaScript tests passed. The
+frontend production build had already passed for this candidate; the additional
+disconnect fix changes only the backend.
+
+A separate rehearsal used the actual HTTP and host WebSocket routes, eight
+synthetic voters, and real provider calls for initial themes, refreshed themes,
+and the report narrative. It verified that a changed vote preserves supported
+labels during cooldown, that host refresh produces themes for the new snapshot,
+and that finalization/publication saves the exact same opinion landscape shown
+in live results. The application process was terminated and replaced with a fresh
+process. The public report was identical after PostgreSQL hydration, and the
+returning host, recorded votes and recomputed grouping were preserved.
+
+The first rehearsal exposed a disconnect edge case: a failed broadcast can close
+the WebSocket's send side before the next receive. The endpoint now routes that
+state through normal disconnect handling. A regression reproduces the failed
+broadcast using a real Starlette WebSocket. The repeated end-to-end rehearsal
+passed with no ASGI errors or report/database failures in the application log.
+
+The production server was checked read-only: its checkout remained clean at
+`1c837e4`, running Python 3.12.13 and Node 20.20.2. Candidate tests were run in an
+isolated temporary directory using that server's installed runtime, without its
+production environment or database. GitHub Actions has not run this unpushed
+branch; the workflow's test commands were exercised directly instead. The live
+process remained online and the homepage returned HTTP 200. Temporary services
+and server test files were cleaned up. These checks verify this release path;
+they are not a large-session load test or a broad evaluation of model quality.
+
 ### What the map leaves out
 
 The primary grouping uses the two displayed PCA dimensions. A separate diagnostic

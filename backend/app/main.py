@@ -13,6 +13,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from starlette.websockets import WebSocketState
 from pydantic import BaseModel
 from typing import Optional
 
@@ -1001,6 +1002,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     try:
         while True:
+            # A failed background broadcast can close the send side before the
+            # next receive. Route that state through normal disconnect cleanup.
+            if websocket.application_state == WebSocketState.DISCONNECTED:
+                raise WebSocketDisconnect(code=1006)
             data = await websocket.receive_json()
             msg_type = data.get("type")
 

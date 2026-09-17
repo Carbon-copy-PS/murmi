@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Handle a WebSocket already closed by a failed broadcast before receiving its next message; verified live/report persistence through a full application restart.
+
 - Keep supported live group themes visible during background refresh and temporary failures, with an update notice; match vote patterns rather than group letters and keep final reports tied to their exact snapshot.
 
 - Add emerging theme labels over opinion clusters, vote-backed descriptions and a shared summary; cache background generation by vote snapshot and freeze report labels with their evidence.
