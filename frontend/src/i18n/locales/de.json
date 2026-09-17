@@ -62,7 +62,9 @@
     "recommendationsFailed": "Empfehlungen konnten nicht erstellt werden.",
     "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen.",
     "cgNeedsVotes": "Für einen Policy-Entwurf sind freigegebene Argumente mit Stimmen nötig.",
-    "cgEndorseFailed": "Version konnte nicht bestätigt werden. Nur der neueste Arbeitsentwurf kann final markiert werden."
+    "cgEndorseFailed": "Version konnte nicht bestätigt werden. Nur der neueste Arbeitsentwurf kann final markiert werden.",
+    "transcriptIncomplete": "Das Ende des Transkripts ist möglicherweise unvollständig. Ein Teil der Audiodaten wurde nicht bestätigt.",
+    "transcriptSaveFailed": "Ein Teil des Transkripts ist noch nicht gespeichert. Der Vorgang wird wiederholt. Lassen Sie diese Seite geöffnet und kopieren Sie bei Bedarf das Transkript."
   },
   "confirm": {
     "revokeHostTitle": "Host-Zugriff entziehen?",
@@ -88,8 +90,15 @@
     "resumeVoting": "Abstimmung fortsetzen"
   },
   "transcript": {
+    "preparing": "Transkript wird vorbereitet…",
+    "showOriginal": "Originaltext anzeigen",
+    "download": "Transkript herunterladen (.txt)",
+    "downloadOriginal": "Originaldaten herunterladen (.json)",
+    "missingSegment": "Für diesen Abschnitt fehlt das Transkript.",
     "empty": "Das Transkript erscheint hier",
-    "live": "Live"
+    "live": "Live",
+    "finishing": "Transkription wird abgeschlossen…",
+    "unconfirmed": "Unbestätigt"
   },
   "statements": {
     "editStatement": "Aussage bearbeiten",

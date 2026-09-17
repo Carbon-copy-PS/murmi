@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Transcript text and original-data downloads, Traditional Chinese display with an original-text toggle, and documented transcription evaluation tools.
+- A Chinese explanation of the September transcription changes and their limitations.
+
 - Open-source release files: MIT license, community health docs, issue/PR templates, Dependabot, and CI.
+
+### Fixed
+
+- Preserve completed Realtime transcriptions directly instead of replacing them with a second pass over a shared audio buffer.
+- Keep short replies, preserve turn order, and wait for final audio acknowledgement when recording stops.
+- Retry transcript saves without blocking captions; mark missing segments and recover late results without duplicating entries.
+- Use a neutral live-transcription prompt and preserve original model output when displaying Traditional Chinese.
+- Expand the vote column to store `strongly_disagree` and migrate older databases without changing existing votes.
 
 ## [0.1.0] - 2026-09-01
 
