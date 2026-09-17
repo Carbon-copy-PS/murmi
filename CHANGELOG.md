@@ -12,7 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Transcript text and original-data downloads, Traditional Chinese display with an original-text toggle, and documented transcription evaluation tools.
 - A Chinese explanation of the September transcription changes and their limitations.
 
-- Open-source release files: MIT license, community health docs, issue/PR templates, Dependabot, and CI.
+- Open-source release files: license, community health docs, issue/PR templates, Dependabot, and CI.
+
+### Changed
+
+- Change the project license from MIT to GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`).
 
 ### Fixed
 

@@ -1,6 +1,6 @@
 # Murmi
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 A web app for collaborative sense-making in live rooms. A host records the conversation; Murmi transcribes it, extracts claims, and lets everyone vote agree or disagree anonymously.
 
@@ -125,4 +125,13 @@ Report vulnerabilities privately. Do not file public issues for security problem
 
 ## License
 
-MIT. See [LICENSE](LICENSE). Copyright 2026 Carbon Copy Association.
+Copyright (c) 2026 Carbon Copy Association.
+
+Murmi is free software: you can redistribute it and/or modify it under the
+terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option)
+any later version (`AGPL-3.0-or-later`).
+
+Murmi is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the full license text.
