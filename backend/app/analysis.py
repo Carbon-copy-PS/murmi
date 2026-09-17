@@ -207,7 +207,9 @@ Rules:
 - Every substantive claim must be grounded in the supplied evidence.
 - Evidence references must use only statement IDs present in the input.
 - Never invent percentages, participant counts, quotations, themes, or causal explanations.
-- Opinion tendencies are overlapping patterns, not fixed, mutually exclusive, or opposing camps.
+- Follow opinionLandscape.membershipKind: exclusive groups assign each eligible voter once; legacy fuzzy tendencies overlap. Never reinterpret one as the other. Neither represents fixed identities or necessarily opposing camps.
+- If opinionLandscape.status is provisional, explain that groups appear early for engagement and may change with more votes. Never claim they passed reliability checks.
+- For exclusive groups, describe their actual statement vote counts and missing responses. Use each group.id as tendencyId in the response. If projectionCheck.changed is true, explain that the 2D map omits differences that affect grouping.
 - Describe PCA dimensions as variations in emphasis. Do not use technical language such as eigenvector, loading, fuzzy c-means, silhouette, or cluster in reader-facing copy.
 - Treat observed neutral responses separately from missing responses. Never guess why somebody selected neutral.
 - Treat lower response coverage as weaker evidence, not as disagreement.
@@ -257,7 +259,7 @@ Respond ONLY with JSON:
     {
       "tendencyId": 1,
       "title": "2-5 word reader-friendly name",
-      "description": "what this overlapping tendency tends to emphasise",
+      "description": "what the supplied group or tendency tends to emphasise",
       "evidenceStatementIds": ["id"]
     }
   ],
@@ -272,7 +274,7 @@ Respond ONLY with JSON:
   ]
 }
 
-Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 2 tendencies, 4 open questions, 4 implications, and 4 limitations."""
+Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, 4 tendencies, 4 open questions, 4 implications, and 4 limitations."""
 
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
@@ -829,7 +831,7 @@ class AnalysisService:
             if statement.get("id")
         }
         landscape = evidence.get("opinionLandscape") or {}
-        allowed_tendency_ids = {
+        allowed_tendency_ids = {group["id"] for group in landscape.get("groups", [])} if landscape.get("membershipKind") == "exclusive" else {
             int(profile.get("tendencyId"))
             for profile in (
                 landscape.get("tendencies", {}).get("profiles") or []
@@ -933,7 +935,7 @@ class AnalysisService:
                     "description": description,
                     "evidenceStatementIds": evidence_ids,
                 })
-            if len(tendencies) == 2:
+            if len(tendencies) == 4:
                 break
 
         overlap_pairs = []

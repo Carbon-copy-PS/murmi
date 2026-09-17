@@ -795,26 +795,11 @@ class SessionManager:
         session = self.sessions.get(session_id)
         if not session:
             return {"statements": [], "voters": []}
-        approved = [s for s in session.statements if s.approved]
-        pids: list[str] = []
-        seen: set[str] = set()
-        for s in approved:
-            for pid in s.votes.keys():
-                if pid not in seen:
-                    seen.add(pid)
-                    pids.append(pid)
-        voters = []
-        for idx, pid in enumerate(pids):
-            votes = {s.id: s.votes[pid] for s in approved if pid in s.votes}
-            voters.append({
-                "key": "you" if pid == participant_id else f"p{idx + 1}",
-                "isYou": pid == participant_id,
-                "votes": votes,
-            })
+        from .opinion_analysis import vote_matrix_data
+        matrix = vote_matrix_data(session, participant_id)
         history = self.get_common_ground_history(session_id, participant_id)
         return {
-            "statements": [{"id": s.id, "text": s.text, "custom": s.custom} for s in approved],
-            "voters": voters,
+            **matrix,
             "commonGroundHistory": history,
             "commonGroundMode": session.common_ground_mode,
         }

@@ -21,6 +21,7 @@ from .transcription import TranscriptionService
 from .analysis import AnalysisService, CG_PROMPT_VERSION
 from .realtime_transcription import RealtimeTranscriptionSession
 from .transcript_writer import TranscriptWriter
+from .opinion_analysis import get_opinion_analysis
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
@@ -1099,10 +1100,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         ))
 
             elif msg_type == "get_results":
-                await websocket.send_json({
-                    "type": "results",
-                    **sessions.vote_matrix(session_id, participant_id),
-                })
+                result = sessions.vote_matrix(session_id, participant_id)
+                session = sessions.get(session_id)
+                if session:
+                    calculated = await get_opinion_analysis(session)
+                    result["opinionAnalysis"] = calculated["live"]
+                    result["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
+                await websocket.send_json({"type": "results", **result})
 
             elif msg_type == "generate_recommendations":
                 if not sessions.is_host(session_id, participant_id):
@@ -1148,7 +1152,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     if not session:
                         continue
                     from .policy_evidence import build_policy_evidence
-                    payload = build_policy_evidence(session)
+                    policy_source = freeze_report_source(session)
+                    opinion = await get_opinion_analysis(policy_source)
+                    payload = build_policy_evidence(policy_source, opinion["landscape"])
                     payload["previousFeedback"] = sessions.collect_common_ground_feedback(
                         session_id, mode="policy"
                     )
@@ -1579,6 +1585,10 @@ async def public_results(public_id: str):
     data = sessions.public_results(session_id)
     if not data:
         raise HTTPException(status_code=404, detail="Results not found")
+    if "report" not in data:
+        calculated = await get_opinion_analysis(sessions.get(session_id))
+        data["opinionAnalysis"] = calculated["live"]
+        data["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
     return data
 
 

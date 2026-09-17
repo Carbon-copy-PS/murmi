@@ -1,7 +1,10 @@
-import { analyzePolisInspiredSession } from "../data-analysis/polis-inspired-analysis.mjs";
+import { analyzePolisInspiredSession, checkProjectionSensitivity } from "../data-analysis/polis-inspired-analysis.mjs";
 
-const MINIMUM_DENSITY_CELL = 5;
-const MAX_PRIORITY_STATEMENTS = 3;
+export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v1";
+export const OPINION_OPTIONS = Object.freeze({
+  minimumVotes: 1, minimumK: 2, maximumK: 4,
+  bootstrapReplicates: 100, sensitivityThresholds: [1, 2, 3, 7],
+});
 
 function round(value, digits = 4) {
   if (!Number.isFinite(value)) return null;
@@ -11,81 +14,6 @@ function round(value, digits = 4) {
 function nullableRound(value, digits = 4) {
   if (value === null || value === undefined || value === "") return null;
   return round(Number(value), digits);
-}
-
-function buildDensity(assignments, columns = 4, rows = 4) {
-  const points = assignments
-    .map((assignment) => assignment.coordinates)
-    .filter((coordinates) => (
-      Array.isArray(coordinates)
-      && coordinates.length >= 2
-      && coordinates.every(Number.isFinite)
-    ));
-  if (!points.length) {
-    return {
-      columns,
-      rows,
-      minimumCellCount: MINIMUM_DENSITY_CELL,
-      participantCount: 0,
-      shownParticipants: 0,
-      suppressedParticipants: 0,
-      maximumCellCount: 0,
-      cells: [],
-    };
-  }
-
-  const xValues = points.map(([x]) => x);
-  const yValues = points.map(([, y]) => y);
-  const xMinimum = Math.min(...xValues);
-  const xMaximum = Math.max(...xValues);
-  const yMinimum = Math.min(...yValues);
-  const yMaximum = Math.max(...yValues);
-  const xSpan = Math.max(Number.EPSILON, xMaximum - xMinimum);
-  const ySpan = Math.max(Number.EPSILON, yMaximum - yMinimum);
-  const counts = new Map();
-
-  for (const [x, y] of points) {
-    const column = Math.min(
-      columns - 1,
-      Math.floor(columns * (x - xMinimum) / xSpan),
-    );
-    const rowFromBottom = Math.min(
-      rows - 1,
-      Math.floor(rows * (y - yMinimum) / ySpan),
-    );
-    const row = rows - 1 - rowFromBottom;
-    const key = `${row},${column}`;
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-
-  const cells = [...counts.entries()]
-    .map(([key, count]) => {
-      const [row, column] = key.split(",").map(Number);
-      return { row, column, count };
-    })
-    .filter((cell) => cell.count >= MINIMUM_DENSITY_CELL)
-    .sort((left, right) => left.row - right.row || left.column - right.column);
-  const shownParticipants = cells.reduce((total, cell) => total + cell.count, 0);
-
-  return {
-    columns,
-    rows,
-    minimumCellCount: MINIMUM_DENSITY_CELL,
-    participantCount: points.length,
-    shownParticipants,
-    suppressedParticipants: points.length - shownParticipants,
-    maximumCellCount: Math.max(0, ...cells.map((cell) => cell.count)),
-    cells,
-  };
-}
-
-function statementMap(source) {
-  return new Map(
-    (source.statements || []).map((statement) => [
-      String(statement.id),
-      String(statement.text || ""),
-    ]),
-  );
 }
 
 function axisSummary(pcaStatements, statements, key) {
@@ -112,104 +40,6 @@ function axisSummary(pcaStatements, statements, key) {
       loading: round(statement.loading),
     })),
   };
-}
-
-function normalizedProfileShape(spread, xSpan, ySpan) {
-  const varianceX = Math.max(0, Number(spread?.varianceX) || 0) / (xSpan * xSpan);
-  const varianceY = Math.max(0, Number(spread?.varianceY) || 0) / (ySpan * ySpan);
-  const covariance = -(Number(spread?.covarianceXY) || 0) / (xSpan * ySpan);
-  const difference = varianceX - varianceY;
-  const root = Math.sqrt(
-    Math.max(0, difference * difference + 4 * covariance * covariance),
-  );
-  const majorVariance = Math.max(0, (varianceX + varianceY + root) / 2);
-  const minorVariance = Math.max(0, (varianceX + varianceY - root) / 2);
-  const clampRadius = (value) => Math.min(0.3, Math.max(0.06, value));
-
-  return {
-    radiusMajor: round(clampRadius(1.5 * Math.sqrt(majorVariance))),
-    radiusMinor: round(clampRadius(1.5 * Math.sqrt(minorVariance))),
-    rotation: round(0.5 * Math.atan2(2 * covariance, difference) * 180 / Math.PI, 1),
-  };
-}
-
-function tendencyProfiles(result, source) {
-  const tendencies = result.opinionTendencies;
-  if (!tendencies?.profiles?.length) return [];
-  const statements = statementMap(source);
-  const overall = new Map(
-    (result.statementSummaries || []).map((statement) => [
-      statement.statementId,
-      statement.supportRateObserved,
-    ]),
-  );
-  const domain = tendencies.mapDomain;
-  const xSpan = Math.max(Number.EPSILON, domain.xMaximum - domain.xMinimum);
-  const ySpan = Math.max(Number.EPSILON, domain.yMaximum - domain.yMinimum);
-  const eligibleParticipants = result.diagnostics.eligibleParticipantCount || 0;
-
-  return tendencies.profiles.map((profile) => {
-    const statementScores = profile.statements
-      .filter((statement) => (
-        Number.isFinite(statement.supportRateObserved)
-        && statement.coverage >= 0.4
-      ))
-      .map((statement) => {
-        const overallSupport = overall.get(statement.statementId) ?? 0.5;
-        const contrast = statement.supportRateObserved - overallSupport;
-        return {
-          statementId: statement.statementId,
-          text: statements.get(String(statement.statementId)) || statement.text,
-          supportRate: statement.supportRateObserved,
-          coverageRate: statement.coverage,
-          contrast,
-          priorityScore: (
-            0.6 * statement.supportRateDecided
-            + 0.4 * Math.max(0, contrast)
-          ),
-        };
-      });
-    const priorities = [...statementScores]
-      .sort((left, right) => (
-        right.priorityScore - left.priorityScore
-        || right.coverageRate - left.coverageRate
-      ))
-      .slice(0, MAX_PRIORITY_STATEMENTS)
-      .map((statement) => ({
-        statementId: statement.statementId,
-        text: statement.text,
-        supportRate: round(statement.supportRate),
-        coverageRate: round(statement.coverageRate),
-        contrast: round(statement.contrast),
-      }));
-    const distinctive = [...statementScores]
-      .sort((left, right) => (
-        Math.abs(right.contrast) - Math.abs(left.contrast)
-        || right.coverageRate - left.coverageRate
-      ))
-      .slice(0, MAX_PRIORITY_STATEMENTS)
-      .map((statement) => ({
-        statementId: statement.statementId,
-        text: statement.text,
-        direction: statement.contrast >= 0 ? "more-supportive" : "less-supportive",
-        supportRate: round(statement.supportRate),
-        contrast: round(statement.contrast),
-      }));
-    return {
-      tendencyId: profile.tendencyId,
-      membershipMass: round(profile.membershipMass, 2),
-      membershipShare: eligibleParticipants
-        ? round(profile.membershipMass / eligibleParticipants)
-        : 0,
-      position: {
-        x: round((profile.centroid[0] - domain.xMinimum) / xSpan),
-        y: round(1 - (profile.centroid[1] - domain.yMinimum) / ySpan),
-      },
-      shape: normalizedProfileShape(profile.spread, xSpan, ySpan),
-      priorities,
-      distinctive,
-    };
-  });
 }
 
 function reliabilitySummary(diagnostics) {
@@ -267,86 +97,136 @@ function reliabilitySummary(diagnostics) {
   };
 }
 
-function buildPublicResult(source, options) {
-  const result = analyzePolisInspiredSession(source, options);
-  const diagnostics = result.diagnostics || {};
-  if (!result.ok) {
-    return {
-      available: false,
-      reason: result.reason,
-      method: diagnostics.method,
-      eligibleParticipants: diagnostics.eligibleParticipantCount || 0,
-      excludedParticipants: diagnostics.excludedParticipantCount || 0,
-      minimumVotes: diagnostics.eligibilityThreshold || options.minimumVotes,
-    };
-  }
 
-  const profiles = tendencyProfiles(result, source);
-  if (!profiles.length) {
-    return {
-      available: false,
-      reason: "no-opinion-tendencies",
-      method: diagnostics.method,
-      eligibleParticipants: diagnostics.eligibleParticipantCount,
-      excludedParticipants: diagnostics.excludedParticipantCount,
-      minimumVotes: diagnostics.eligibilityThreshold,
-    };
-  }
+const VOTES = ['strongly_agree', 'agree', 'neutral', 'disagree', 'strongly_disagree'];
+const textOrder = (a, b) => String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0;
 
-  const statements = statementMap(source);
-  const pcaStatements = diagnostics.pca?.statements || [];
-  const density = buildDensity(result.assignments || []);
+function statementStats(statements, voters) {
+  return statements.map((statement) => {
+    const dist = Object.fromEntries(VOTES.map((vote) => [vote, 0]));
+    for (const voter of voters) {
+      const vote = voter.votes[statement.id];
+      if (Object.hasOwn(dist, vote)) dist[vote] += 1;
+    }
+    const agree = dist.agree + dist.strongly_agree;
+    const disagree = dist.disagree + dist.strongly_disagree;
+    const total = agree + disagree;
+    const responded = total + dist.neutral;
+    const agreeRate = responded ? agree / responded : 0;
+    const disagreeRate = responded ? disagree / responded : 0;
+    return {
+      id: statement.id, text: statement.text, custom: !!statement.custom,
+      dist, agree, disagree, neutral: dist.neutral, total, responded,
+      missing: voters.length - responded, agreeRate, disagreeRate,
+      rate: agreeRate, coverage: voters.length ? responded / voters.length : 0,
+      strongAgreeRate: responded ? dist.strongly_agree / responded : 0,
+      strongDisagreeRate: responded ? dist.strongly_disagree / responded : 0,
+      split: total ? 1 - Math.abs(agree / total - 0.5) * 2 : 0,
+    };
+  });
+}
+
+// Used by the results page exports and common-ground/recommendation inputs too.
+function describeGroup(group) {
+  const evidence = group.statements.filter((item) => item.responded > 0);
   return {
-    available: true,
-    method: "Pol.is-inspired PCA with overlapping fuzzy tendencies",
-    caveat: "The tendencies are recurring patterns, not fixed or mutually exclusive groups.",
-    eligibleParticipants: diagnostics.eligibleParticipantCount,
-    excludedParticipants: diagnostics.excludedParticipantCount,
-    minimumVotes: diagnostics.eligibilityThreshold,
-    explainedVariance: (diagnostics.pca?.explainedVarianceRatio || [])
-      .slice(0, 2)
-      .map((value) => round(value)),
-    axes: [
-      axisSummary(pcaStatements, statements, "pc1Loading"),
-      axisSummary(pcaStatements, statements, "pc2Loading"),
-    ],
-    reliability: reliabilitySummary(diagnostics),
-    density,
-    tendencies: {
-      count: profiles.length,
-      profiles,
-      overlapSummary: {
-        membershipThreshold: round(
-          result.opinionTendencies.overlapSummary.membershipThreshold,
-        ),
-        participantsWithMultipleTendencies: (
-          result.opinionTendencies.overlapSummary
-            .participantsWithMultipleTendencies
-        ),
-        eligibleParticipants: (
-          result.opinionTendencies.overlapSummary.eligibleParticipants
-        ),
+    ...group,
+    agree: evidence.filter((s) => s.agreeRate >= 0.5 && s.strongAgreeRate < 0.4).slice(0, 3),
+    disagree: evidence.filter((s) => s.disagreeRate >= 0.5 && s.strongDisagreeRate < 0.4).slice(0, 3),
+    stronglyAgree: evidence.filter((s) => s.strongAgreeRate >= 0.4).slice(0, 3),
+    stronglyDisagree: evidence.filter((s) => s.strongDisagreeRate >= 0.4).slice(0, 3),
+  };
+}
+
+/** Canonical shared calculation. Only `landscape` is publishable report data.
+ * Live points use caller-provided anonymous ballot keys, never report fields.
+ * Weak evidence changes the status label, not the early participation threshold.
+ */
+export function computeSharedOpinionAnalysis(source) {
+  const statements = [...source.statements].sort((a, b) => textOrder(a.id, b.id));
+  const ids = [...new Set(source.votes.map((vote) => String(vote.participant_id)))].sort(textOrder);
+  const byId = new Map(ids.map((key) => [key, { key, votes: {} }]));
+  for (const vote of source.votes) byId.get(String(vote.participant_id)).votes[vote.statement_id] = vote.vote;
+  const voters = ids.map((id) => byId.get(id));
+  const stats = statementStats(statements, voters);
+  const consensus = stats.filter((s) => s.responded >= 2 && s.agreeRate >= 0.6)
+    .sort((a, b) => b.agreeRate - a.agreeRate || textOrder(a.id, b.id)).slice(0, 4);
+  const divisive = stats.filter((s) => s.total >= 2)
+    .sort((a, b) => b.split - a.split || textOrder(a.id, b.id)).slice(0, 4);
+  const base = {
+    analysisVersion: OPINION_ANALYSIS_VERSION,
+    voterCount: voters.length, statementCount: statements.length,
+    stats, consensus, divisive, groups: [], clusters: [], points: [], youCluster: null,
+  };
+  if (statements.length < 2 || voters.length < 3) {
+    const reason = voters.length < 3 ? 'need-voters' : 'need-statements';
+    return { live: { ...base, ok: false, reason }, landscape: {
+      available: false, reason, analysisVersion: OPINION_ANALYSIS_VERSION, membershipKind: 'exclusive',
+    } };
+  }
+  const result = analyzePolisInspiredSession(source, OPINION_OPTIONS);
+  if (!result.ok && result.reason !== 'insufficient-distinct-opinion-points') {
+    throw new Error(`Opinion analysis failed: ${result.reason}`);
+  }
+  // Identical patterns still form one visible early group; never invent a split.
+  const assignments = result.ok ? result.assignments : voters.map((_, i) => ({
+    participantIndex: i + 1, groupId: 0, coordinates: [0, 0],
+  }));
+  const reliability = reliabilitySummary(result.diagnostics);
+  const projectionCheck = result.ok ? checkProjectionSensitivity(source, OPINION_OPTIONS, result) : null;
+  const provisional = !result.ok || reliability.hardGroupStatus !== 'publishable' || projectionCheck?.changed;
+  const xs = assignments.map((a) => a.coordinates[0]);
+  const ys = assignments.map((a) => a.coordinates[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 1e-12);
+  const position = ([x, y]) => ({ x: round(0.5 + 0.8 * (x - cx) / span), y: round(0.5 - 0.8 * (y - cy) / span) });
+  const points = assignments.map((a) => ({
+    key: voters[a.participantIndex - 1].key, cluster: a.groupId,
+    answered: a.observedVotes ?? Object.keys(voters[a.participantIndex - 1].votes).length,
+    ...position(a.coordinates),
+  }));
+  const groupIds = [...new Set(assignments.map((a) => a.groupId))].sort((a, b) => a - b);
+  const groups = groupIds.map((id) => {
+    const members = assignments.filter((a) => a.groupId === id);
+    const groupStats = statementStats(statements, members.map((a) => voters[a.participantIndex - 1]));
+    const enriched = groupStats.map((s) => ({
+      ...s, contrast: round(s.agreeRate - stats.find((all) => all.id === s.id).agreeRate),
+    })).sort((a, b) => Math.abs(b.contrast) - Math.abs(a.contrast) || b.responded - a.responded || textOrder(a.id, b.id));
+    const centre = position([0, 1].map((axis) => members.reduce((n, a) => n + a.coordinates[axis], 0) / members.length));
+    const mapped = members.map((a) => position(a.coordinates));
+    const average = (fn) => mapped.reduce((sum, point) => sum + fn(point), 0) / mapped.length;
+    return {
+      id, letter: String.fromCharCode(65 + id), size: members.length,
+      position: centre,
+      spread: {
+        xx: round(average((point) => (point.x - centre.x) ** 2), 6),
+        yy: round(average((point) => (point.y - centre.y) ** 2), 6),
+        xy: round(average((point) => (point.x - centre.x) * (point.y - centre.y)), 6),
       },
+      statements: enriched,
+    };
+  });
+  const landscape = {
+    available: true, analysisVersion: OPINION_ANALYSIS_VERSION, membershipKind: 'exclusive',
+    method: 'PCA with deterministic k-means and early provisional groups',
+    status: provisional ? 'provisional' : 'supported',
+    eligibleParticipants: voters.length, excludedParticipants: 0, minimumVotes: 1,
+    explainedVariance: (result.diagnostics.pca?.explainedVarianceRatio || [0, 0]).map((value) => round(value)),
+    projectionCheck, reliability, groups,
+    axes: ['pc1Loading', 'pc2Loading'].map((key) => axisSummary(
+      result.diagnostics.pca?.statements || [], new Map(statements.map((s) => [s.id, s.text])), key,
+    )),
+  };
+  return {
+    landscape,
+    live: { ...base, ok: true, k: groups.length, points,
+      clusters: groups.map(({ id, size }) => ({ id, size })),
+      groups: groups.map(describeGroup), landscape,
     },
   };
 }
 
-// One entry point and one set of settings for live results and reports.
 export function computeOpinionLandscape(source) {
-  const statementCount = source?.statements?.length || 0;
-  const minimumVotes = Math.min(
-    7,
-    Math.max(2, Math.ceil(statementCount * 0.3)),
-  );
-  return buildPublicResult(source, {
-    bootstrapReplicates: 100,
-    minimumVotes,
-    minimumK: 2,
-    maximumK: 2,
-    sensitivityThresholds: [...new Set([
-      minimumVotes,
-      Math.min(statementCount, Math.max(minimumVotes, 10)),
-      Math.min(statementCount, Math.max(minimumVotes, 12)),
-    ])],
-  });
+  return computeSharedOpinionAnalysis(source).landscape;
 }

@@ -80,7 +80,7 @@ export default function PublicResults({ publicId }) {
   }, [data?.language, i18n])
 
   const results = useMemo(
-    () => (data ? { statements: data.statements || [], voters: data.voters || [] } : null),
+    () => (data ? { statements: data.statements || [], voters: data.voters || [], opinionAnalysis: data.opinionAnalysis, opinionAnalysisError: data.opinionAnalysisError } : null),
     [data],
   )
   const statements = useMemo(

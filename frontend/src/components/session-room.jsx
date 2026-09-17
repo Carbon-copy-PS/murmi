@@ -510,7 +510,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           )
           break
         case 'results':
-          setResults({ statements: msg.statements, voters: msg.voters })
+          setResults({ statements: msg.statements, voters: msg.voters, opinionAnalysis: msg.opinionAnalysis, opinionAnalysisError: msg.opinionAnalysisError })
           if (msg.commonGroundHistory) setCommonGroundHistory(msg.commonGroundHistory)
           if (msg.commonGroundMode) setCgMode(msg.commonGroundMode)
           else if (msg.commonGroundDepth) setCgMode(msg.commonGroundDepth === 'policy' ? 'policy' : 'generic')

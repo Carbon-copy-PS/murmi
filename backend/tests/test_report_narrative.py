@@ -184,5 +184,20 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
         )
 
 
+class ExclusiveGroupNarrativeTests(unittest.TestCase):
+    def test_keeps_all_four_group_ids_including_zero(self):
+        service = AnalysisService()
+        evidence = {"statements": [{"id": "s1", "text": "Evidence"}],
+                    "opinionLandscape": {"membershipKind": "exclusive", "status": "provisional",
+                                         "groups": [{"id": i} for i in range(4)]}}
+        result = service._normalize_report_narrative({
+            "headline": "Early patterns", "standfirst": "These groups may change.",
+            "overviewEvidenceStatementIds": ["s1"],
+            "tendencies": [{"tendencyId": i, "title": f"Group {i}", "description": "A pattern",
+                            "evidenceStatementIds": ["s1"]} for i in range(5)],
+        }, evidence)
+        self.assertEqual([item["tendencyId"] for item in result["tendencies"]], [0, 1, 2, 3])
+
+
 if __name__ == "__main__":
     unittest.main()

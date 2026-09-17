@@ -1,7 +1,7 @@
 // Synthetic diagnostic only. No session data or participant identities are read.
 // Run from the repository root: node data-analysis/compare-opinion-pipelines.mjs
 import { computeOpinionClusters } from "../frontend/src/utils/opinion-clusters.js";
-import { computeOpinionLandscape } from "../shared/opinion-analysis.mjs";
+import { computeOpinionLandscape, computeSharedOpinionAnalysis } from "../shared/opinion-analysis.mjs";
 
 function compare(name, patterns) {
   const statements = patterns[0].map((_, index) => ({
@@ -15,8 +15,7 @@ function compare(name, patterns) {
       vote === null ? [] : [[statements[index].id, vote]]
     ))),
   }));
-  const live = computeOpinionClusters({ statements, voters, voteType: "likert" });
-  const report = computeOpinionLandscape({
+  const source = {
     sessionId: name,
     statements,
     votes: voters.flatMap((voter) => Object.entries(voter.votes).map(([statement_id, vote]) => ({
@@ -24,7 +23,10 @@ function compare(name, patterns) {
       statement_id,
       vote,
     }))),
-  });
+  };
+  const calculated = computeSharedOpinionAnalysis(source);
+  const live = computeOpinionClusters({opinionAnalysis: calculated.live, voters});
+  const report = computeOpinionLandscape(source);
   return {
     fixture: name,
     synthetic: true,
@@ -32,8 +34,9 @@ function compare(name, patterns) {
     report: {
       eligible: report.eligibleParticipants,
       excluded: report.excludedParticipants,
-      tendencies: report.tendencies.count,
-      membershipShares: report.tendencies.profiles.map((profile) => profile.membershipShare),
+      groups: report.groups.length,
+      groupSizes: report.groups.map((group) => group.size),
+      status: report.status,
     },
   };
 }

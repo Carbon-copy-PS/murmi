@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
-import { computeOpinionLandscape } from "../../shared/opinion-analysis.mjs";
+import { computeOpinionLandscape, computeSharedOpinionAnalysis } from "../../shared/opinion-analysis.mjs";
 
 function syntheticSource() {
   const statements = Array.from({ length: 12 }, (_, index) => ({
@@ -109,97 +109,151 @@ function runWrapper(source) {
   });
 }
 
-test("publishes aggregate tendencies without participant-level fields", async () => {
-  const result = await runWrapper(syntheticSource());
 
+test("publishes aggregate exclusive groups without participant-level fields", async () => {
+  const result = await runWrapper(syntheticSource());
   assert.equal(result.available, true);
+  assert.equal(result.membershipKind, 'exclusive');
   assert.equal(result.eligibleParticipants, 30);
-  assert.equal(result.tendencies.count, 2);
-  assert.equal(result.tendencies.profiles.length, 2);
-  assert.ok(result.tendencies.profiles.every((profile) => profile.membershipMass > 0));
-  assert.ok(result.tendencies.profiles.every((profile) => (
-    Number.isFinite(profile.shape.radiusMajor)
-    && Number.isFinite(profile.shape.radiusMinor)
-    && Number.isFinite(profile.shape.rotation)
-    && profile.shape.radiusMajor >= 0.06
-    && profile.shape.radiusMajor <= 0.3
-    && profile.shape.radiusMinor >= 0.06
-    && profile.shape.radiusMinor <= 0.3
-  )));
-  assert.ok(result.density.cells.every((cell) => cell.count >= 5));
+  assert.equal(result.groups.length, 2);
+  assert.equal(result.groups.reduce((n, group) => n + group.size, 0), 30);
   assert.equal(result.reliability.bootstrapReplicatesRequested, 100);
   assert.equal(result.reliability.bootstrapReplicatesCompleted, 100);
-  assert.equal(result.reliability.bootstrapRuns.length, 100);
-  assert.ok(["publishable", "withhold-group-claims"].includes(
-    result.reliability.hardGroupStatus,
-  ));
-  assert.ok(result.reliability.bootstrapRuns.every((run) => (
-    Number.isInteger(run.selectedK)
-    && Number.isFinite(run.adjustedRand)
-  )));
-
+  for (const group of result.groups) {
+    assert.ok(group.position.x >= 0 && group.position.x <= 1);
+    assert.ok(group.position.y >= 0 && group.position.y <= 1);
+    for (const statement of group.statements) {
+      assert.equal(statement.agree + statement.neutral + statement.disagree, statement.responded);
+      assert.equal(statement.responded + statement.missing, group.size);
+    }
+  }
   const serialized = JSON.stringify(result);
-  for (const forbidden of [
-    "private-participant",
-    "participant_id",
-    "participantIndex",
-    "assignments",
-    "coordinates",
-  ]) {
+  for (const forbidden of ['private-participant', 'participant_id', 'participantIndex', 'assignments', 'coordinates', 'points']) {
     assert.equal(serialized.includes(forbidden), false);
   }
 });
 
-test("limits published opinion analysis to two recurring tendencies", async () => {
+test("retains a small third pattern as provisional instead of forcing two groups", async () => {
   const result = await runWrapper(smallTendencySource());
+  assert.equal(result.groups.length, 3);
+  assert.deepEqual(result.groups.map((group) => group.size).sort((a, b) => a - b), [2, 14, 14]);
+  assert.equal(result.status, 'provisional');
+});
 
-  assert.equal(result.available, true);
-  assert.equal(result.reliability.selectedK, 2);
-  assert.equal(result.tendencies.count, 2);
-  assert.equal(result.tendencies.profiles.length, 2);
-
-  const serialized = JSON.stringify(result);
-  for (const forbidden of [
-    "private-participant",
-    "participant_id",
-    "participantIndex",
-    "assignments",
-    "coordinates",
-  ]) {
-    assert.equal(serialized.includes(forbidden), false);
+test("keeps early voters with only one response in live and report groups", async () => {
+  const source = hualienSource();
+  const live = computeSharedOpinionAnalysis(source).live;
+  const report = await runWrapper(source);
+  assert.equal(report.eligibleParticipants, 8);
+  assert.equal(report.excludedParticipants, 0);
+  assert.equal(report.minimumVotes, 1);
+  assert.equal(report.status, 'provisional');
+  assert.deepEqual(live.landscape, report);
+  for (const group of report.groups) {
+    const keys = new Set(live.points.filter((point) => point.cluster === group.id).map((point) => point.key));
+    assert.equal(keys.size, group.size);
+    for (const statement of group.statements) {
+      const votes = source.votes.filter((v) => keys.has(v.participant_id) && v.statement_id === statement.id);
+      assert.equal(statement.responded, votes.length);
+      assert.equal(statement.agree, votes.filter((v) => ['agree', 'strongly_agree'].includes(v.vote)).length);
+      assert.equal(statement.neutral, votes.filter((v) => v.vote === 'neutral').length);
+    }
   }
 });
 
-test("does not manufacture a third tendency for the Hualien response pattern", async () => {
-  const result = await runWrapper(hualienSource());
-
-  assert.equal(result.available, true);
-  assert.equal(result.eligibleParticipants, 7);
-  assert.equal(result.excludedParticipants, 1);
-  assert.equal(result.reliability.selectedK, 2);
-  assert.equal(result.tendencies.count, 2);
-  assert.equal(result.tendencies.profiles.length, 2);
-  assert.deepEqual(
-    result.tendencies.profiles.map((profile) => profile.tendencyId),
-    [1, 2],
-  );
-  assert.ok(result.tendencies.profiles.every((profile) => (
-    profile.distinctive.some((statement) => Math.abs(statement.contrast) > 0.1)
-  )));
-  assert.notDeepEqual(
-    result.tendencies.profiles[0].distinctive,
-    result.tendencies.profiles[1].distinctive,
-  );
+test("missing answers remain missing; replacing one with neutral changes the analysis", () => {
+  const source = hualienSource();
+  const before = computeSharedOpinionAnalysis(source);
+  const after = computeSharedOpinionAnalysis({...source, votes: [...source.votes, {
+    participant_id: 'private-participant-7', statement_id: 'transparency', vote: 'neutral',
+  }]});
+  assert.equal(before.live.stats.find((s) => s.id === 'transparency').missing, 1);
+  assert.equal(after.live.stats.find((s) => s.id === 'transparency').missing, 0);
+  assert.equal(after.live.stats.find((s) => s.id === 'transparency').neutral, 4);
+  assert.notDeepEqual(before.live.points, after.live.points);
 });
-
 
 test("shared analysis matches the report process and survives input reordering", async () => {
   const source = hualienSource();
   const expected = await runWrapper(source);
   assert.deepEqual(computeOpinionLandscape(source), expected);
   assert.deepEqual(computeOpinionLandscape({
-    ...source,
-    statements: [...source.statements].reverse(),
-    votes: [...source.votes].reverse(),
+    ...source, statements: [...source.statements].reverse(), votes: [...source.votes].reverse(),
   }), expected);
+});
+
+test("starts at three voters and two statements without requiring distinct camps", () => {
+  const source = { sessionId: 'early', statements: [{id:'a',text:'A'}, {id:'b',text:'B'}],
+    votes: ['p1','p2','p3'].map((participant_id) => ({participant_id, statement_id:'a', vote:'agree'})) };
+  const result = computeSharedOpinionAnalysis(source);
+  assert.equal(result.live.ok, true);
+  assert.equal(result.landscape.groups.length, 1);
+  assert.equal(result.landscape.groups[0].size, 3);
+  assert.equal(result.landscape.status, 'provisional');
+  assert.equal(computeOpinionLandscape({...source, votes:source.votes.slice(0,2)}).available, false);
+});
+
+test("detects grouping information outside the 2D map without changing its assignments", () => {
+  const source = {sessionId:'cube', statements:[0,1,2].map((i)=>({id:`s${i}`,text:`Dimension ${i}`,created_at:i})), votes:[]};
+  for (let p=0;p<8;p++) for(let s=0;s<3;s++) source.votes.push({
+    participant_id:`p${p}`, statement_id:`s${s}`, vote:(p>>s)&1?'agree':'disagree',
+  });
+  const {live, landscape} = computeSharedOpinionAnalysis(source);
+  const check = landscape.projectionCheck;
+  assert.equal(check.dimensionsCompared, 3);
+  assert.ok(Math.abs(check.explainedVariance2D - 2/3) < 1e-8);
+  assert.ok(Math.abs(check.explainedVarianceCompared - 1) < 1e-8);
+  assert.equal(check.changed, true);
+  assert.ok(check.adjustedRand < check.agreementThreshold);
+  assert.equal(live.k, check.selectedK2D);
+  assert.equal(landscape.status, 'provisional');
+});
+
+test("viewer markers do not change group identities or exported group evidence", async () => {
+  const { computeOpinionClusters } = await import('../../frontend/src/utils/opinion-clusters.js');
+  const analysis = computeSharedOpinionAnalysis(hualienSource()).live;
+  const first = computeOpinionClusters({opinionAnalysis:analysis, voters:[{key:analysis.points[0].key,isYou:true}]});
+  const second = computeOpinionClusters({opinionAnalysis:analysis, voters:[{key:analysis.points.at(-1).key,isYou:true}]});
+  assert.deepEqual(first.groups, second.groups);
+  assert.deepEqual(first.landscape, second.landscape);
+  assert.equal(first.points.filter((point)=>point.isYou).length, 1);
+  assert.equal(second.points.filter((point)=>point.isYou).length, 1);
+  assert.ok(analysis.points.every((point)=>!point.isYou));
+});
+
+test("JSON exports retain canonical group evidence and all exports label provisional groups", async () => {
+  const {buildJSON, buildCSV, buildSummary, buildPrintableHTML} = await import('../../frontend/src/utils/export-results.js');
+  const cluster = computeSharedOpinionAnalysis(hualienSource()).live;
+  const ctx = {cluster, statements:[], lang:'en', voteType:'likert'};
+  assert.deepEqual(JSON.parse(buildJSON(ctx)).opinionAnalysis, cluster.landscape);
+  for (const build of [buildCSV, buildSummary, buildPrintableHTML]) {
+    assert.ok(build(ctx).includes('Groups appear early'));
+  }
+});
+
+test('coincident participants remain individually visible without changing the analysis', async () => {
+  const { layoutOpinionDots, mapPosition, groupCloud } = await import('../../frontend/src/components/opinion-groups/map-layout.js');
+  const { live, landscape } = computeSharedOpinionAnalysis(smallTendencySource());
+  const original = structuredClone(live.points);
+  const displayed = layoutOpinionDots(live.points);
+  assert.deepEqual(live.points, original);
+  assert.equal(new Set(displayed.map(p => `${p.plotX}:${p.plotY}`)).size, live.points.length);
+  const reversed = layoutOpinionDots([...live.points].reverse()).reverse();
+  assert.deepEqual(displayed, reversed);
+  const exact = layoutOpinionDots(live.points, false);
+  exact.forEach(p => { assert.equal(p.plotX, mapPosition(p.x)); assert.equal(p.plotY, mapPosition(p.y)); });
+  for (const group of landscape.groups) {
+    const members = displayed.filter(p => p.cluster === group.id);
+    for (const [coordinate, display] of [['x', 'plotX'], ['y', 'plotY']]) {
+      const offset = members.reduce((sum, p) => sum + p[display] - mapPosition(p[coordinate]), 0);
+      assert.ok(Math.abs(offset) < 1e-8);
+    }
+    assert.ok(members.every(p => p.answered === 12));
+    const cloud = groupCloud(group);
+    assert.ok(Object.values(cloud).every(Number.isFinite));
+    assert.ok(cloud.rx >= cloud.ry && cloud.ry >= 48);
+  }
+  const diagonal = groupCloud({position:{x:.5,y:.5},spread:{xx:.01,yy:.01,xy:.01}});
+  assert.equal(diagonal.rotation,45);
+  assert.ok(diagonal.rx > diagonal.ry);
 });

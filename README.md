@@ -121,3 +121,14 @@ Report vulnerabilities privately. Do not file public issues for security problem
 ## License
 
 MIT. See [LICENSE](LICENSE). Copyright 2026 Carbon Copy Association.
+
+
+### Opinion groups in live results and reports
+
+Both views use the same versioned analysis of approved statements and votes.
+Groups appear early, from three voters and two statements, with at least one
+response per person. Limited or unstable evidence is labelled provisional rather
+than hidden. Each group shows actual support, neutral, disagreement and missing
+counts. The map also checks whether additional PCA dimensions change the groups.
+See [the opinion-analysis methodology](docs/pca-consistency.md) for settings,
+limitations, reproducible examples and snapshot behaviour.

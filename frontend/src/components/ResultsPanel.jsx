@@ -5,6 +5,8 @@ import RecommendationsPanel from './tension-generator'
 import { canGenerateRecommendations } from '../utils/recommendations-payload'
 import { computeOpinionClusters } from '../utils/opinion-clusters'
 import ReportControls from './final-report/ReportControls'
+import OpinionGroups from './opinion-groups/OpinionGroups'
+import { getOpinionCopy } from './opinion-groups/copy'
 import {
   buildCSV,
   buildJSON,
@@ -17,12 +19,7 @@ import {
   exportVotesFilename,
 } from '../utils/export-results'
 
-const CLUSTER_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
 const GROUP_LETTERS = ['A', 'B', 'C', 'D']
-
-function project(v) {
-  return 50 + v * 24
-}
 
 function VoteBar({ agree, disagree, empty = false }) {
   const total = agree + disagree
@@ -139,146 +136,6 @@ function StatementRow({ s, voteType = 'binary' }) {
         </>
       )}
     </li>
-  )
-}
-
-function ClusterMap({ result }) {
-  const { t } = useTranslation()
-  const { points, clusters } = result
-  const hulls = clusters.map((cl) => {
-    const members = points.filter((p) => p.cluster === cl.id)
-    const cx = members.reduce((s, p) => s + p.x, 0) / members.length
-    const cy = members.reduce((s, p) => s + p.y, 0) / members.length
-    const r = Math.max(0.18, ...members.map((p) => Math.hypot(p.x - cx, p.y - cy)))
-    return { id: cl.id, cx, cy, r }
-  })
-
-  return (
-    <div className="cluster-map">
-      <svg viewBox="0 0 100 100" className="cluster-scatter" data-testid="cluster-scatter">
-        {hulls.map((h) => {
-          const color = CLUSTER_COLORS[h.id % CLUSTER_COLORS.length]
-          return (
-            <g key={`hull-${h.id}`}>
-              <circle
-                cx={project(h.cx)}
-                cy={project(h.cy)}
-                r={h.r * 24 + 7}
-                fill={color}
-                opacity="0.09"
-                stroke={color}
-                strokeWidth="0.4"
-                strokeDasharray="2 2"
-                strokeOpacity="0.45"
-              />
-              <text
-                x={project(h.cx)}
-                y={project(h.cy) - (h.r * 24 + 9)}
-                className="cluster-map-label"
-                textAnchor="middle"
-                fill={color}
-              >
-                {t('results.groupLabel', { letter: GROUP_LETTERS[h.id] })}
-              </text>
-            </g>
-          )
-        })}
-        {points.map((p, i) => {
-          const color = CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length]
-          return p.isYou ? (
-            <g key={`pt-${i}`} data-testid="cluster-you">
-              <circle cx={project(p.x)} cy={project(p.y)} r="4.4" fill="none" stroke={color} strokeWidth="1.1" />
-              <circle cx={project(p.x)} cy={project(p.y)} r="2.6" fill={color} />
-              <text x={project(p.x)} y={project(p.y) - 6} className="you-label" textAnchor="middle">{t('common.you')}</text>
-            </g>
-          ) : (
-            <circle key={`pt-${i}`} cx={project(p.x)} cy={project(p.y)} r="2.1" fill={color} opacity="0.78" />
-          )
-        })}
-      </svg>
-      <p className="cluster-map-caption">
-        {t('results.clusterCaption')}
-      </p>
-    </div>
-  )
-}
-
-function GroupSizeBars({ clusters, voterCount, youCluster }) {
-  const { t } = useTranslation()
-  return (
-    <div className="group-bars" data-testid="group-bars">
-      {clusters.map((c) => {
-        const pct = Math.round((c.size / voterCount) * 100)
-        const color = CLUSTER_COLORS[c.id % CLUSTER_COLORS.length]
-        return (
-          <div className="group-bar-row" key={c.id}>
-            <span className="group-bar-name">
-              <span className="cluster-dot" style={{ background: color }} />
-              {t('results.groupLabel', { letter: GROUP_LETTERS[c.id] })}
-              {youCluster === c.id && <span className="you-chip">{t('common.you')}</span>}
-            </span>
-            <div className="group-bar-track">
-              <span className="group-bar-fill" style={{ width: `${pct}%`, background: color }} />
-            </div>
-            <span className="group-bar-value">{c.size} ({pct}%)</span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-const GROUP_STANCES = [
-  { key: 'stronglyAgree', labelKey: 'stances.stronglyAgreeOn', cls: 'strongly-agree' },
-  { key: 'agree', labelKey: 'stances.agreeOn', cls: 'agree' },
-  { key: 'stronglyDisagree', labelKey: 'stances.stronglyDisagreeOn', cls: 'strongly-disagree' },
-  { key: 'disagree', labelKey: 'stances.disagreeOn', cls: 'disagree' },
-]
-
-function GroupCard({ group, isYou, voteType = 'binary' }) {
-  const { t } = useTranslation()
-  const color = CLUSTER_COLORS[group.id % CLUSTER_COLORS.length]
-  const likert = voteType === 'likert'
-  const stances = likert
-    ? GROUP_STANCES
-    : [
-        { key: 'agree', labelKey: 'stances.tendToAgree', cls: 'agree' },
-        { key: 'disagree', labelKey: 'stances.tendToDisagree', cls: 'disagree' },
-      ]
-  const hasStances = stances.some((st) => (group[st.key] || []).length > 0)
-
-  return (
-    <div className={`group-card ${isYou ? 'you' : ''}`} data-testid={`group-card-${group.id}`}>
-      <div className="group-card-head">
-        <span className="group-card-badge" style={{ background: color }}>{GROUP_LETTERS[group.id]}</span>
-        <div>
-          <span className="group-card-title">
-            {t('results.groupLabel', { letter: GROUP_LETTERS[group.id] })}
-            {isYou && <span className="you-chip">{t('common.you')}</span>}
-          </span>
-          <span className="group-card-size">{t('results.person', { count: group.size })}</span>
-        </div>
-      </div>
-
-      {!hasStances ? (
-        <p className="group-card-empty">{t('results.noSharedPositions')}</p>
-      ) : (
-        stances.map((st) => {
-          const items = group[st.key] || []
-          if (!items.length) return null
-          return (
-            <div className="group-stance" key={st.key}>
-              <span className={`group-stance-label ${st.cls}`}>{t(st.labelKey)}</span>
-              <ul>
-                {items.map((s) => (
-                  <li key={s.id} data-testid={`group-${group.id}-${st.key}-${s.id}`}>{s.text}</li>
-                ))}
-              </ul>
-            </div>
-          )
-        })
-      )}
-    </div>
   )
 }
 
@@ -1129,11 +986,15 @@ export default function ResultsPanel({
     return {
       voterCount: cluster.voterCount,
       statementCount: cluster.statementCount,
+      opinionAnalysisStatus: cluster.landscape?.status,
+      opinionSourceHash: cluster.sourceHash,
+      opinionCaveat: 'Provisional groups are early patterns for discussion and may change with more votes.',
       consensus: cluster.consensus.map((s) => ({ text: s.text, agree: s.agree, disagree: s.disagree })),
       divisive: cluster.divisive.map((s) => ({ text: s.text, agree: s.agree, disagree: s.disagree })),
       groups: (cluster.groups || []).map((g) => ({
         letter: GROUP_LETTERS[g.id],
         size: g.size,
+        evidence: g.statements,
         agree: g.agree.map((s) => s.text),
         disagree: g.disagree.map((s) => s.text),
         stronglyAgree: (g.stronglyAgree || []).map((s) => s.text),
@@ -1183,7 +1044,7 @@ export default function ResultsPanel({
       <div className="results-panel">
         <Placeholder
           title={t('results.opinionClusters')}
-          message={t('results.crunching')}
+          message={results?.opinionAnalysisError ? getOpinionCopy(i18n.language).retry : t('results.crunching')}
           stats={t('results.statementsLive', { count: approvedCount })}
         />
         {reportControls}
@@ -1228,21 +1089,7 @@ export default function ResultsPanel({
 
       {commonGroundSection}
 
-      <GroupSizeBars clusters={cluster.clusters} voterCount={cluster.voterCount} youCluster={cluster.youCluster} />
-
-      <ClusterMap result={cluster} />
-
-      <section className="result-section">
-        <div className="result-section-head">
-          <span className="result-section-title">{t('results.whatEachGroupThinks')}</span>
-          <span className="result-section-hint">{t('results.positionsDefine')}</span>
-        </div>
-        <div className="group-card-grid">
-          {cluster.groups.map((g) => (
-            <GroupCard key={g.id} group={g} isYou={g.id === cluster.youCluster} voteType={voteType} />
-          ))}
-        </div>
-      </section>
+      <OpinionGroups landscape={cluster.landscape} points={cluster.points} language={i18n.language} />
 
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 

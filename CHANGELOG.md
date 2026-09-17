@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Make opinion maps participant-first, with individual selectable dots, a personal marker, soft group gradients and an exact-position toggle for overlapping votes.
+
+
+- Live results and newly generated reports now share one opinion-group analysis,
+  including policy evidence and result exports. Early groups remain visible with
+  a provisional label. Missing answers stay distinct from neutral, group summaries
+  show actual vote counts, and a diagnostic checks information outside the 2D map.
+- Report statistics, opinion groups and narrative-selected overlaps use one captured
+  set of votes throughout generation. Existing reports retain their saved version.
+
 ### Added
 
 - Open-source release files: MIT license, community health docs, issue/PR templates, Dependabot, and CI.
