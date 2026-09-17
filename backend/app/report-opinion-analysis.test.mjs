@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
+import { computeOpinionLandscape } from "../../shared/opinion-analysis.mjs";
 
 function syntheticSource() {
   const statements = Array.from({ length: 12 }, (_, index) => ({
@@ -189,4 +190,16 @@ test("does not manufacture a third tendency for the Hualien response pattern", a
     result.tendencies.profiles[0].distinctive,
     result.tendencies.profiles[1].distinctive,
   );
+});
+
+
+test("shared analysis matches the report process and survives input reordering", async () => {
+  const source = hualienSource();
+  const expected = await runWrapper(source);
+  assert.deepEqual(computeOpinionLandscape(source), expected);
+  assert.deepEqual(computeOpinionLandscape({
+    ...source,
+    statements: [...source.statements].reverse(),
+    votes: [...source.votes].reverse(),
+  }), expected);
 });
