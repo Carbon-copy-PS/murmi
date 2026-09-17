@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import copy, deepcopy
 import hashlib
 import json
 import math
@@ -19,6 +20,20 @@ MINIMUM_AVERAGE_RESPONSE_COVERAGE = 0.5
 OPINION_ANALYSIS_SCRIPT = Path(__file__).with_name(
     "report-opinion-analysis.mjs"
 )
+
+
+def freeze_report_source(session):
+    """Capture report inputs before awaiting analysis or narrative generation.
+
+    Copy data only: active participant websocket objects must not be deep-copied.
+    Reports use the participant roster for its count, never connection state.
+    """
+    frozen = copy(session)
+    frozen.statements = deepcopy(session.statements)
+    frozen.common_ground_history = deepcopy(session.common_ground_history)
+    frozen.known_participants = dict(session.known_participants)
+    frozen.participants = dict.fromkeys(session.participants)
+    return frozen
 
 
 def _rounded(value: float) -> float:

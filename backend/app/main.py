@@ -27,6 +27,7 @@ from .reporting import (
     build_opinion_landscape,
     build_report_snapshot,
     build_selected_overlaps,
+    freeze_report_source,
     narrative_evidence,
 )
 
@@ -492,12 +493,13 @@ async def run_report_generation(session_id: str):
     if not session:
         return
     try:
+        report_source = freeze_report_source(session)
         snapshot = build_report_snapshot(
-            session,
-            version=session.report_version + 1,
+            report_source,
+            version=report_source.report_version + 1,
         )
         snapshot["opinionLandscape"] = await build_opinion_landscape(
-            session
+            report_source
         )
         try:
             narrative = await asyncio.wait_for(
@@ -515,7 +517,7 @@ async def run_report_generation(session_id: str):
             print(f"Report narrative generation failed: {exc}")
         if narrative:
             selected_overlaps = build_selected_overlaps(
-                session,
+                report_source,
                 narrative.get("overlapPairs") or [],
             )
             if selected_overlaps:
