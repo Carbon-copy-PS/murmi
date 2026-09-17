@@ -21,7 +21,7 @@ Murmi grew out of research led by Joshua C. Yang at the Computational Social Sci
 
 - **Python 3.10+**
 - **Node.js 18+** (20 is what CI uses)
-- **OpenAI API key** (optional) — realtime captions, final transcription, and claim extraction. Leave the placeholder in `.env` to run in mock mode.
+- **OpenAI API key** (optional) — realtime transcription and claim extraction. Leave the placeholder in `.env` to run in mock mode.
 - **PostgreSQL** (optional) — leave `POSTGRES_HOST` empty for in-memory sessions that reset on restart.
 
 ## Install and quick start
@@ -67,7 +67,7 @@ Copy [`.env.example`](.env.example) to `.env`. Never commit `.env`.
 | --- | --- |
 | `OPENAI_API_KEY` | Required for live transcription and claim extraction. Placeholder enables mock mode. |
 | `OPENAI_REALTIME_TRANSCRIPTION_MODEL` | Realtime caption model (default `gpt-4o-transcribe`). |
-| `OPENAI_FINAL_TRANSCRIPTION_MODEL` | Final-pass transcription model. |
+| `OPENAI_REALTIME_TRANSCRIPTION_PROMPT` | Optional override of the neutral, faithful-transcription prompt. |
 | `POSTGRES_HOST` | Empty = in-memory. Set to `localhost` (or your host) to persist sessions. |
 | `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Database connection. Defaults are local-dev only. |
 | `SESSION_TTL_HOURS` | How long a session and its content live before deletion (default 48). |
@@ -88,12 +88,17 @@ Other browsers <----------------- votes, tallies, reports ----------------
 - **Analysis:** claim extraction, Pol.is-inspired opinion clustering, common-ground drafts, HTML reports.
 - **Offline analysis scripts:** [`data-analysis/`](data-analysis/) converts session exports and builds aggregate reports. Raw session files and generated reports are gitignored.
 
-Live captions are intentionally tentative. Each completed speech item is buffered and run through a final transcription pass before it is stored and used for claims.
+Live captions are tentative until their Realtime completion arrives. Completed text is stored directly, including short replies, without a second transcription pass replacing it. Stopping a recording waits for the final audio acknowledgement; missing results are labeled, and failed saves retry in the background.
+
+Selecting Traditional Chinese converts captions and transcript displays to Taiwan-standard characters while preserving the original model text. The transcript panel offers an original-text toggle, a readable `.txt` download, and an original `.json` download. See the [Chinese explanation of the September update](docs/transcription-update-2026-09.md) and [technical details and evaluation instructions](backend/tools/README.md).
+
+Save retries are held in memory: a server crash during a database outage can still lose unsaved text. Script conversion does not repair misheard words.
 
 ## What works today
 
 - Multi-device join via session code
-- Host-only live audio, realtime captions, and final transcription
+- Host-only live audio, realtime captions, and preserved completed transcripts
+- Traditional Chinese transcript display and downloads, with original text available
 - Per-speaker language preference
 - AI claim extraction and anonymous agree/disagree voting
 - Common-ground mediator (opinion clusters + a shared draft)
