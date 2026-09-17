@@ -39,7 +39,7 @@ common-ground and recommendation requests carry the same group evidence and
 provisional status. JSON exports include the aggregate landscape; CSV, text and
 print exports preserve group membership summaries and provisional labelling.
 
-The analysis version is `shared-opinion-groups-v1`; new story reports are
+The analysis version is `shared-opinion-groups-v2`; new story reports are
 `story-report-v6`. Changes to the settings or calculation must bump the analysis
 version. Python checks that it matches the Node result.
 
@@ -68,17 +68,33 @@ version. Python checks that it matches the Node result.
 ### Participant-first display
 
 Live results show one interactive dot per included voter, with a highlighted
-“You” marker, response counts, group selection and zoom. Coincident dots receive
-a deterministic, small display offset so identical voting patterns do not hide
-people. A visible toggle restores exact positions. Offsets never feed back into
-PCA, group membership, evidence or the stored snapshot.
+“You” marker, response counts, group selection and zoom. Exact mapped positions
+are the default, with numbers identifying coincident people. An optional, clearly
+labelled toggle offsets coincident dots for inspection. Those offsets never feed
+back into PCA, group membership, density shading, evidence or the stored snapshot.
 
-Soft elliptical gradients use each group's aggregate covariance in the displayed
-coordinates. They are a visual guide to spread, not a density estimate, confidence
-interval or probability of group membership. A small base glow keeps even a
-single-position group visible. Reports use the same aggregate geometry and group
-counts but omit individual dots. The public report contains no participant
-coordinates.
+The coordinates use a uniform scale on both axes to fit each snapshot. This keeps
+relative geometry, but pixel distances are not an absolute measure of disagreement
+and are not comparable across sessions. The engine applies a sparse-response
+correction to PCA scores before this display transformation, as described above.
+
+Shading is a Gaussian density estimate from the actual mapped positions, not an
+ellipse around each group's centre. Each participant contributes one equal-weight
+kernel, with fixed display bandwidth 0.045 in the normalized coordinates. The
+shared calculation saves a 51 × 51 aggregate grid per group (four-bandwidth kernel
+truncation), and both views render it using one common density scale. Empty spaces
+between separate concentrations are not filled merely because the centroid sits
+there. Smoothing width is a visual choice, not an uncertainty estimate or a
+probability of group membership. Reports omit individual dots and retain the
+aggregate grids; this aggregation is not a formal anonymization guarantee.
+
+The initial 30-person demonstration deliberately used only three distinct ballot
+patterns (14, 14 and 2 identical voters). Their PCA positions therefore coincide
+at three locations. The initially shown little circles around those locations
+were optional display offsets, not evidence of within-group variation. Exact
+positions are now the default. A separate, explicitly synthetic 60-person fixture
+with varied votes is used to review continuous distributions visually; it is not
+real-session evidence.
 
 ### What the map leaves out
 

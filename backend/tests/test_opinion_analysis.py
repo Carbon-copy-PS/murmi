@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 from backend.app import opinion_analysis as opinions
 from backend.app.policy_evidence import build_policy_evidence
-from backend.app.reporting import build_opinion_landscape, freeze_report_source
+from backend.app.reporting import build_opinion_landscape, freeze_report_source, narrative_evidence
 from backend.app.session import Session, SessionManager, Statement
 
 
@@ -49,6 +49,14 @@ class SharedOpinionTests(unittest.IsolatedAsyncioTestCase):
         report["groups"][0]["size"] = 999
         fresh = await build_opinion_landscape(self.session)
         self.assertNotEqual(fresh["groups"][0]["size"], 999)
+
+    async def test_density_grid_is_saved_but_omitted_from_narrative_input(self):
+        landscape = await build_opinion_landscape(self.session)
+        evidence = narrative_evidence({"opinionLandscape": landscape})
+        for saved, narrated in zip(landscape["groups"], evidence["opinionLandscape"]["groups"]):
+            self.assertEqual(len(saved["density"]["values"]), 51 * 51)
+            self.assertNotIn("density", narrated)
+            self.assertEqual(saved["statements"], narrated["statements"])
 
     async def test_reordered_restored_session_and_different_viewers_match(self):
         manager = SessionManager()

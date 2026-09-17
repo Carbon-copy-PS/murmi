@@ -1,7 +1,7 @@
 export const mapPosition = (value) => 35 + value * 530
 
 // Display-only separation of coincident dots. Never feed these offsets into analysis.
-export function layoutOpinionDots(points, separate = true) {
+export function layoutOpinionDots(points, separate = false) {
   const buckets = new Map()
   for (const point of points) {
     const key = `${Math.round(mapPosition(point.x))}:${Math.round(mapPosition(point.y))}`
@@ -27,14 +27,18 @@ export function layoutOpinionDots(points, separate = true) {
   return points.map((point) => positions.get(point.key))
 }
 
-export function groupCloud(group) {
-  const {xx = 0, yy = 0, xy = 0} = group.spread || {}
-  const root = Math.sqrt(Math.max(0, (xx - yy) ** 2 + 4 * xy ** 2))
-  // The small base glow keeps early/single-position groups visible. It is not a confidence interval.
-  return {
-    x: mapPosition(group.position.x), y: mapPosition(group.position.y),
-    rx: Math.min(230, 48 + 1.8 * Math.sqrt(Math.max(0, (xx + yy + root) / 2)) * 530),
-    ry: Math.min(230, 48 + 1.8 * Math.sqrt(Math.max(0, (xx + yy - root) / 2)) * 530),
-    rotation: 0.5 * Math.atan2(2 * xy, xx - yy) * 180 / Math.PI,
-  }
+// Render an aggregate grid as a small texture; SVG scales it smoothly without
+// adding thousands of DOM cells. The same density scale is used for every group.
+export function densityImage(density, color, peak) {
+  if (!density || !peak) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = density.resolution
+  const context = canvas.getContext('2d')
+  const pixels = context.createImageData(density.resolution, density.resolution)
+  const rgb = [1, 3, 5].map(start => parseInt(color.slice(start, start + 2), 16))
+  density.values.forEach((value, index) => {
+    pixels.data.set([...rgb, Math.round(140 * value / peak)], index * 4)
+  })
+  context.putImageData(pixels, 0, 0)
+  return canvas.toDataURL()
 }

@@ -52,3 +52,5 @@
 .opinion-map figcaption small { display: block; color: #65685f; line-height: 1.5; }
 @media (max-width: 480px) { .opinion-map { padding: .7rem; } .opinion-map-heading { gap: .5rem; } .opinion-map-legend { gap: .35rem; } .opinion-map-legend button { padding: .4rem .5rem; } }
 @media print { .opinion-map-zoom, .opinion-find-me, .opinion-map-spread-toggle { display: none; } .opinion-map { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+
+.opinion-stack-count { pointer-events: none; font-weight: 700; paint-order: stroke; stroke: #fffefb; stroke-width: 3px; }

@@ -574,6 +574,12 @@ def narrative_evidence(snapshot: dict) -> dict:
 
     story = snapshot.get("story", {})
     landscape = snapshot.get("opinionLandscape") or {}
+    if "groups" in landscape:
+        # Rendering grids stay in the saved report, not in the language-model prompt.
+        landscape = {**landscape, "groups": [
+            {key: value for key, value in group.items() if key != "density"}
+            for group in landscape["groups"]
+        ]}
     return {
         "topic": snapshot.get("meta", {}).get("topic"),
         "counts": snapshot.get("meta"),

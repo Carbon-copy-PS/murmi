@@ -1,8 +1,9 @@
 const en = {
+  exactNote: 'Dots use their exact mapped positions. A number marks overlapping people. The map is fitted to this snapshot, so distances are relative within it.',
   everyDot: 'Every dot is a person', mapInvite: 'Select a dot to explore its place in the discussion.',
   findMe: 'Find me', participant: 'Participant', zoom: 'Map zoom', zoomOut: 'Zoom out', zoomIn: 'Zoom in', resetMap: 'Reset map',
   samePosition: 'People at this voting position', separateDots: 'Spread overlapping dots',
-  cloudNote: 'Soft colours show each group’s spread, with no hard boundary. Shading is a visual guide, not a membership probability.',
+  cloudNote: 'Colour is stronger where more people sit on the map. Each person contributes equally to the soft shading; colours can overlap. This smoothing does not move anyone or indicate membership probability.',
   offsetNote: 'Overlapping dots are moved slightly so each person stays visible. Groups and votes are unchanged.',
   title: 'Opinion groups', group: 'Group', you: 'You', people: 'people',
   provisional: 'Early / provisional groups', supported: 'More stable groups',
@@ -20,10 +21,11 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
+  exactNote: '圓點預設顯示計算後的實際位置，數字表示重疊的人數。圖會依這次資料縮放，因此距離只適合在同一張圖內比較。',
   everyDot: '每一個點，都是一個人', mapInvite: '點選圓點，看看每個人在討論中的位置。',
   findMe: '找到我', participant: '參與者', zoom: '地圖縮放', zoomOut: '縮小', zoomIn: '放大', resetMap: '重設地圖',
   samePosition: '投票位置相同的人數', separateDots: '攤開重疊的圓點',
-  cloudNote: '柔和的色彩呈現各組的分布，沒有硬切的邊界。色彩只是視覺提示，不代表屬於某組的機率。',
+  cloudNote: '越多人落在相近的位置，顏色就越深。每個人對柔和色彩的貢獻相同，不同組別的色彩可以重疊。柔化不會移動圓點，也不代表分組機率。',
   offsetNote: '重疊的圓點會稍微移開，讓每個人都看得見。分組和投票結果不會改變。',
   title: '意見分組', group: '組別', you: '你', people: '人',
   provisional: '初步分組', supported: '較穩定的分組',
@@ -39,10 +41,11 @@ const zh = {
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
 const de = {
+  exactNote: 'Punkte stehen an ihren berechneten Positionen. Zahlen zeigen überlappende Personen. Die Karte wird an diesen Datenstand angepasst; Abstände sind nur innerhalb dieser Karte vergleichbar.',
   everyDot: 'Jeder Punkt ist eine Person', mapInvite: 'Wähle einen Punkt, um seinen Platz in der Diskussion zu erkunden.',
   findMe: 'Mich finden', participant: 'Person', zoom: 'Kartenzoom', zoomOut: 'Verkleinern', zoomIn: 'Vergrössern', resetMap: 'Karte zurücksetzen',
   samePosition: 'Personen an dieser Abstimmungsposition', separateDots: 'Überlappende Punkte auseinanderziehen',
-  cloudNote: 'Weiche Farben zeigen die Streuung jeder Gruppe ohne feste Grenze. Die Schattierung ist eine visuelle Orientierung, keine Zugehörigkeitswahrscheinlichkeit.',
+  cloudNote: 'Wo mehr Personen nahe beieinander liegen, ist die Farbe kräftiger. Jede Person trägt gleich zur weichen Schattierung bei; Farben können sich überlagern. Die Glättung verschiebt niemanden und zeigt keine Zugehörigkeitswahrscheinlichkeit.',
   offsetNote: 'Überlappende Punkte werden leicht verschoben, damit jede Person sichtbar bleibt. Gruppen und Stimmen bleiben unverändert.',
   title: 'Meinungsgruppen', group: 'Gruppe', you: 'Du', people: 'Personen',
   provisional: 'Vorläufige Gruppen', supported: 'Stabilere Gruppen',
@@ -58,10 +61,11 @@ const de = {
   method: 'Beide Ansichten verwenden dieselbe PCA und k-means-Berechnung mit festem Startwert. Gruppen erscheinen ab drei Abstimmenden und zwei Aussagen; eine Antwort genügt zur Aufnahme. Fehlende und neutrale Antworten bleiben getrennt. Zustimmungsstärken werden für die Karte zusammengefasst, in den Stimmenzahlen aber erhalten. Zuverlässigkeitsprüfungen kennzeichnen frühe Muster, ohne sie auszublenden.',
 }
 const fr = {
+  exactNote: 'Les points restent à leurs positions calculées. Un nombre indique les personnes superposées. L’échelle est adaptée à cet instantané : les distances se comparent au sein de cette carte.',
   everyDot: 'Chaque point est une personne', mapInvite: 'Sélectionnez un point pour explorer sa place dans la discussion.',
   findMe: 'Me trouver', participant: 'Participant', zoom: 'Zoom de la carte', zoomOut: 'Dézoomer', zoomIn: 'Zoomer', resetMap: 'Réinitialiser la carte',
   samePosition: 'Personnes à cette position de vote', separateDots: 'Écarter les points superposés',
-  cloudNote: 'Les couleurs douces montrent la dispersion de chaque groupe, sans frontière nette. Elles servent de repère visuel, pas de probabilité d’appartenance.',
+  cloudNote: 'La couleur est plus intense là où les personnes sont proches. Chacune contribue autant à la teinte, et les couleurs peuvent se superposer. Ce lissage ne déplace personne et ne représente pas une probabilité d’appartenance.',
   offsetNote: 'Les points superposés sont légèrement déplacés pour que chaque personne reste visible. Les groupes et les votes ne changent pas.',
   title: 'Groupes d’opinion', group: 'Groupe', you: 'Vous', people: 'personnes',
   provisional: 'Groupes provisoires', supported: 'Groupes plus stables',
@@ -77,10 +81,11 @@ const fr = {
   method: 'Les deux vues partagent la même ACP et le même calcul k-means déterministe. Les groupes apparaissent dès trois votants et deux propositions, avec au moins une réponse par personne. Les réponses manquantes restent distinctes des réponses neutres. L’intensité est regroupée sur la carte, mais conservée dans les décomptes. Les contrôles signalent les tendances provisoires sans les masquer.',
 }
 const it = {
+  exactNote: 'I punti mantengono le posizioni calcolate. Un numero indica le persone sovrapposte. La scala si adatta a questa istantanea: le distanze si confrontano solo all’interno della mappa.',
   everyDot: 'Ogni punto è una persona', mapInvite: 'Seleziona un punto per esplorare il suo posto nella discussione.',
   findMe: 'Trovami', participant: 'Partecipante', zoom: 'Zoom della mappa', zoomOut: 'Riduci', zoomIn: 'Ingrandisci', resetMap: 'Reimposta la mappa',
   samePosition: 'Persone in questa posizione di voto', separateDots: 'Separa i punti sovrapposti',
-  cloudNote: 'I colori sfumati mostrano la dispersione di ogni gruppo, senza confini netti. Sono una guida visiva, non una probabilità di appartenenza.',
+  cloudNote: 'Il colore è più intenso dove le persone sono vicine. Ognuno contribuisce allo stesso modo alla sfumatura; i colori possono sovrapporsi. La sfumatura non sposta nessuno e non indica una probabilità di appartenenza.',
   offsetNote: 'I punti sovrapposti vengono spostati leggermente per rendere visibile ogni persona. Gruppi e voti restano invariati.',
   title: 'Gruppi di opinione', group: 'Gruppo', you: 'Tu', people: 'persone',
   provisional: 'Gruppi provvisori', supported: 'Gruppi più stabili',

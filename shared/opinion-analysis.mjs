@@ -1,6 +1,7 @@
+import { opinionDensity } from './opinion-density.mjs';
 import { analyzePolisInspiredSession, checkProjectionSensitivity } from "../data-analysis/polis-inspired-analysis.mjs";
 
-export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v1";
+export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v2";
 export const OPINION_OPTIONS = Object.freeze({
   minimumVotes: 1, minimumK: 2, maximumK: 4,
   bootstrapReplicates: 100, sensitivityThresholds: [1, 2, 3, 7],
@@ -180,7 +181,7 @@ export function computeSharedOpinionAnalysis(source) {
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 1e-12);
-  const position = ([x, y]) => ({ x: round(0.5 + 0.8 * (x - cx) / span), y: round(0.5 - 0.8 * (y - cy) / span) });
+  const position = ([x, y]) => ({ x: round(0.5 + 0.8 * (x - cx) / span, 8), y: round(0.5 - 0.8 * (y - cy) / span, 8) });
   const points = assignments.map((a) => ({
     key: voters[a.participantIndex - 1].key, cluster: a.groupId,
     answered: a.observedVotes ?? Object.keys(voters[a.participantIndex - 1].votes).length,
@@ -199,6 +200,7 @@ export function computeSharedOpinionAnalysis(source) {
     return {
       id, letter: String.fromCharCode(65 + id), size: members.length,
       position: centre,
+      density: opinionDensity(mapped),
       spread: {
         xx: round(average((point) => (point.x - centre.x) ** 2), 6),
         yy: round(average((point) => (point.y - centre.y) ** 2), 6),

@@ -232,15 +232,15 @@ test("JSON exports retain canonical group evidence and all exports label provisi
 });
 
 test('coincident participants remain individually visible without changing the analysis', async () => {
-  const { layoutOpinionDots, mapPosition, groupCloud } = await import('../../frontend/src/components/opinion-groups/map-layout.js');
+  const { layoutOpinionDots, mapPosition } = await import('../../frontend/src/components/opinion-groups/map-layout.js');
   const { live, landscape } = computeSharedOpinionAnalysis(smallTendencySource());
   const original = structuredClone(live.points);
-  const displayed = layoutOpinionDots(live.points);
+  const displayed = layoutOpinionDots(live.points, true);
   assert.deepEqual(live.points, original);
   assert.equal(new Set(displayed.map(p => `${p.plotX}:${p.plotY}`)).size, live.points.length);
-  const reversed = layoutOpinionDots([...live.points].reverse()).reverse();
+  const reversed = layoutOpinionDots([...live.points].reverse(), true).reverse();
   assert.deepEqual(displayed, reversed);
-  const exact = layoutOpinionDots(live.points, false);
+  const exact = layoutOpinionDots(live.points);
   exact.forEach(p => { assert.equal(p.plotX, mapPosition(p.x)); assert.equal(p.plotY, mapPosition(p.y)); });
   for (const group of landscape.groups) {
     const members = displayed.filter(p => p.cluster === group.id);
@@ -249,11 +249,42 @@ test('coincident participants remain individually visible without changing the a
       assert.ok(Math.abs(offset) < 1e-8);
     }
     assert.ok(members.every(p => p.answered === 12));
-    const cloud = groupCloud(group);
-    assert.ok(Object.values(cloud).every(Number.isFinite));
-    assert.ok(cloud.rx >= cloud.ry && cloud.ry >= 48);
   }
-  const diagonal = groupCloud({position:{x:.5,y:.5},spread:{xx:.01,yy:.01,xy:.01}});
-  assert.equal(diagonal.rotation,45);
-  assert.ok(diagonal.rx > diagonal.ry);
+});
+
+
+test('density follows individual positions and weights, not group centres or display offsets', async () => {
+  const { opinionDensity } = await import('../../shared/opinion-density.mjs');
+  const one = opinionDensity([{x:.5,y:.5}]);
+  const two = opinionDensity([{x:.5,y:.5},{x:.5,y:.5}]);
+  const centre = 25 * 51 + 25;
+  assert.equal(one.values[centre], 1);
+  assert.equal(two.values[centre], 2);
+  const lobes = opinionDensity([{x:.2,y:.5},{x:.8,y:.5}]);
+  assert.equal(lobes.values[centre], 0, 'do not invent density at the empty centroid');
+  assert.ok(lobes.values[25 * 51 + 10] > .9);
+  assert.ok(lobes.values[25 * 51 + 40] > .9);
+  const {live, landscape} = computeSharedOpinionAnalysis(smallTendencySource());
+  for (const group of landscape.groups) {
+    assert.deepEqual(group.density, opinionDensity(live.points.filter(p=>p.cluster === group.id)));
+  }
+});
+
+test('map fitting preserves relative PCA distances without separating groups artificially', async () => {
+  const { analyzePolisInspiredSession } = await import('../../data-analysis/polis-inspired-analysis.mjs');
+  const { OPINION_OPTIONS } = await import('../../shared/opinion-analysis.mjs');
+  const source = smallTendencySource();
+  const raw = analyzePolisInspiredSession(source, OPINION_OPTIONS).assignments;
+  const mapped = computeSharedOpinionAnalysis(source).live.points;
+  assert.equal(new Set(mapped.map(p=>`${p.x}:${p.y}`)).size, 3);
+  let scale;
+  for (let i=0;i<raw.length;i++) for(let j=i+1;j<raw.length;j++) {
+    const before = Math.hypot(...raw[i].coordinates.map((v,axis)=>v-raw[j].coordinates[axis]));
+    const after = Math.hypot(mapped[i].x-mapped[j].x,mapped[i].y-mapped[j].y);
+    if(before < 1e-9) assert.ok(after < 1e-9);
+    else {
+      scale ??= after / before;
+      assert.ok(Math.abs(after - before * scale) < 1e-7);
+    }
+  }
 });

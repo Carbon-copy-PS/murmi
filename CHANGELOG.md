@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Keep exact PCA map positions by default and derive soft shading from equally weighted participant positions, replacing the centroid ellipses. Mark overlapping people with counts.
+
 - Make opinion maps participant-first, with individual selectable dots, a personal marker, soft group gradients and an exact-position toggle for overlapping votes.
 
 
