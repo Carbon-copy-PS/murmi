@@ -96,6 +96,57 @@ positions are now the default. A separate, explicitly synthetic 60-person fixtur
 with varied votes is used to review continuous distributions visually; it is not
 real-session evidence.
 
+### Emerging themes over clusters
+
+Live maps and new reports place a short theme title beside each group centre,
+with its letter and headcount. Labels wrap and may shift to avoid one another or
+the viewer marker; participant coordinates never move. Selecting a label focuses
+the group card and its cited statement counts. A toggle hides the overlays.
+
+A separate `opinion-themes-v1` service selects at most eight candidate statements
+per group from the canonical analysis. Candidates need at least two responses
+and 60% support or opposition among respondents. Smoothed agreement contrast
+against participants outside the group, response count and coverage determine
+ranking. A group needs two candidate statements to request a description; this
+threshold never affects whether its dots or early group are shown. Neutral and
+unanswered counts stay separate. Shared statements require at least two responses
+and 60% support in every group, and appear in a separate shared summary.
+
+The existing `gpt-4o-mini` integration returns a short title, a description of at
+most 180 characters, and two or three statement references per group. Its strict
+JSON schema follows the [official Structured Outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs).
+Server validation rejects unknown groups, references outside that group's
+candidate evidence, duplicate-only citations, and overlong text. This checks
+structure and reference validity; it does not prove semantic entailment of every
+model-written phrase. Themes remain explicitly labelled AI-generated and should
+be reviewed through their supporting votes. No personal motives or identities
+are requested. Rendering grids and individual ballot rows are never model input.
+
+Live generation runs in the background when the result views poll (five seconds
+in the room, eight seconds on the public page). Changed snapshots can trigger a
+new generation at most once per minute per session. Unchanged inputs reuse a
+64-entry cache keyed by analysis fingerprint, topic, language and prompt version.
+A host-only refresh can request a new summary after a five-second cooldown. Two
+generations run concurrently, with at most eight active/queued sessions. Generation
+is limited to 25 seconds, and provider requests use a 20-second timeout with no
+SDK retries. Failures back off; the map remains usable without theme text. Without
+an API key, no synthetic model descriptions are silently substituted.
+
+Labels are attached only to the exact vote fingerprint that generated them.
+While updated evidence waits for a new description, the map shows “Theme emerging”
+rather than carrying an old Group A name onto a new Group A. Report generation
+waits for the captured snapshot's description or records its unavailable state;
+report themes are frozen with the report and do not update on later live votes.
+Legacy published reports keep their original rendering.
+
+Checks include background deduplication, cache isolation, new vote/language/topic
+invalidation, unknown citations, sparse evidence, timeout backoff, manual refresh,
+and report persistence of the exact generated snapshot. The local browser check
+covers overlay selection by keyboard, label hiding, stale-label rejection,
+live/report parity, desktop/mobile and dark mode. A provider smoke test used only
+synthetic AI-discussion votes; its output and screenshots are local ignored
+artifacts, not real-session evidence or a broad model-quality evaluation.
+
 ### What the map leaves out
 
 The primary grouping uses the two displayed PCA dimensions. A separate diagnostic

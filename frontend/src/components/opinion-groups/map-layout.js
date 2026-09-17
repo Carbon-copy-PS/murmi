@@ -42,3 +42,43 @@ export function densityImage(density, color, peak) {
   context.putImageData(pixels, 0, 0)
   return canvas.toDataURL()
 }
+
+export function wrapThemeTitle(title, width = 23) {
+  const lines = []
+  let line = '', used = 0
+  for (const word of title.trim().split(/\s+/)) {
+    const size = [...word].reduce((n, c) => n + (c.charCodeAt(0) >= 0x2e80 ? 2 : 1), 0)
+    if (line && used + 1 + size > width) { lines.push(line); line = ''; used = 0 }
+    for (const character of (line ? ' ' : '') + word) {
+      const amount = character.charCodeAt(0) >= 0x2e80 ? 2 : 1
+      if (used + amount > width) { lines.push(line); line = ''; used = 0 }
+      line += character; used += amount
+    }
+  }
+  if (line) lines.push(line)
+  return lines.length > 3 ? [...lines.slice(0, 2), lines[2].slice(0, -1) + '…'] : lines
+}
+
+// Move text only, never participants. Prefer the centre, avoiding other labels
+// and the viewer marker; a leader line preserves the link when text is displaced.
+export function layoutThemeLabels(groups, points, fallback, compact = false) {
+  const placed = []
+  for (const group of groups) {
+    const lines = wrapThemeTitle(group.theme?.title || fallback, compact ? 18 : 23)
+    const lineHeight = compact ? 25 : 19
+    const halfWidth = compact ? 120 : 103
+    const height = (compact ? 30 : 24) + lines.length * lineHeight
+    const anchorX = mapPosition(group.position.x), anchorY = mapPosition(group.position.y)
+    const offsets = [[0,0],[0,-65],[0,65],[-90,0],[90,0],[-75,-70],[75,-70],[-75,70],[75,70],[-160,-150],[160,-150],[-160,150],[160,150],[0,-190],[0,190],[-165,-200],[165,-200],[-165,200],[165,200]]
+    const candidates = offsets.map(([dx,dy]) => {
+      const x = Math.max(halfWidth+5, Math.min(595-halfWidth, anchorX + dx))
+      const y = Math.max(height/2+15, Math.min(575-height/2, anchorY + dy))
+      const collisions = placed.filter(other => Math.abs(other.x-x)<halfWidth+other.halfWidth+6 && Math.abs(other.y-y)<(other.height+height)/2+10).length
+      const covered = points.filter(p => Math.abs(mapPosition(p.x)-x)<halfWidth && Math.abs(mapPosition(p.y)-y)<height/2+8)
+      const cost = Math.hypot(x-anchorX,y-anchorY) + collisions*10000 + covered.reduce((n,p)=>n+(p.isYou?2000:8),0)
+      return {x,y,cost}
+    }).sort((a,b)=>a.cost-b.cost)
+    placed.push({...candidates[0], anchorX, anchorY, height, halfWidth, lineHeight, lines, group})
+  }
+  return placed
+}

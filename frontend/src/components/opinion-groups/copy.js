@@ -1,4 +1,8 @@
 const en = {
+  themeEmerging: 'Theme emerging', themeEmergingNote: 'There is not yet enough evidence for a clear shared theme.',
+  showThemes: 'Show group themes', themesPending: 'Updating themes from the latest votes…', themesUnavailable: 'Theme summaries are currently unavailable. Groups and votes remain visible.',
+  themesNote: 'AI-generated themes describe recorded votes and may change as the discussion develops.', updated: 'Updated', refreshThemes: 'Refresh themes',
+  sharedAcrossGroups: 'Shared across groups', viewEvidence: 'View supporting statements', supportingVotes: 'Votes behind this description',
   exactNote: 'Dots use their exact mapped positions. A number marks overlapping people. The map is fitted to this snapshot, so distances are relative within it.',
   everyDot: 'Every dot is a person', mapInvite: 'Select a dot to explore its place in the discussion.',
   findMe: 'Find me', participant: 'Participant', zoom: 'Map zoom', zoomOut: 'Zoom out', zoomIn: 'Zoom in', resetMap: 'Reset map',
@@ -21,6 +25,10 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
+  themeEmerging: '主題形成中', themeEmergingNote: '目前還沒有足夠的投票，能清楚概括這組的共同主題。',
+  showThemes: '顯示組別主題', themesPending: '正在依最新投票更新主題…', themesUnavailable: '暫時無法產生主題摘要，分組和投票結果仍可查看。',
+  themesNote: 'AI 主題摘要根據實際投票產生，可能隨討論進展而改變。', updated: '更新時間', refreshThemes: '更新主題',
+  sharedAcrossGroups: '各組共同支持', viewEvidence: '查看依據的陳述', supportingVotes: '這段摘要的投票依據',
   exactNote: '圓點預設顯示計算後的實際位置，數字表示重疊的人數。圖會依這次資料縮放，因此距離只適合在同一張圖內比較。',
   everyDot: '每一個點，都是一個人', mapInvite: '點選圓點，看看每個人在討論中的位置。',
   findMe: '找到我', participant: '參與者', zoom: '地圖縮放', zoomOut: '縮小', zoomIn: '放大', resetMap: '重設地圖',
@@ -41,6 +49,10 @@ const zh = {
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
 const de = {
+  themeEmerging: 'Thema entsteht', themeEmergingNote: 'Für ein klares gemeinsames Thema liegen noch nicht genügend Antworten vor.',
+  showThemes: 'Gruppenthemen anzeigen', themesPending: 'Themen werden anhand der neuesten Stimmen aktualisiert…', themesUnavailable: 'Themenzusammenfassungen sind derzeit nicht verfügbar. Gruppen und Stimmen bleiben sichtbar.',
+  themesNote: 'KI-generierte Themen beschreiben erfasste Stimmen und können sich im Gespräch verändern.', updated: 'Aktualisiert', refreshThemes: 'Themen aktualisieren',
+  sharedAcrossGroups: 'Gruppenübergreifend geteilt', viewEvidence: 'Zugehörige Aussagen ansehen', supportingVotes: 'Stimmen hinter dieser Beschreibung',
   exactNote: 'Punkte stehen an ihren berechneten Positionen. Zahlen zeigen überlappende Personen. Die Karte wird an diesen Datenstand angepasst; Abstände sind nur innerhalb dieser Karte vergleichbar.',
   everyDot: 'Jeder Punkt ist eine Person', mapInvite: 'Wähle einen Punkt, um seinen Platz in der Diskussion zu erkunden.',
   findMe: 'Mich finden', participant: 'Person', zoom: 'Kartenzoom', zoomOut: 'Verkleinern', zoomIn: 'Vergrössern', resetMap: 'Karte zurücksetzen',
@@ -61,6 +73,10 @@ const de = {
   method: 'Beide Ansichten verwenden dieselbe PCA und k-means-Berechnung mit festem Startwert. Gruppen erscheinen ab drei Abstimmenden und zwei Aussagen; eine Antwort genügt zur Aufnahme. Fehlende und neutrale Antworten bleiben getrennt. Zustimmungsstärken werden für die Karte zusammengefasst, in den Stimmenzahlen aber erhalten. Zuverlässigkeitsprüfungen kennzeichnen frühe Muster, ohne sie auszublenden.',
 }
 const fr = {
+  themeEmerging: 'Thème en formation', themeEmergingNote: 'Les réponses ne suffisent pas encore à dégager un thème commun clair.',
+  showThemes: 'Afficher les thèmes des groupes', themesPending: 'Actualisation des thèmes à partir des derniers votes…', themesUnavailable: 'Les résumés thématiques sont indisponibles. Les groupes et les votes restent visibles.',
+  themesNote: 'Les thèmes générés par IA décrivent les votes recueillis et peuvent évoluer avec la discussion.', updated: 'Actualisé', refreshThemes: 'Actualiser les thèmes',
+  sharedAcrossGroups: 'Points partagés entre les groupes', viewEvidence: 'Voir les propositions citées', supportingVotes: 'Votes à la base de cette description',
   exactNote: 'Les points restent à leurs positions calculées. Un nombre indique les personnes superposées. L’échelle est adaptée à cet instantané : les distances se comparent au sein de cette carte.',
   everyDot: 'Chaque point est une personne', mapInvite: 'Sélectionnez un point pour explorer sa place dans la discussion.',
   findMe: 'Me trouver', participant: 'Participant', zoom: 'Zoom de la carte', zoomOut: 'Dézoomer', zoomIn: 'Zoomer', resetMap: 'Réinitialiser la carte',
@@ -81,6 +97,10 @@ const fr = {
   method: 'Les deux vues partagent la même ACP et le même calcul k-means déterministe. Les groupes apparaissent dès trois votants et deux propositions, avec au moins une réponse par personne. Les réponses manquantes restent distinctes des réponses neutres. L’intensité est regroupée sur la carte, mais conservée dans les décomptes. Les contrôles signalent les tendances provisoires sans les masquer.',
 }
 const it = {
+  themeEmerging: 'Tema in formazione', themeEmergingNote: 'Le risposte non bastano ancora a delineare un tema comune chiaro.',
+  showThemes: 'Mostra i temi dei gruppi', themesPending: 'Aggiornamento dei temi in base agli ultimi voti…', themesUnavailable: 'I riepiloghi tematici non sono disponibili. Gruppi e voti restano visibili.',
+  themesNote: 'I temi generati dall’IA descrivono i voti raccolti e possono cambiare durante la discussione.', updated: 'Aggiornato', refreshThemes: 'Aggiorna i temi',
+  sharedAcrossGroups: 'Punti condivisi tra i gruppi', viewEvidence: 'Vedi le affermazioni citate', supportingVotes: 'Voti alla base della descrizione',
   exactNote: 'I punti mantengono le posizioni calcolate. Un numero indica le persone sovrapposte. La scala si adatta a questa istantanea: le distanze si confrontano solo all’interno della mappa.',
   everyDot: 'Ogni punto è una persona', mapInvite: 'Seleziona un punto per esplorare il suo posto nella discussione.',
   findMe: 'Trovami', participant: 'Partecipante', zoom: 'Zoom della mappa', zoomOut: 'Riduci', zoomIn: 'Ingrandisci', resetMap: 'Reimposta la mappa',

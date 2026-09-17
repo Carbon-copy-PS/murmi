@@ -1299,6 +1299,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           reportStatus={tourActive ? 'none' : reportStatus}
           reportSnapshot={tourActive ? null : reportSnapshot}
           reportVersion={tourActive ? 0 : reportVersion}
+          onRefreshThemes={tourActive ? noop : () => wsRef.current?.send(JSON.stringify({type:'get_results', refreshThemes:true}))}
           onFinalizeReport={tourActive ? noop : finalizeReport}
           onPublishReport={tourActive ? noop : publishReport}
         />

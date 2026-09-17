@@ -961,6 +961,7 @@ export default function ResultsPanel({
   reportStatus = 'none',
   reportSnapshot = null,
   onFinalizeReport = () => {},
+  onRefreshThemes,
   onPublishReport = () => {},
 }) {
   const { t, i18n } = useTranslation()
@@ -1089,7 +1090,7 @@ export default function ResultsPanel({
 
       {commonGroundSection}
 
-      <OpinionGroups landscape={cluster.landscape} points={cluster.points} language={i18n.language} />
+      <OpinionGroups landscape={cluster.landscape} points={cluster.points} language={i18n.language} onRefreshThemes={isHost ? onRefreshThemes : undefined} />
 
       <ConsensusBlocks cluster={cluster} voteType={voteType} />
 

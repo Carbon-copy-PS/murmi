@@ -132,3 +132,8 @@ than hidden. Each group shows actual support, neutral, disagreement and missing
 counts. The map also checks whether additional PCA dimensions change the groups.
 See [the opinion-analysis methodology](docs/pca-consistency.md) for settings,
 limitations, reproducible examples and snapshot behaviour.
+
+Group maps also show emerging AI-generated theme labels with links to supporting
+statement votes. They update in the background when evidence changes, and reports
+save the labels with the same vote snapshot. Without an API key or sufficient
+evidence, grouping remains available with a “Theme emerging” label.

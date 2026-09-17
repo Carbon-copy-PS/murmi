@@ -52,3 +52,22 @@
 @media (max-width: 480px) { .opinion-map { padding: .75rem; } .opinion-map-heading { gap: .5rem; } .opinion-map-legend { gap: .35rem; } .opinion-map-legend button { padding: .4rem .5rem; gap: .3rem; font-size: .78rem; } }
 @media (prefers-reduced-motion: reduce) { .opinion-map button { transition: none; } }
 @media print { .opinion-map { break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .opinion-map-zoom, .opinion-find-me, .opinion-map-spread-toggle { display: none; } .opinion-group-cards { display: block; } .opinion-group-cards article { margin-bottom: 1rem; } }
+.opinion-theme-label { cursor: pointer; outline: none; }
+.opinion-theme-label text { font-size: 17px; font-weight: 700; paint-order: stroke; stroke: var(--ds-surface-3); stroke-width: 5px; stroke-linejoin: round; }
+.opinion-theme-label .opinion-theme-count { font-size: 14px; font-weight: 600; }
+.opinion-theme-label:hover rect, .opinion-theme-label:focus-visible rect { fill: color-mix(in srgb, var(--ds-surface) 85%, transparent); stroke: var(--ds-accent); stroke-width: 1; }
+.opinion-theme-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .6rem; color: var(--ds-text-muted); font-size: .8rem; line-height: 1.5; }
+.opinion-theme-status button { flex-shrink: 0; font: inherit; font-weight: 600; padding: .5rem .8rem; border: 1px solid var(--ds-border); border-radius: 999px; color: var(--ds-text); background: var(--ds-surface); cursor: pointer; }
+.opinion-theme-status button:focus-visible { outline: 2px solid var(--ds-accent); outline-offset: 3px; }
+.opinion-group-theme { margin: .6rem 0 .9rem; }
+.opinion-group-theme > strong { font-size: .95rem; }
+.opinion-group-theme p { margin: .4rem 0; line-height: 1.5; font-size: .85rem; color: var(--ds-text-muted); }
+.opinion-group-theme small { color: var(--ds-text-muted); font-size: .75rem; }
+.opinion-group-cards article:focus { outline: 2px solid var(--ds-accent); outline-offset: 3px; }
+.opinion-shared-theme { padding: 1rem; margin: 1rem 0; background: var(--ds-surface-3); border: 1px solid var(--ds-border); border-radius: 14px; font-size: .85rem; line-height: 1.5; }
+.opinion-shared-theme p { margin: .5rem 0; }
+.opinion-shared-theme summary { cursor: pointer; }
+.opinion-shared-theme ul { padding-left: 1rem; margin-top: .7rem; }
+@media print { .opinion-theme-status button { display: none; } }
+@media (max-width: 480px) { .opinion-theme-label text { font-size: 23px; } .opinion-theme-label .opinion-theme-count { font-size: 19px; } }
+.opinion-theme-label rect, .opinion-theme-label line { pointer-events: none; }

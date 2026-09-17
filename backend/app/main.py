@@ -22,6 +22,7 @@ from .analysis import AnalysisService, CG_PROMPT_VERSION
 from .realtime_transcription import RealtimeTranscriptionSession
 from .transcript_writer import TranscriptWriter
 from .opinion_analysis import get_opinion_analysis
+from .opinion_themes import OpinionThemeService
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
@@ -38,6 +39,7 @@ db = Database()
 sessions = SessionManager(ttl_seconds=None)
 transcription = TranscriptionService()
 analysis = AnalysisService()
+opinion_themes = OpinionThemeService(analysis.generate_opinion_themes, enabled=not analysis._mock)
 
 SESSION_PURGE_INTERVAL_SECONDS = float(os.environ.get("SESSION_PURGE_INTERVAL_MINUTES", "15")) * 60
 REPORT_NARRATIVE_TIMEOUT_SECONDS = float(
@@ -144,6 +146,7 @@ async def lifespan(_app: FastAPI):
                 await task
             except asyncio.CancelledError:
                 pass
+        await opinion_themes.close()
         await db.disconnect()
 
 
@@ -502,6 +505,8 @@ async def run_report_generation(session_id: str):
         snapshot["opinionLandscape"] = await build_opinion_landscape(
             report_source
         )
+        snapshot["opinionLandscape"] = await opinion_themes.enrich(
+            report_source, snapshot["opinionLandscape"], wait=True)
         try:
             narrative = await asyncio.wait_for(
                 analysis.generate_report_narrative(
@@ -1104,6 +1109,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 session = sessions.get(session_id)
                 if session:
                     calculated = await get_opinion_analysis(session)
+                    if calculated["live"]:
+                        calculated["live"]["landscape"] = await opinion_themes.enrich(
+                            session, calculated["landscape"],
+                            force=bool(data.get("refreshThemes")) and sessions.is_host(session_id, participant_id))
                     result["opinionAnalysis"] = calculated["live"]
                     result["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
                 await websocket.send_json({"type": "results", **result})
@@ -1587,6 +1596,9 @@ async def public_results(public_id: str):
         raise HTTPException(status_code=404, detail="Results not found")
     if "report" not in data:
         calculated = await get_opinion_analysis(sessions.get(session_id))
+        if calculated["live"]:
+            calculated["live"]["landscape"] = await opinion_themes.enrich(
+                sessions.get(session_id), calculated["landscape"])
         data["opinionAnalysis"] = calculated["live"]
         data["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
     return data

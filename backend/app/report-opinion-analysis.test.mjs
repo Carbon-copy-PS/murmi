@@ -288,3 +288,22 @@ test('map fitting preserves relative PCA distances without separating groups art
     }
   }
 });
+
+test('theme labels wrap multilingual titles and move text without changing points', async () => {
+  const {layoutThemeLabels, wrapThemeTitle} = await import('../../frontend/src/components/opinion-groups/map-layout.js');
+  const points = [{x:.5,y:.5,isYou:true}];
+  const original = structuredClone(points);
+  const groups = Array.from({length:4}, (_,id)=>({id,position:{x:.5,y:.5},theme:{title:'Human control and worker safety'}}));
+  for(const compact of [false,true]) {
+    const labels = layoutThemeLabels(groups,points,'Theme emerging',compact);
+    assert.equal(labels.length,4);
+    assert.ok(labels.every(l=>l.x-l.halfWidth>=0 && l.x+l.halfWidth<=600 && l.y-l.height/2>=0 && l.y+l.height/2<=600));
+    assert.deepEqual(points,original);
+    for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++) {
+      const a=labels[i], b=labels[j];
+      assert.ok(Math.abs(a.x-b.x)>=a.halfWidth+b.halfWidth || Math.abs(a.y-b.y)>=(a.height+b.height)/2);
+    }
+  }
+  assert.ok(wrapThemeTitle('優先建立數位基礎再導入人工智慧並保障工作者的安全',18).length<=3);
+  assert.ok(wrapThemeTitle('A'.repeat(64)).length<=3);
+});

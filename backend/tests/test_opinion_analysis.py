@@ -109,10 +109,13 @@ class SharedOpinionTests(unittest.IsolatedAsyncioTestCase):
         from backend.app import main
         manager = SessionManager()
         manager.sessions[self.session.id] = self.session
-        with patch.object(main, "sessions", manager), patch.object(main, "_resolve_public_session", return_value=self.session.id):
+        from backend.app.opinion_themes import OpinionThemeService
+        disabled_themes = OpinionThemeService(AsyncMock(), enabled=False)
+        with patch.object(main, "sessions", manager), patch.object(main, "opinion_themes", disabled_themes), patch.object(main, "_resolve_public_session", return_value=self.session.id):
             data = await main.public_results("public-fixture")
             report = await build_opinion_landscape(self.session)
-            self.assertEqual(data["opinionAnalysis"]["landscape"], report)
+            for key, value in report.items():
+                self.assertEqual(data["opinionAnalysis"]["landscape"][key], value)
             self.session.report_snapshot = {"opinionLandscape": report}
             self.session.report_status = "published"
             self.session.statements[0].votes["private-3"] = "disagree"

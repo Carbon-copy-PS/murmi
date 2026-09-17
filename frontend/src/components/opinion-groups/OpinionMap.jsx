@@ -1,10 +1,18 @@
-import { useMemo, useState } from 'react'
-import { densityImage, mapPosition, layoutOpinionDots } from './map-layout'
+import { useEffect, useMemo, useState } from 'react'
+import { densityImage, mapPosition, layoutOpinionDots, layoutThemeLabels } from './map-layout'
 
 export const GROUP_COLORS = ['#60876c', '#b4944c', '#7089ad', '#9a7da3']
 
-export default function OpinionMap({ groups, points, copy }) {
+export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 480px)').matches)
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 480px)')
+    const update = () => setCompact(query.matches)
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
   const [separate, setSeparate] = useState(false)
+  const [showThemes, setShowThemes] = useState(true)
   const [zoom, setZoom] = useState(1)
   const [selected, setSelected] = useState(null)
   const [hovered, setHovered] = useState(null)
@@ -14,6 +22,7 @@ export default function OpinionMap({ groups, points, copy }) {
     const peak = groups.reduce((max, group) => Math.max(max, ...(group.density?.values || [0])), 0)
     return groups.map(group => densityImage(group.density, GROUP_COLORS[group.id % 4], peak))
   }, [groups])
+  const labels = useMemo(() => layoutThemeLabels(groups, points || [], copy.themeEmerging, compact), [groups, points, copy.themeEmerging, compact])
   const stacks = separate ? [] : dots.filter((point, index) => point.overlapping > 1 &&
     dots.findIndex(other => Math.round(other.plotX) === Math.round(point.plotX) && Math.round(other.plotY) === Math.round(point.plotY)) === index)
   const active = dots.find((point) => point.key === (hovered || selected))
@@ -40,7 +49,7 @@ export default function OpinionMap({ groups, points, copy }) {
         </g>
         {groups.map((group, index) => <g key={group.id} data-group={group.letter} className="opinion-cloud" opacity={dimmed(group.id) ? .18 : 1}>
           {textures[index] && <image href={textures[index]} x="35" y="35" width="530" height="530" />}
-          {!points && <text x={mapPosition(group.position.x)} y={mapPosition(group.position.y) + 5} className="opinion-group-letter">{group.letter}</text>}
+          {!showThemes && !points && <text x={mapPosition(group.position.x)} y={mapPosition(group.position.y) + 5} className="opinion-group-letter">{group.letter}</text>}
         </g>)}
         {dots.map((point, index) => {
           const isActive = active?.key === point.key || selected === point.key
@@ -66,6 +75,23 @@ export default function OpinionMap({ groups, points, copy }) {
         })}
         {stacks.map(point => <text key={point.key} x={point.plotX + 18} y={point.plotY - 16}
           className="opinion-stack-count" aria-hidden="true">{point.overlapping}</text>)}
+        {showThemes && labels.map(({group, x, y, anchorX, anchorY, height, halfWidth, lineHeight, lines}) => <g
+          key={group.id} className="opinion-theme-label" role="button" tabIndex="0"
+          aria-label={`${copy.group} ${group.letter}: ${group.theme?.title || copy.themeEmerging}. ${copy.viewEvidence}`}
+          opacity={dimmed(group.id) ? .3 : 1}
+          onClick={() => {setSelectedGroup(group.id); onSelectGroup?.(group.id)}}
+          onKeyDown={event => {if(event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();setSelectedGroup(group.id);onSelectGroup?.(group.id)
+          }}}>
+          <title>{group.theme?.description || copy.themeEmerging}</title>
+          {Math.hypot(x-anchorX,y-anchorY)>35 && <line x1={anchorX} y1={anchorY} x2={x} y2={y}
+            stroke={GROUP_COLORS[group.id % 4]} strokeWidth="1" opacity=".65" />}
+          <rect x={x-halfWidth} y={y-height/2-5} width={halfWidth*2} height={height+10} rx="8" fill="transparent" />
+          <text x={x} y={y-height/2+(compact ? 21 : 15)}>
+            <tspan className="opinion-theme-count" x={x}>{group.letter} · {group.size} {copy.people}</tspan>
+            {lines.map((line, index)=><tspan x={x} dy={lineHeight} key={index}>{line}</tspan>)}
+          </text>
+        </g>)}
       </svg>
       <div className="opinion-map-zoom" aria-label={copy.zoom}>
         <button type="button" aria-label={copy.zoomOut} disabled={zoom <= 1} onClick={() => setZoom(Math.max(1, zoom - .5))}>−</button>
@@ -85,6 +111,7 @@ export default function OpinionMap({ groups, points, copy }) {
         {active.overlapping > 1 && <span>{copy.samePosition}: {active.overlapping}</span>}</> : <span>{copy.mapInvite}</span>}
     </div>}
     <figcaption>
+      <label className="opinion-map-spread-toggle"><input type="checkbox" checked={showThemes} onChange={event=>setShowThemes(event.target.checked)} />{copy.showThemes}</label>
       <p>{copy.cloudNote}</p>
       {points && !separate && <small>{copy.exactNote}</small>}
       {points && <label className="opinion-map-spread-toggle"><input type="checkbox" checked={separate} onChange={(event) => setSeparate(event.target.checked)} />{copy.separateDots}</label>}
