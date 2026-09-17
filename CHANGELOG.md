@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Enlarge opinion-map participant dots and align the map, controls and vote cards with the site’s shared light/dark theme.
+- Enlarge opinion-map participant dots, soften group colours to sage, ochre, slate blue and muted plum, and align the map, controls and vote cards with the site’s shared light/dark theme.
 
 - Keep exact PCA map positions by default and derive soft shading from equally weighted participant positions, replacing the centroid ellipses. Mark overlapping people with counts.
 

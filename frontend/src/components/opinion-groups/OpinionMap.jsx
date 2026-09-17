@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { densityImage, mapPosition, layoutOpinionDots } from './map-layout'
 
-export const GROUP_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
+export const GROUP_COLORS = ['#60876c', '#b4944c', '#7089ad', '#9a7da3']
 
 export default function OpinionMap({ groups, points, copy }) {
   const [separate, setSeparate] = useState(false)
