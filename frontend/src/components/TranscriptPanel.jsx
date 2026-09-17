@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
-export default function TranscriptPanel({ entries, partial, error }) {
+export default function TranscriptPanel({ entries, partial, error, finishing = false, recording = false }) {
   const { t } = useTranslation()
   const bottomRef = useRef(null)
 
@@ -17,7 +17,7 @@ export default function TranscriptPanel({ entries, partial, error }) {
             <p className="caption-error">{error}</p>
           </div>
         ) : (
-          t('transcript.empty')
+          <span role="status">{t(finishing ? 'transcript.finishing' : 'transcript.empty')}</span>
         )}
       </div>
     )
@@ -37,11 +37,12 @@ export default function TranscriptPanel({ entries, partial, error }) {
       {partial?.text && (
         <div className="entry partial">
           <span className="speaker">{partial.speaker}</span>
-          <span className="live-dot">{t('transcript.live')}</span>
+          <span className="live-dot">{t(recording ? 'transcript.live' : 'transcript.unconfirmed')}</span>
           <p>{partial.text}</p>
         </div>
       )}
       {error && <p className="caption-error">{error}</p>}
+      {finishing && <p role="status">{t('transcript.finishing')}</p>}
       <div ref={bottomRef} />
     </div>
   )

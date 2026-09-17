@@ -62,7 +62,9 @@
     "recommendationsFailed": "無法產生建議。",
     "recommendationsTimeout": "產生建議逾時，請再試一次。",
     "cgNeedsVotes": "產生政策草稿前需要已核准且有投票的論點。",
-    "cgEndorseFailed": "無法認可此版本。僅最新工作草稿可標記為最終。"
+    "cgEndorseFailed": "無法認可此版本。僅最新工作草稿可標記為最終。",
+    "transcriptIncomplete": "最後一段逐字稿可能不完整，部分音訊尚未確認。",
+    "transcriptSaveFailed": "部分逐字稿無法儲存。請保持此頁開啟並複製逐字稿。"
   },
   "confirm": {
     "revokeHostTitle": "撤銷主持人權限？",
@@ -89,7 +91,9 @@
   },
   "transcript": {
     "empty": "逐字稿將顯示在此",
-    "live": "直播中"
+    "live": "直播中",
+    "finishing": "正在完成逐字稿…",
+    "unconfirmed": "尚未確認"
   },
   "statements": {
     "editStatement": "編輯陳述",

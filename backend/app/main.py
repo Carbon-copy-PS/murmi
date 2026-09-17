@@ -45,8 +45,10 @@ REPORT_NARRATIVE_TIMEOUT_SECONDS = float(
 async def _safe_db(coro):
     try:
         await coro
+        return True
     except Exception as exc:
         print(f"DB write error: {exc}")
+        return False
 
 
 async def persist_session(session):
@@ -721,7 +723,7 @@ async def add_transcript_text(
     transcription_item: dict | None = None,
 ) -> bool:
     text = text.strip()
-    if is_low_information_transcript(text):
+    if not text:
         return False
     now = time.time()
     session = sessions.get(session_id)
@@ -742,7 +744,7 @@ async def add_transcript_text(
             "type": "transcript_update",
             "entry": last_entry,
         })
-        await _safe_db(db.save_transcript_entry(session, last_entry))
+        await persist_transcript_entry(session, last_entry)
         schedule_turn_analysis(session_id, last_entry)
         return True
 
@@ -764,9 +766,18 @@ async def add_transcript_text(
 
     sessions.add_transcript_entry(session_id, entry)
     await sessions.broadcast(session_id, entry)
-    await _safe_db(db.save_transcript_entry(session, entry))
+    await persist_transcript_entry(session, entry)
     schedule_turn_analysis(session_id, entry)
     return True
+
+
+async def persist_transcript_entry(session, entry: dict):
+    if not await _safe_db(db.save_transcript_entry(session, entry)):
+        await broadcast_caption_error(
+            session.id,
+            "Some transcript text could not be saved. Keep this page open and copy the transcript.",
+            "transcriptSaveFailed",
+        )
 
 
 async def broadcast_caption_delta(session_id: str, speaker: str, item_id: str, delta: str):
@@ -785,6 +796,7 @@ async def finalize_caption(
     item_id: str,
     transcript_text: str,
     language: str | None = None,
+    model: str | None = None,
 ):
     # The completed Realtime event already belongs to this exact audio item.
     # Do not retranscribe a shared microphone buffer: it can contain later turns.
@@ -795,6 +807,8 @@ async def finalize_caption(
             "text": transcript_text,
             "language": language,
             "source": "realtime",
+            "model": model,
+            "receivedAt": time.time(),
         },
     )
     if not added:
@@ -839,7 +853,9 @@ async def get_realtime_session(
     )
 
     async def on_bridge_final(sid: str, label: str, item_id: str, text: str):
-        await finalize_caption(sid, label, item_id, text, language=bridge.language)
+        await finalize_caption(
+            sid, label, item_id, text, language=bridge.language, model=bridge.transcription_model,
+        )
 
     async def on_bridge_error(sid: str, message: str, code: str | None = None):
         realtime_unavailable.add((session_id, participant_id))
@@ -870,10 +886,16 @@ async def close_realtime_sessions(session_id: str, participant_id: str | None = 
         key for key in realtime_sessions
         if key[0] == session_id and (participant_id is None or key[1] == participant_id)
     ]
-    for key in keys:
-        bridge = realtime_sessions.pop(key, None)
-        if bridge:
-            await bridge.close()
+    if not keys:
+        return
+    await sessions.broadcast(session_id, {"type": "caption_status", "status": "finalizing"})
+    try:
+        for key in keys:
+            bridge = realtime_sessions.pop(key, None)
+            if bridge:
+                await bridge.close()
+    finally:
+        await sessions.broadcast(session_id, {"type": "caption_status", "status": "idle"})
 
 
 @app.websocket("/ws/{session_id}")

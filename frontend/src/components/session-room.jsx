@@ -93,6 +93,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [transcript, setTranscript] = useState([])
   const [partialCaption, setPartialCaption] = useState(null)
   const [captionError, setCaptionError] = useState('')
+  const [captionFinishing, setCaptionFinishing] = useState(false)
   const [recording, setRecording] = useState(false)
   const [isHost, setIsHost] = useState(false)
   const [isRecorder, setIsRecorder] = useState(false)
@@ -434,8 +435,10 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         case 'recording_stopped':
           setRecording(false)
           recordingRef.current = false
-          setPartialCaption(null)
           notify(APP_NAME, t('notify.recordingStopped'), { tag: 'recording', duration: 4000 })
+          break
+        case 'caption_status':
+          setCaptionFinishing(msg.status === 'finalizing')
           break
         case 'caption_delta':
           setPartialCaption((prev) => {
@@ -1237,7 +1240,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
             {isRecorder ? (recording ? t('room.stop') : t('room.record')) : t('room.listening')}
           </button>
 
-          <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} />
+          <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} finishing={!tourActive && captionFinishing} recording={recording} />
         </div>
       )}
       {view === 'statements' && (

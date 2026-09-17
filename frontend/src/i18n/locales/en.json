@@ -62,7 +62,9 @@
     "recommendationsFailed": "Could not generate recommendations.",
     "recommendationsTimeout": "Timed out generating recommendations. Please try again.",
     "cgNeedsVotes": "Need approved arguments with votes before generating a policy draft.",
-    "cgEndorseFailed": "Could not endorse this version. Only the latest working draft can be marked Final."
+    "cgEndorseFailed": "Could not endorse this version. Only the latest working draft can be marked Final.",
+    "transcriptIncomplete": "The final transcript may be incomplete. Some audio was not confirmed.",
+    "transcriptSaveFailed": "Some transcript text could not be saved. Keep this page open and copy the transcript."
   },
   "confirm": {
     "revokeHostTitle": "Revoke host access?",
@@ -89,7 +91,9 @@
   },
   "transcript": {
     "empty": "Transcript will appear here",
-    "live": "Live"
+    "live": "Live",
+    "finishing": "Finishing transcription…",
+    "unconfirmed": "Unconfirmed"
   },
   "statements": {
     "editStatement": "Edit statement",

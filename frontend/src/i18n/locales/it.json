@@ -62,7 +62,9 @@
     "recommendationsFailed": "Impossibile generare le raccomandazioni.",
     "recommendationsTimeout": "Tempo scaduto nella generazione delle raccomandazioni. Riprova.",
     "cgNeedsVotes": "Servono argomenti approvati con voti prima di generare una bozza di policy.",
-    "cgEndorseFailed": "Impossibile approvare questa versione. Solo l’ultima bozza di lavoro può essere segnata come Finale."
+    "cgEndorseFailed": "Impossibile approvare questa versione. Solo l’ultima bozza di lavoro può essere segnata come Finale.",
+    "transcriptIncomplete": "La parte finale della trascrizione potrebbe essere incompleta. Una parte dell’audio non è stata confermata.",
+    "transcriptSaveFailed": "Una parte della trascrizione non è stata salvata. Tieni aperta questa pagina e copia la trascrizione."
   },
   "confirm": {
     "revokeHostTitle": "Revocare l'accesso host?",
@@ -89,7 +91,9 @@
   },
   "transcript": {
     "empty": "La trascrizione apparirà qui",
-    "live": "In diretta"
+    "live": "In diretta",
+    "finishing": "Completamento della trascrizione…",
+    "unconfirmed": "Non confermato"
   },
   "statements": {
     "editStatement": "Modifica enunciato",
