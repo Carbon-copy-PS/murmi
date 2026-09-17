@@ -132,20 +132,45 @@ is limited to 25 seconds, and provider requests use a 20-second timeout with no
 SDK retries. Failures back off; the map remains usable without theme text. Without
 an API key, no synthetic model descriptions are silently substituted.
 
-Labels are attached only to the exact vote fingerprint that generated them.
-While updated evidence waits for a new description, the map shows “Theme emerging”
-rather than carrying an old Group A name onto a new Group A. Report generation
+Live labels remain visible during refresh, including cooldowns and failed requests,
+when their previous vote pattern still matches a current group. The service keeps
+the last completed description for up to 64 sessions in memory, even when new votes
+arrive before anyone polls the completed snapshot. It matches aggregate vote
+distributions rather than group letters: the average total-variation distance over
+at least two commonly answered, unchanged statements must be at most 0.15, with a
+0.10 margin over alternatives in both directions. These are conservative application
+heuristics, not statistical confidence estimates or guarantees of participant identity.
+Every cited statement must remain unchanged, have at least two responses, and retain
+60% support in its original direction. Ambiguous matches, splits/merges, changed
+topics/languages, or lost supporting evidence do not inherit old labels. Shared
+summaries must still have supporting evidence in every group.
+
+Retained labels preserve their original source fingerprint and generation time;
+the server separately records the current fingerprint against which they were
+matched. The UI says it is showing previous AI themes during refresh (or after a
+failed update), while map positions and vote counts stay current. Retention does
+not add model calls, persist across server restarts, or carry over to reports.
+Report generation
 waits for the captured snapshot's description or records its unavailable state;
 report themes are frozen with the report and do not update on later live votes.
 Legacy published reports keep their original rendering.
 
-Checks include background deduplication, cache isolation, new vote/language/topic
-invalidation, unknown citations, sparse evidence, timeout backoff, manual refresh,
+Checks include background deduplication, cache isolation, vote updates during cooldown,
+completion between polls, group renumbering, ambiguous matching, changed citations,
+language/topic invalidation, sparse evidence, timeout backoff, manual refresh,
 and report persistence of the exact generated snapshot. The local browser check
 covers overlay selection by keyboard, label hiding, stale-label rejection,
 live/report parity, desktop/mobile and dark mode. A provider smoke test used only
 synthetic AI-discussion votes; its output and screenshots are local ignored
 artifacts, not real-session evidence or a broad model-quality evaluation.
+
+The retention follow-up passed the full backend suite (80 passed, two database
+tests skipped) and the frontend production build. A local browser rehearsal with
+synthetic votes and replayed model output changed a vote during an open results
+view: all three labels remained visible, the refresh notice appeared, completed
+themes replaced them, and the published report stayed unchanged. A DOM observer
+confirmed that no “Theme emerging” placeholder appeared during that update. This
+check made no provider calls and is not a production deployment rehearsal.
 
 ### What the map leaves out
 

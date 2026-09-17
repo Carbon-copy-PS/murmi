@@ -64,11 +64,79 @@ class OpinionThemeTests(unittest.IsolatedAsyncioTestCase):
         changed['sourceHash'] = 'new-votes'
         delayed = await self.service.enrich(self.session, changed)
         self.assertEqual(delayed['themes']['status'], 'pending')
-        self.assertTrue(all('theme' not in g for g in delayed['groups']))
+        self.assertTrue(all(g['theme']['retained'] for g in delayed['groups']))
+        self.assertTrue(all(g['theme']['sourceHash'] == original['sourceHash'] for g in delayed['groups']))
+        self.assertTrue(all(g['theme']['matchedSourceHash'] == 'new-votes' for g in delayed['groups']))
         self.assertEqual(self.generator.await_count, 1)
         final = await self.service.enrich(self.session, changed, wait=True)
         self.assertEqual(self.generator.await_count, 2)
         self.assertTrue(all(g['theme']['sourceHash'] == 'new-votes' for g in final['groups']))
+        self.assertNotIn('retained', final['themes'])
+
+    async def test_background_completion_is_retained_without_polling_original_snapshot(self):
+        await self.service.enrich(self.session, self.landscape)
+        await self.service.running[self.session.id][1]
+        self.session.statements[0].votes['p0'] = 'neutral'
+        changed = await build_opinion_landscape(self.session)
+        result = await self.service.enrich(self.session, changed)
+        self.assertNotEqual(result['sourceHash'], self.landscape['sourceHash'])
+        self.assertTrue(all(g.get('theme', {}).get('retained') for g in result['groups']))
+        self.assertEqual(result['groups'][0]['statements'], changed['groups'][0]['statements'])
+        self.assertEqual(self.generator.await_count, 1)
+
+    async def test_retained_themes_follow_votes_when_group_numbers_swap(self):
+        saved = await self.service.enrich(self.session, self.landscape, wait=True)
+        changed = deepcopy(self.landscape)
+        changed['sourceHash'] = 'renumbered'
+        for g in changed['groups']:
+            g['id'] = 1 - g['id']
+        result = await self.service.enrich(self.session, changed)
+        for original, current in zip(saved['groups'], result['groups']):
+            self.assertTrue(current['theme']['retained'])
+            self.assertEqual(current['theme']['groupId'], current['id'])
+            self.assertEqual(current['theme']['evidenceStatementIds'], original['theme']['evidenceStatementIds'])
+
+    async def test_ambiguous_groups_and_splits_do_not_inherit_old_names(self):
+        await self.service.enrich(self.session, self.landscape, wait=True)
+        changed = deepcopy(self.landscape)
+        changed['sourceHash'] = 'ambiguous'
+        changed['groups'][1]['statements'] = deepcopy(changed['groups'][0]['statements'])
+        result = await self.service.enrich(self.session, changed)
+        self.assertTrue(all('theme' not in g for g in result['groups']))
+        changed['groups'].pop()
+        result = await self.service.enrich(self.session, changed)
+        self.assertTrue(all('theme' not in g for g in result['groups']))
+
+    async def test_edited_or_removed_citations_do_not_keep_old_descriptions(self):
+        saved = await self.service.enrich(self.session, self.landscape, wait=True)
+        for remove in (False, True):
+            changed = deepcopy(self.landscape)
+            changed['sourceHash'] = 'edited-evidence'
+            for g in changed['groups']:
+                sid = next(x for x in saved['groups'] if x['id'] == g['id'])['theme']['evidenceStatementIds'][0]
+                if remove:
+                    g['statements'] = [s for s in g['statements'] if s['id'] != sid]
+                else:
+                    next(s for s in g['statements'] if s['id'] == sid)['text'] = 'Changed meaning'
+            # Keep a common statement inventory, as real landscapes do.
+            common = set.intersection(*({s['id'] for s in g['statements']} for g in changed['groups']))
+            for g in changed['groups']:
+                g['statements'] = [s for s in g['statements'] if s['id'] in common]
+            result = await self.service.enrich(self.session, changed)
+            self.assertTrue(all('theme' not in g for g in result['groups']))
+
+    async def test_failed_refresh_keeps_live_labels_but_reports_require_exact_snapshot(self):
+        await self.service.enrich(self.session, self.landscape, wait=True)
+        changed = deepcopy(self.landscape)
+        changed['sourceHash'] = 'new-votes'
+        self.service.generator = AsyncMock(return_value=None)
+        report = await self.service.enrich(self.session, changed, wait=True)
+        self.assertEqual(report['themes']['status'], 'unavailable')
+        self.assertTrue(all('theme' not in g for g in report['groups']))
+        live = await self.service.enrich(self.session, changed)
+        self.assertEqual(live['themes']['status'], 'unavailable')
+        self.assertTrue(live['themes']['retained'])
+        self.assertTrue(all(g['theme']['retained'] for g in live['groups']))
 
     async def test_language_and_topic_changes_do_not_reuse_old_labels(self):
         await self.service.enrich(self.session, self.landscape, wait=True)

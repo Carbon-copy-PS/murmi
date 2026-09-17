@@ -21,7 +21,8 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
   const copy = getOpinionCopy(language)
   const id = useId()
   if (!landscape?.available) return null
-  const groups = landscape.groups.map(group => ({...group, theme: group.theme?.sourceHash === landscape.sourceHash ? group.theme : null}))
+  const groups = landscape.groups.map(group => ({...group, theme: group.theme?.sourceHash === landscape.sourceHash ||
+    (group.theme?.retained === true && group.theme?.matchedSourceHash === landscape.sourceHash) ? group.theme : null}))
   const themes = landscape.themes?.sourceHash === landscape.sourceHash ? landscape.themes : null
   const provisional = landscape.status === 'provisional'
   const check = landscape.projectionCheck
@@ -37,7 +38,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
       card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest', behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'})
     }} />
     <div className="opinion-theme-status">
-      <span>{themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
+      <span>{themes?.retained ? (themes.status === 'unavailable' ? copy.themesRetainedUnavailable : copy.themesRetained) : themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
         {themes?.generatedAt && <> · {copy.updated} {new Intl.DateTimeFormat(language, {hour:'2-digit',minute:'2-digit'}).format(new Date(themes.generatedAt * 1000))}</>}
       </span>
       {onRefreshThemes && <button type="button" onClick={onRefreshThemes}>{copy.refreshThemes}</button>}

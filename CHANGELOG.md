@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Keep supported live group themes visible during background refresh and temporary failures, with an update notice; match vote patterns rather than group letters and keep final reports tied to their exact snapshot.
+
 - Add emerging theme labels over opinion clusters, vote-backed descriptions and a shared summary; cache background generation by vote snapshot and freeze report labels with their evidence.
 
 - Enlarge opinion-map participant dots, soften group colours to sage, ochre, slate blue and muted plum, and align the map, controls and vote cards with the site’s shared light/dark theme.

@@ -95,6 +95,7 @@ class OpinionThemeService:
         self.started = OrderedDict()
         self.failures = OrderedDict()
         self.running = {}
+        self.previous = OrderedDict()
         self.slots = asyncio.Semaphore(2)
 
     async def close(self):
@@ -104,7 +105,7 @@ class OpinionThemeService:
         await asyncio.gather(*tasks, return_exceptions=True)
         self.running.clear()
 
-    async def _generate(self, key, evidence, language):
+    async def _generate(self, key, evidence, language, snapshot):
         try:
             async with self.slots:
                 raw = await asyncio.wait_for(self.generator(evidence, language), self.timeout)
@@ -116,6 +117,12 @@ class OpinionThemeService:
             self.cache.move_to_end(key)
             while len(self.cache) > 64:
                 self.cache.popitem(last=False)
+            # Save completion even if votes change before the next live poll.
+            if result["groups"] or result["shared"]:
+                self.previous[snapshot["sessionId"]] = {**snapshot, "themes": deepcopy(result)}
+                self.previous.move_to_end(snapshot["sessionId"])
+                while len(self.previous) > 64:
+                    self.previous.popitem(last=False)
             return result
         except asyncio.CancelledError:
             raise
@@ -130,6 +137,78 @@ class OpinionThemeService:
             self.failures.popitem(last=False)
 
     async def enrich(self, session, landscape, *, wait=False, force=False):
+        result = await self._enrich_exact(session, landscape, wait=wait, force=force)
+        if not wait and self.enabled and result.get("available") and result.get("themes", {}).get("status") != "ready":
+            self._retain_themes(session, result)
+        return result
+
+    def _retain_themes(self, session, result):
+        previous = self.previous.get(session.id)
+        if not previous or previous["language"] != (session.language or "en") or previous["topic"] != session.topic:
+            return
+        old_groups, groups = previous["groups"], result["groups"]
+        # A letter is not a persistent group identity. Match vote distributions,
+        # declining splits/merges and ambiguous matches instead of guessing.
+        if len(old_groups) != len(groups):
+            return
+
+        def distance(old, new):
+            by_id = {s["id"]: s for s in new["statements"]}
+            pairs = [(s, by_id[s["id"]]) for s in old["statements"]
+                     if s["id"] in by_id and s["text"] == by_id[s["id"]]["text"]
+                     and s["responded"] >= 2 and by_id[s["id"]]["responded"] >= 2]
+            if len(pairs) < 2:
+                return float('inf')
+            return sum(sum(abs(a[k] / a["responded"] - b[k] / b["responded"])
+                           for k in ("agree", "neutral", "disagree")) / 2 for a, b in pairs) / len(pairs)
+
+        scores = [[distance(old, new) for new in groups] for old in old_groups]
+        matches = {}
+        for i, row in enumerate(scores):
+            j = min(range(len(row)), key=row.__getitem__)
+            score = row[j]
+            if score > .15 or any(value < score + .1 for n, value in enumerate(row) if n != j):
+                continue
+            if any(other[j] < score + .1 for n, other in enumerate(scores) if n != i):
+                continue
+            matches[old_groups[i]["id"]] = groups[j]
+
+        retained = []
+        old_by_id = {g["id"]: g for g in old_groups}
+        for theme in previous["themes"]["groups"]:
+            group = matches.get(theme["groupId"])
+            if group is None:
+                continue
+            old = {s["id"]: s for s in old_by_id[theme["groupId"]]["statements"]}
+            current = {s["id"]: s for s in group["statements"]}
+            valid = True
+            for sid in theme["evidenceStatementIds"]:
+                a, b = old.get(sid), current.get(sid)
+                if not a or not b or a["text"] != b["text"] or b["responded"] < 2:
+                    valid = False
+                    break
+                direction = "agree" if a["agree"] >= a["disagree"] else "disagree"
+                if b[direction] / b["responded"] < .6:
+                    valid = False
+                    break
+            if valid:
+                group["theme"] = {**deepcopy(theme), "groupId": group["id"],
+                                  "sourceHash": previous["sourceHash"],
+                                  "matchedSourceHash": result["sourceHash"], "retained": True}
+                retained.append(group["theme"])
+
+        shared = previous["themes"].get("shared")
+        eligible_shared = {s["id"]: s["text"] for s in theme_evidence(result)["shared"]}
+        old_text = {s["id"]: s["text"] for s in old_groups[0]["statements"]} if old_groups else {}
+        if shared and not all(sid in eligible_shared and eligible_shared[sid] == old_text.get(sid)
+                              for sid in shared["evidenceStatementIds"]):
+            shared = None
+        if retained or shared:
+            result["themes"].update({"retained": True, "groups": retained, "shared": deepcopy(shared),
+                                     "generatedAt": previous["themes"]["generatedAt"],
+                                     "originalSourceHash": previous["sourceHash"]})
+
+    async def _enrich_exact(self, session, landscape, *, wait=False, force=False):
         result = deepcopy(landscape)
         if not result.get("available"):
             return result
@@ -181,7 +260,10 @@ class OpinionThemeService:
                 self.started.move_to_end(session.id)
                 while len(self.started) > 256:
                     self.started.popitem(last=False)
-                task = asyncio.create_task(self._generate(key, evidence, language))
+                snapshot = {"sessionId": session.id, "language": language, "topic": session.topic,
+                            "sourceHash": source_hash, "groups": [
+                                {"id": g["id"], "statements": deepcopy(g["statements"])} for g in result["groups"]]}
+                task = asyncio.create_task(self._generate(key, evidence, language, snapshot))
                 self.running[session.id] = (key, task)
                 def done(completed):
                     if self.running.get(session.id) == (key, completed):
