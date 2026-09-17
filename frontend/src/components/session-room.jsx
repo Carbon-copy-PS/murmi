@@ -456,13 +456,16 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         case 'caption_error':
           setCaptionError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.captionsUnavailable')))
           break
+        case 'caption_error_resolved':
+          setCaptionError((prev) => prev === t(`errors.${msg.code}`) ? '' : prev)
+          break
         case 'caption_rejected':
           setPartialCaption((prev) => (
             prev?.itemId === msg.itemId ? null : prev
           ))
           break
         case 'transcript':
-          setTranscript((prev) => [...prev, msg])
+          setTranscript((prev) => msg.id && prev.some((entry) => entry.id === msg.id) ? prev : [...prev, msg])
           setPartialCaption((prev) => (
             !prev || !msg.itemId || prev.itemId === msg.itemId ? null : prev
           ))

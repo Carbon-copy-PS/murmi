@@ -64,7 +64,7 @@
     "cgNeedsVotes": "Des arguments approuvés avec des votes sont requis avant de générer un brouillon politique.",
     "cgEndorseFailed": "Impossible d’approuver cette version. Seul le dernier brouillon de travail peut être marqué Final.",
     "transcriptIncomplete": "La fin de la transcription est peut-être incomplète. Une partie de l’audio n’a pas été confirmée.",
-    "transcriptSaveFailed": "Une partie de la transcription n’a pas pu être enregistrée. Gardez cette page ouverte et copiez la transcription."
+    "transcriptSaveFailed": "Une partie de la transcription n’est pas encore enregistrée. Nouvelle tentative en cours ; gardez cette page ouverte et copiez la transcription si nécessaire."
   },
   "confirm": {
     "revokeHostTitle": "Retirer l'accès hôte ?",
@@ -90,6 +90,7 @@
     "resumeVoting": "Reprendre le vote"
   },
   "transcript": {
+    "missingSegment": "La transcription de ce passage est manquante.",
     "empty": "La transcription apparaîtra ici",
     "live": "En direct",
     "finishing": "Finalisation de la transcription…",

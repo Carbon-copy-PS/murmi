@@ -31,7 +31,9 @@ export default function TranscriptPanel({ entries, partial, error, finishing = f
           <span className="time">
             {new Date(entry.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-          <p>{entry.text}</p>
+          <p className={entry.transcriptionStatus === 'missing' ? 'caption-error' : undefined}>
+            {entry.transcriptionStatus === 'missing' ? t('transcript.missingSegment') : entry.text}
+          </p>
         </div>
       ))}
       {partial?.text && (

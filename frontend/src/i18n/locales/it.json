@@ -64,7 +64,7 @@
     "cgNeedsVotes": "Servono argomenti approvati con voti prima di generare una bozza di policy.",
     "cgEndorseFailed": "Impossibile approvare questa versione. Solo l’ultima bozza di lavoro può essere segnata come Finale.",
     "transcriptIncomplete": "La parte finale della trascrizione potrebbe essere incompleta. Una parte dell’audio non è stata confermata.",
-    "transcriptSaveFailed": "Una parte della trascrizione non è stata salvata. Tieni aperta questa pagina e copia la trascrizione."
+    "transcriptSaveFailed": "Parte della trascrizione non è ancora salvata. Nuovo tentativo in corso; tieni aperta questa pagina e copia la trascrizione se necessario."
   },
   "confirm": {
     "revokeHostTitle": "Revocare l'accesso host?",
@@ -90,6 +90,7 @@
     "resumeVoting": "Riprendi la votazione"
   },
   "transcript": {
+    "missingSegment": "Manca la trascrizione di questo segmento.",
     "empty": "La trascrizione apparirà qui",
     "live": "In diretta",
     "finishing": "Completamento della trascrizione…",

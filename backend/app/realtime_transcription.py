@@ -15,6 +15,7 @@ import websockets
 CaptionDeltaHandler = Callable[[str, str, str, str], Awaitable[None]]
 CaptionFinalHandler = Callable[[str, str, str, str], Awaitable[None]]
 CaptionErrorHandler = Callable[[str, str, Optional[str]], Awaitable[None]]
+CaptionGapHandler = Callable[[str, str, str], Awaitable[None]]
 
 
 class RealtimeTranscriptionSession:
@@ -32,6 +33,7 @@ class RealtimeTranscriptionSession:
         on_delta: CaptionDeltaHandler,
         on_final: CaptionFinalHandler,
         on_error: CaptionErrorHandler,
+        on_gap: CaptionGapHandler | None = None,
     ):
         self.session_id = session_id
         self.participant_id = participant_id
@@ -40,6 +42,7 @@ class RealtimeTranscriptionSession:
         self.on_delta = on_delta
         self.on_final = on_final
         self.on_error = on_error
+        self.on_gap = on_gap
         self.api_key = os.environ.get("OPENAI_API_KEY", "")
         self.transcription_model = os.environ.get("OPENAI_REALTIME_TRANSCRIPTION_MODEL", "gpt-4o-transcribe")
         self.prompt = os.environ.get(
@@ -73,6 +76,11 @@ class RealtimeTranscriptionSession:
         self.audio_sent = False
         self.close_timeout = 10.0
         self.finalized_items: set[str] = set()
+        self.missing_items: set[str] = set()
+        self.item_started: dict[str, float] = {}
+        self.item_timeout = 30.0
+        self.gap_task: Optional[asyncio.Task] = None
+        self.publish_lock = asyncio.Lock()
 
     @property
     def available(self) -> bool:
@@ -151,6 +159,9 @@ class RealtimeTranscriptionSession:
                         )
             finally:
                 self.closed = True
+                if self.gap_task:
+                    self.gap_task.cancel()
+                    await asyncio.gather(self.gap_task, return_exceptions=True)
                 if self.receiver_task:
                     self.receiver_task.cancel()
                     try:
@@ -159,6 +170,7 @@ class RealtimeTranscriptionSession:
                         pass
                     except Exception:
                         pass
+                await self._publish_completed_items(force=True)
                 if self.ws is not None:
                     await self.ws.close()
                     self.ws = None
@@ -266,20 +278,30 @@ class RealtimeTranscriptionSession:
                 elif event_type == "conversation.item.input_audio_transcription.completed":
                     item_id = event.get("item_id", "")
                     transcript = (event.get("transcript") or "").strip()
-                    if item_id and item_id not in self.finalized_items:
-                        if item_id not in self.pending_items:
-                            self.pending_items.append(item_id)
-                        self.items_drained.clear()
-                        self.completed_items[item_id] = transcript
-                        await self._publish_completed_items()
+                    async with self.publish_lock:
+                        if item_id and item_id not in self.finalized_items:
+                            if item_id in self.missing_items:
+                                # Replace the existing gap in place, preserving chronology.
+                                await self.on_final(self.session_id, self.speaker, item_id, transcript)
+                                self.missing_items.discard(item_id)
+                                self.finalized_items.add(item_id)
+                            else:
+                                if item_id not in self.pending_items:
+                                    self.pending_items.append(item_id)
+                                self.items_drained.clear()
+                                self.completed_items[item_id] = transcript
+                    await self._publish_completed_items()
 
                 elif event_type == "input_audio_buffer.committed":
                     # WebSocket commit events establish turn order; transcription
                     # completions for those turns may arrive out of order.
                     item_id = event.get("item_id", "")
-                    if item_id and item_id not in self.finalized_items and item_id not in self.pending_items:
+                    if item_id and item_id not in self.finalized_items and item_id not in self.pending_items and item_id not in self.missing_items:
                         self.pending_items.append(item_id)
+                        self.item_started[item_id] = time.monotonic()
                         self.items_drained.clear()
+                        if self.gap_task is None or self.gap_task.done():
+                            self.gap_task = asyncio.create_task(self._watch_gaps())
                     if self.pending_commits:
                         self.pending_commits.popleft()
                     self.bytes_since_commit = 0
@@ -288,7 +310,7 @@ class RealtimeTranscriptionSession:
                 elif event_type == "conversation.item.input_audio_transcription.failed":
                     item_id = event.get("item_id", "")
                     if item_id in self.pending_items:
-                        self.completed_items[item_id] = ""
+                        self.item_started[item_id] = float("-inf")
                         await self._publish_completed_items()
                     error = event.get("error") or {}
                     code = error.get("code") or error.get("type") or ""
@@ -300,8 +322,7 @@ class RealtimeTranscriptionSession:
                             "openaiQuotaExhausted",
                         )
                     else:
-                        await self.on_error(self.session_id, message, "captionsUnavailable")
-                    self.closed = True
+                        await self.on_error(self.session_id, message, "transcriptIncomplete")
 
                 elif event_type == "error":
                     error = event.get("error") or {}
@@ -325,6 +346,12 @@ class RealtimeTranscriptionSession:
                 print(f"Realtime transcription connection lost (auto-recovering): {exc}")
         finally:
             self.closed = True
+            if self.gap_task:
+                self.gap_task.cancel()
+                await asyncio.gather(self.gap_task, return_exceptions=True)
+            await self._publish_completed_items(force=True)
+            if not self.closing and self.audio_sent:
+                await self.on_error(self.session_id, "Transcription connection interrupted; some audio may be missing.", "transcriptIncomplete")
             ws = self.ws
             self.ws = None
             if ws is not None:
@@ -333,11 +360,28 @@ class RealtimeTranscriptionSession:
                 except Exception:
                     pass
 
-    async def _publish_completed_items(self):
-        while self.pending_items and self.pending_items[0] in self.completed_items:
-            item_id = self.pending_items.popleft()
-            transcript = self.completed_items.pop(item_id)
-            self.finalized_items.add(item_id)
-            await self.on_final(self.session_id, self.speaker, item_id, transcript)
-        if not self.pending_items and not self.pending_commits:
-            self.items_drained.set()
+    async def _watch_gaps(self):
+        while not self.closed and self.pending_items:
+            await asyncio.sleep(min(0.5, self.item_timeout))
+            await self._publish_completed_items()
+
+    async def _publish_completed_items(self, force=False):
+        async with self.publish_lock:
+            while self.pending_items:
+                item_id = self.pending_items[0]
+                if item_id in self.completed_items:
+                    transcript = self.completed_items[item_id]
+                    await self.on_final(self.session_id, self.speaker, item_id, transcript)
+                    self.completed_items.pop(item_id)
+                    self.finalized_items.add(item_id)
+                elif force or time.monotonic() - self.item_started.get(item_id, time.monotonic()) >= self.item_timeout:
+                    if self.on_gap:
+                        await self.on_gap(self.session_id, self.speaker, item_id)
+                    self.missing_items.add(item_id)
+                    await self.on_error(self.session_id, "A transcript segment is missing. Later text is still available.", "transcriptIncomplete")
+                else:
+                    break
+                self.pending_items.popleft()
+                self.item_started.pop(item_id, None)
+            if not self.pending_items and not self.pending_commits:
+                self.items_drained.set()

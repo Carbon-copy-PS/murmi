@@ -57,3 +57,40 @@ Automated unit tests use mocked responses to verify preservation, ordering,
 acknowledgements, and timeout behavior. They do not measure speech recognition
 accuracy. The existing `gpt-4o-transcribe` model remains the baseline until a
 comparison supports changing it.
+
+## Transcript recovery checks
+
+The live pipeline keeps short replies, uses the neutral prompt, and waits for the
+final commit and transcription when recording stops. Missing committed items are
+marked after 30 seconds; later completed items can then be published. A late
+completion replaces its gap in the original position. Stopping or disconnecting
+also preserves completed results behind missing items.
+
+Database upserts run outside caption delivery, with a five-second attempt timeout
+and exponential retries capped at 30 seconds. Updates to an entry are serialized
+and coalesced to its latest snapshot. The existing row ID makes retries safe even
+when a commit succeeded but its acknowledgement was lost. A warning remains until
+failed entries in that session have been saved.
+
+The retry queue is **in memory**, not a durable outbox. A server crash during a
+database outage can still lose unsaved text. Audio sent during a broken connection
+is not replayed or reconstructed. Gap markers describe missing text, not guessed
+speech. These changes do not measure or guarantee better acoustic recognition.
+
+Run the control-flow tests with:
+
+```sh
+backend/.venv/bin/python -m unittest backend.tests.test_live_transcription backend.tests.test_transcript_writer
+```
+
+For the database regression, use an explicitly provisioned disposable PostgreSQL
+database with UTF-8 encoding, user `murmi_test`, database `postgres`, local trust
+authentication, and a dedicated port. Never point this at a real session database:
+
+```sh
+MURMI_TEST_POSTGRES_PORT=55436 backend/.venv/bin/python -m unittest backend.tests.test_transcript_persistence
+```
+
+That integration test uses real PostgreSQL upserts and reloads, with a deliberately
+injected lost acknowledgement. The API-event tests deliberately inject missing,
+delayed, duplicated, and failed results; they are not speech recognition tests.
