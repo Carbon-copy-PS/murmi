@@ -90,6 +90,10 @@
     "resumeVoting": "恢復投票"
   },
   "transcript": {
+    "preparing": "正在準備逐字稿…",
+    "showOriginal": "顯示原始文字",
+    "download": "下載逐字稿（.txt）",
+    "downloadOriginal": "下載原始資料（.json）",
     "missingSegment": "這一段的逐字稿尚未取得。",
     "empty": "逐字稿將顯示在此",
     "live": "直播中",

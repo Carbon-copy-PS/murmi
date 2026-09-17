@@ -90,6 +90,10 @@
     "resumeVoting": "Abstimmung fortsetzen"
   },
   "transcript": {
+    "preparing": "Transkript wird vorbereitet…",
+    "showOriginal": "Originaltext anzeigen",
+    "download": "Transkript herunterladen (.txt)",
+    "downloadOriginal": "Originaldaten herunterladen (.json)",
     "missingSegment": "Für diesen Abschnitt fehlt das Transkript.",
     "empty": "Das Transkript erscheint hier",
     "live": "Live",

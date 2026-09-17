@@ -94,3 +94,28 @@ MURMI_TEST_POSTGRES_PORT=55436 backend/.venv/bin/python -m unittest backend.test
 That integration test uses real PostgreSQL upserts and reloads, with a deliberately
 injected lost acknowledgement. The API-event tests deliberately inject missing,
 delayed, duplicated, and failed results; they are not speech recognition tests.
+
+## Traditional Chinese presentation
+
+The room's existing Traditional Chinese (`zh`) selection now displays transcripts
+with OpenCC's `s2tw` conversion (`opencc-js` 1.4.2, `cn` → `tw`). This converts
+characters to Taiwan-standard Traditional Chinese without the regional vocabulary
+substitutions of `s2twp`. The dictionary bundle loads only for that selection.
+
+Conversion is performed on the whole accumulated partial caption and each complete
+entry. The underlying `entry.text`, per-item `transcriptionItems`, database values,
+and argument-extraction input remain unchanged. Other room-language selections
+show the original text. Existing saved transcripts are converted when displayed,
+without rewriting their stored content.
+
+The transcript panel offers an original-text toggle, a readable `.txt` download
+in the selected script, and an original `.json` download including per-item
+metadata. Downloads include completed entries and missing-segment markers;
+unconfirmed partial captions are not included. The original JSON records the
+display conversion separately from the unchanged source entries. Older sessions
+can only export the source data they retained; this does not recover historical
+audio or first-pass text that was never saved.
+
+Run `node --test src/utils/transcript-text.test.mjs` from `frontend` for conversion,
+cross-delta phrase context, vocabulary preservation and export-integrity checks.
+These are deterministic text-conversion tests, not additional speech-model calls.

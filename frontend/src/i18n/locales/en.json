@@ -90,6 +90,10 @@
     "resumeVoting": "Resume voting"
   },
   "transcript": {
+    "preparing": "Preparing transcript…",
+    "showOriginal": "Show original text",
+    "download": "Download transcript (.txt)",
+    "downloadOriginal": "Download original data (.json)",
     "missingSegment": "Transcript missing for this segment.",
     "empty": "Transcript will appear here",
     "live": "Live",

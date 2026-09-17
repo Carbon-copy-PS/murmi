@@ -90,6 +90,10 @@
     "resumeVoting": "Reprendre le vote"
   },
   "transcript": {
+    "preparing": "Préparation de la transcription…",
+    "showOriginal": "Afficher le texte original",
+    "download": "Télécharger la transcription (.txt)",
+    "downloadOriginal": "Télécharger les données originales (.json)",
     "missingSegment": "La transcription de ce passage est manquante.",
     "empty": "La transcription apparaîtra ici",
     "live": "En direct",
