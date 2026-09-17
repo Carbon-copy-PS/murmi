@@ -1,6 +1,6 @@
 # Results and report consistency
 
-Investigation: 2026-09-17. Branch: `codex/pca-report-consistency`, based on
+Investigation: 2026-09-17. Branch: `fix/pca-report-consistency`, based on
 deployed HearTheRoom commit `1c837e4`. This work has not been deployed or
 ported to Murmi.
 
