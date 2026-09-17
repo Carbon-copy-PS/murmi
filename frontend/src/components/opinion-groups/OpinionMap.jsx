@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { densityImage, mapPosition, layoutOpinionDots } from './map-layout'
 
-export const GROUP_COLORS = ['#26956c', '#c29521', '#547bd8', '#a568ba']
+export const GROUP_COLORS = ['#2a9d4e', '#e0a400', '#3b82f6', '#a855f7']
 
 export default function OpinionMap({ groups, points, copy }) {
   const [separate, setSeparate] = useState(false)
@@ -56,15 +56,15 @@ export default function OpinionMap({ groups, points, copy }) {
               if (event.key === 'Escape') {setSelected(null); setSelectedGroup(null); setHovered(null)}
             }}>
             <title>{label}</title>
-            {(point.isYou || isActive) && <circle className="opinion-dot-ring" cx={point.plotX} cy={point.plotY} r={point.isYou ? 11 : 9}
+            {(point.isYou || isActive) && <circle className="opinion-dot-ring" cx={point.plotX} cy={point.plotY} r={point.isYou ? 18 : 16}
               fill="none" stroke={color} strokeWidth="1.5" />}
-            <circle className="opinion-dot-hit" cx={point.plotX} cy={point.plotY} r="10" fill="transparent" />
-            <circle className="opinion-dot-core" cx={point.plotX} cy={point.plotY} r={point.isYou || isActive ? 5.5 : 4}
-              fill={color} stroke="white" strokeWidth="1.3" />
-            {point.isYou && <text x={point.plotX} y={point.plotY - 17} className="opinion-you-label">{copy.you}</text>}
+            <circle className="opinion-dot-hit" cx={point.plotX} cy={point.plotY} r="16" fill="transparent" />
+            <circle className="opinion-dot-core" cx={point.plotX} cy={point.plotY} r={point.isYou || isActive ? 10 : 7.5}
+              fill={color} strokeWidth="1.8" />
+            {point.isYou && <text x={point.plotX} y={point.plotY - 26} className="opinion-you-label">{copy.you}</text>}
           </g>
         })}
-        {stacks.map(point => <text key={point.key} x={point.plotX + 12} y={point.plotY - 10}
+        {stacks.map(point => <text key={point.key} x={point.plotX + 18} y={point.plotY - 16}
           className="opinion-stack-count" aria-hidden="true">{point.overlapping}</text>)}
       </svg>
       <div className="opinion-map-zoom" aria-label={copy.zoom}>
