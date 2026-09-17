@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 from backend.app import main
 from backend.app.realtime_transcription import RealtimeTranscriptionSession
 from backend.app.session import SessionManager
+from backend.app.transcript_writer import TranscriptWriter
 
 
 class EventSocket:
@@ -67,7 +68,8 @@ class RealtimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([c.args[2] for c in item.on_final.await_args_list], ['a', 'b'])
         item = bridge(events=[committed('a'), committed('b'), completed('b', '第二句'), {'type': 'conversation.item.input_audio_transcription.failed', 'item_id': 'a', 'error': {'message': 'Failed'}}])
         await item._receive_events()
-        self.assertEqual([c.args[2] for c in item.on_final.await_args_list], ['a', 'b'])
+        self.assertEqual([c.args[2] for c in item.on_final.await_args_list], ['b'])
+        self.assertEqual(item.missing_items, {'a'})
 
     async def test_vad_does_not_force_a_manual_commit_every_ten_seconds(self):
         item = bridge()
@@ -80,7 +82,8 @@ class RealtimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_selected_language_reaches_request(self):
         config = bridge()._session_update()['session']['audio']['input']['transcription']
         self.assertEqual(config['language'], 'zh')
-        self.assertIn('繁體中文', config['prompt'])
+        self.assertIn('Do not translate', config['prompt'])
+        self.assertNotIn('台灣', config['prompt'])
         self.assertNotIn('German', config['prompt'])
         self.assertEqual(config['model'], 'gpt-4o-transcribe')
 
@@ -96,8 +99,166 @@ class RealtimeTests(unittest.IsolatedAsyncioTestCase):
         await item.close()
         item.on_final.assert_awaited_once_with('TEST', 'Recorder', 'a', '最後一句')
 
+    async def test_auto_has_no_hidden_language_override(self):
+        with patch.dict('os.environ', {'OPENAI_REALTIME_LANGUAGE': 'de'}):
+            item = RealtimeTranscriptionSession('TEST', 'p', 'R', None, AsyncMock(), AsyncMock(), AsyncMock())
+        config = item._session_update()['session']['audio']['input']['transcription']
+        self.assertNotIn('language', config)
+        self.assertEqual(config['prompt'], bridge().prompt)
 
-class CaptionPersistenceTests(unittest.IsolatedAsyncioTestCase):
+
+class QueueSocket:
+    """Controllable fake API transport; no model or network calls."""
+    def __init__(self):
+        self.events = asyncio.Queue()
+        self.sent = asyncio.Queue()
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        return json.dumps(await self.events.get())
+
+    async def send(self, value):
+        await self.sent.put(json.loads(value))
+
+    async def close(self):
+        pass
+
+
+class FinalizationTests(unittest.IsolatedAsyncioTestCase):
+    def running_bridge(self):
+        item = bridge()
+        item.ws = QueueSocket()
+        item.audio_sent = True
+        item.bytes_since_commit = 48000
+        item.receiver_task = asyncio.create_task(item._receive_events())
+        return item, item.ws
+
+    async def begin_stop(self, item, socket):
+        task = asyncio.create_task(item.close())
+        update = await asyncio.wait_for(socket.sent.get(), 1)
+        self.assertIsNone(update['session']['audio']['input']['turn_detection'])
+        self.assertFalse(task.done())
+        await socket.events.put({'type': 'session.updated'})
+        commit = await asyncio.wait_for(socket.sent.get(), 1)
+        self.assertEqual(commit['type'], 'input_audio_buffer.commit')
+        return task, commit
+
+    async def test_delayed_commit_acknowledgement_does_not_drop_final_words(self):
+        item, socket = self.running_bridge()
+        task, commit = await self.begin_stop(item, socket)
+        await asyncio.sleep(0.85)  # Longer than the former fixed 0.8-second wait.
+        self.assertFalse(task.done())
+        await socket.events.put(committed('last'))
+        await asyncio.sleep(0)
+        self.assertFalse(task.done())
+        await socket.events.put(completed('last', 'but only with parental consent'))
+        await asyncio.wait_for(task, 1)
+        item.on_final.assert_awaited_once_with('TEST', 'Recorder', 'last', 'but only with parental consent')
+        item.on_error.assert_not_awaited()
+
+    async def test_empty_final_buffer_still_waits_for_prior_item(self):
+        item, socket = self.running_bridge()
+        await socket.events.put(committed('previous'))
+        task, commit = await self.begin_stop(item, socket)
+        await socket.events.put({'type': 'error', 'error': {'code': 'input_audio_buffer_commit_empty', 'event_id': commit['event_id']}})
+        await asyncio.sleep(0)
+        self.assertFalse(task.done())
+        await socket.events.put(completed('previous', 'no'))
+        await asyncio.wait_for(task, 1)
+        item.on_final.assert_awaited_once_with('TEST', 'Recorder', 'previous', 'no')
+        item.on_error.assert_not_awaited()
+
+    async def test_timeout_is_reported_instead_of_silent_success(self):
+        item, socket = self.running_bridge()
+        item.close_timeout = 0.03
+        await item.close()
+        self.assertEqual(item.on_error.await_args.args[2], 'transcriptIncomplete')
+
+    async def test_stop_keeps_completed_text_after_a_missing_item(self):
+        item, socket = self.running_bridge()
+        item.close_timeout = 0.03
+        item.on_gap = AsyncMock()
+        await socket.events.put(committed('missing'))
+        await socket.events.put(committed('later'))
+        await socket.events.put(completed('later', '這句不能丟掉'))
+        await asyncio.sleep(0)
+        await item.close()
+        item.on_gap.assert_awaited_once_with('TEST', 'Recorder', 'missing')
+        item.on_final.assert_awaited_once_with('TEST', 'Recorder', 'later', '這句不能丟掉')
+
+    async def test_missing_item_expires_during_recording_and_late_text_is_recovered_once(self):
+        item, socket = self.running_bridge()
+        item.on_gap = AsyncMock()
+        item.item_timeout = 0.01
+        await socket.events.put(committed('a'))
+        await socket.events.put(committed('b'))
+        await socket.events.put(completed('b', '第二句'))
+        for _ in range(100):
+            if item.on_final.await_count:
+                break
+            await asyncio.sleep(0.002)
+        item.on_gap.assert_awaited_once_with('TEST', 'Recorder', 'a')
+        self.assertFalse(item.closed)
+        await socket.events.put(completed('a', '第一句'))
+        await socket.events.put(completed('a', '第一句'))
+        await asyncio.sleep(0.01)
+        self.assertEqual([c.args[2:] for c in item.on_final.await_args_list], [('b', '第二句'), ('a', '第一句')])
+        await item.close(flush=False)
+
+    async def test_completion_arriving_while_gap_is_published_is_not_lost(self):
+        item, socket = self.running_bridge()
+        item.item_timeout = 0.01
+        gap_started, release_gap = asyncio.Event(), asyncio.Event()
+        async def gap(*args):
+            gap_started.set()
+            await release_gap.wait()
+        item.on_gap = gap
+        await socket.events.put(committed('a'))
+        await asyncio.wait_for(gap_started.wait(), 1)
+        await socket.events.put(completed('a', '不能漏掉這句'))
+        await asyncio.sleep(0)
+        release_gap.set()
+        for _ in range(100):
+            if item.on_final.await_count:
+                break
+            await asyncio.sleep(0.001)
+        item.on_final.assert_awaited_once_with('TEST', 'Recorder', 'a', '不能漏掉這句')
+        self.assertFalse(item.completed_items)
+        await item.close(flush=False)
+
+    async def test_start_waits_for_configuration_acknowledgement(self):
+        item = bridge()
+        item.api_key = 'unit-test-key'
+        socket = QueueSocket()
+        with patch('backend.app.realtime_transcription.websockets.connect', AsyncMock(return_value=socket)):
+            task = asyncio.create_task(item.start())
+            await asyncio.wait_for(socket.sent.get(), 1)
+            self.assertFalse(task.done())
+            await socket.events.put({'type': 'session.updated'})
+            self.assertTrue(await asyncio.wait_for(task, 1))
+        await item.close(flush=False)
+
+
+class PersistenceTestCase(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.writer = TranscriptWriter(main._save_transcript, main._transcript_save_status, retry_seconds=0.001)
+        self.writer_patch = patch.object(main, 'transcript_writer', self.writer)
+        self.writer_patch.start()
+        self.enabled_patch = patch.object(main.db, 'enabled', True)
+        self.enabled_patch.start()
+
+    async def asyncTearDown(self):
+        tasks = list(self.writer.tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self.writer_patch.stop()
+        self.enabled_patch.stop()
+
+
+class CaptionPersistenceTests(PersistenceTestCase):
     async def test_preserves_realtime_text_and_individual_items_when_merged(self):
         manager = SessionManager()
         session = manager._new_session('TEST')
@@ -106,6 +267,7 @@ class CaptionPersistenceTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(main, 'sessions', manager), patch.object(main.db, 'save_transcript_entry', save), patch.object(main, 'schedule_turn_analysis'), patch.object(main.transcription, 'transcribe_pcm16', AsyncMock(return_value='Ja, genau.')) as second_pass:
             await main.finalize_caption('TEST', 'Recorder', 'a', '我們討論人工智慧。', language='zh')
             await main.finalize_caption('TEST', 'Recorder', 'b', '這是第二句。', language='zh')
+            await self.writer.drain()
         second_pass.assert_not_awaited()
         self.assertEqual(len(session.transcript), 1)
         entry = session.transcript[0]
@@ -113,8 +275,58 @@ class CaptionPersistenceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([x['text'] for x in entry['transcriptionItems']], ['我們討論人工智慧。', '這是第二句。'])
         self.assertEqual(entry['transcriptionItems'][0]['source'], 'realtime')
         self.assertEqual(entry['transcriptionItems'][0]['language'], 'zh')
-        self.assertEqual(save.await_count, 2)
+        self.assertEqual(save.await_args.args[1]['text'], entry['text'])
+
+    async def test_late_result_repairs_gap_in_place_and_duplicate_does_not_append(self):
+        manager = SessionManager()
+        session = manager._new_session('GAPTEST')
+        manager.sessions[session.id] = session
+        with patch.object(main, 'sessions', manager), patch.object(main.db, 'save_transcript_entry', AsyncMock()), patch.object(main, 'schedule_turn_analysis'):
+            await main.mark_transcript_gap(session.id, 'Recorder', 'a')
+            await main.finalize_caption(session.id, 'Recorder', 'b', '第二句')
+            await main.finalize_caption(session.id, 'Recorder', 'a', '第一句')
+            await main.finalize_caption(session.id, 'Recorder', 'a', '第一句')
+            await self.writer.drain()
+        self.assertEqual([e['text'] for e in session.transcript], ['第一句', '第二句'])
+        self.assertEqual(session.transcript[0]['transcriptionStatus'], 'complete')
+        self.assertEqual(session.transcript[0]['transcriptionItems'][0]['itemId'], 'a')
 
     async def test_long_paragraph_stops_merging(self):
         self.assertFalse(main.should_merge_transcript({'speaker': 'R', 'timestamp': 0, 'updatedAt': 39}, 'R', 40))
         self.assertTrue(main.should_merge_transcript({'speaker': 'R', 'timestamp': 20, 'updatedAt': 39}, 'R', 40))
+
+
+class RawTranscriptTests(PersistenceTestCase):
+    async def test_short_responses_survive_and_analysis_filter_stays_separate(self):
+        manager = SessionManager()
+        session = manager._new_session('RAWTEST')
+        manager.sessions[session.id] = session
+        phrases = ['不要', '同意', '反對', 'yes', 'no', '嗯', 'thank you for watching']
+        with patch.object(main, 'sessions', manager), patch.object(main.db, 'save_transcript_entry', AsyncMock()), patch.object(main, 'schedule_turn_analysis'):
+            for index, phrase in enumerate(phrases):
+                await main.finalize_caption(session.id, 'Recorder', str(index), phrase, model='test-model')
+            await self.writer.drain()
+        items = [item for entry in session.transcript for item in entry['transcriptionItems']]
+        self.assertEqual([item['text'] for item in items], phrases)
+        self.assertTrue(all(item['model'] == 'test-model' and item['receivedAt'] for item in items))
+        self.assertEqual(main.pending_turn_text({'text': 'no'}), '')
+
+    async def test_save_failure_is_visible_and_text_remains_in_memory(self):
+        manager = SessionManager()
+        session = manager._new_session('RAWTEST')
+        manager.sessions[session.id] = session
+        error = AsyncMock()
+        with patch.object(main, 'sessions', manager), patch.object(main.db, 'save_transcript_entry', AsyncMock(side_effect=RuntimeError('test failure'))), patch.object(main, 'schedule_turn_analysis'), patch.object(main, 'broadcast_caption_error', error):
+            await main.finalize_caption(session.id, 'Recorder', 'a', 'no')
+            for _ in range(100):
+                if error.await_count:
+                    break
+                await asyncio.sleep(0.001)
+        self.assertEqual(session.transcript[0]['text'], 'no')
+        self.assertEqual(error.await_args.args[2], 'transcriptSaveFailed')
+
+    async def test_disabled_database_does_not_report_a_successful_save(self):
+        with patch.object(main.db, 'enabled', False), patch.object(main.db, 'save_transcript_entry', AsyncMock()) as save:
+            with self.assertRaises(ConnectionError):
+                await main._save_transcript(None, {})
+        save.assert_not_awaited()

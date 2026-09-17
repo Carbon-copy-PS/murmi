@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { lazy, Suspense, useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { APP_NAME } from '../constants/app'
 import { getLanguage } from '../constants/languages'
 import { resolveUiLanguage } from '../i18n'
 import TranscriptPanel from './TranscriptPanel'
+import { usesTraditionalChinese } from '../utils/transcript-text'
 import StatementsPanel from './StatementsPanel'
 import ResultsPanel from './ResultsPanel'
 import ParticipantsPanel from './ParticipantsPanel'
@@ -27,6 +28,7 @@ import { DEFAULT_CG_MODE, DEFAULT_CG_INSTRUCTIONS } from '../constants/common-gr
 import { getReportCopy } from './final-report/report-copy'
 
 const noop = () => {}
+const TraditionalTranscriptPanel = lazy(() => import('./TraditionalTranscriptPanel'))
 
 const REALTIME_SAMPLE_RATE = 24000
 const AUDIO_BUFFER_SIZE = 4096
@@ -93,6 +95,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [transcript, setTranscript] = useState([])
   const [partialCaption, setPartialCaption] = useState(null)
   const [captionError, setCaptionError] = useState('')
+  const [captionFinishing, setCaptionFinishing] = useState(false)
   const [recording, setRecording] = useState(false)
   const [isHost, setIsHost] = useState(false)
   const [isRecorder, setIsRecorder] = useState(false)
@@ -138,6 +141,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
   const [editingTopic, setEditingTopic] = useState(false)
   const [topicDraft, setTopicDraft] = useState('')
   const [roomLanguage, setRoomLanguage] = useState(userLanguage || 'en')
+  const Transcript = usesTraditionalChinese(roomLanguage) ? TraditionalTranscriptPanel : TranscriptPanel
   const [tourActive, setTourActive] = useState(false)
   const tourRef = useRef(null)
   const tourStartedRef = useRef(false)
@@ -434,8 +438,10 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         case 'recording_stopped':
           setRecording(false)
           recordingRef.current = false
-          setPartialCaption(null)
           notify(APP_NAME, t('notify.recordingStopped'), { tag: 'recording', duration: 4000 })
+          break
+        case 'caption_status':
+          setCaptionFinishing(msg.status === 'finalizing')
           break
         case 'caption_delta':
           setPartialCaption((prev) => {
@@ -453,13 +459,16 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
         case 'caption_error':
           setCaptionError(msg.code ? t(`errors.${msg.code}`) : (msg.message || t('errors.captionsUnavailable')))
           break
+        case 'caption_error_resolved':
+          setCaptionError((prev) => prev === t(`errors.${msg.code}`) ? '' : prev)
+          break
         case 'caption_rejected':
           setPartialCaption((prev) => (
             prev?.itemId === msg.itemId ? null : prev
           ))
           break
         case 'transcript':
-          setTranscript((prev) => [...prev, msg])
+          setTranscript((prev) => msg.id && prev.some((entry) => entry.id === msg.id) ? prev : [...prev, msg])
           setPartialCaption((prev) => (
             !prev || !msg.itemId || prev.itemId === msg.itemId ? null : prev
           ))
@@ -1237,7 +1246,9 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
             {isRecorder ? (recording ? t('room.stop') : t('room.record')) : t('room.listening')}
           </button>
 
-          <TranscriptPanel entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} />
+          <Suspense fallback={<p role="status">{t('transcript.preparing')}</p>}>
+            <Transcript entries={tourActive ? TOUR_TRANSCRIPT : transcript} partial={tourActive ? null : partialCaption} error={tourActive ? '' : captionError} finishing={!tourActive && captionFinishing} recording={recording} language={roomLanguage} sessionId={sessionId} allowExport={!tourActive} />
+          </Suspense>
         </div>
       )}
       {view === 'statements' && (

@@ -3945,6 +3945,37 @@ body:has(.modal-backdrop) {
 }
 
 /* Transcript */
+.transcript-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.8rem;
+}
+
+.transcript-tools label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: auto;
+}
+
+.transcript-tools button {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.transcript-tools button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .transcript {
   flex: 1;
   overflow-y: auto;
