@@ -11,7 +11,7 @@
   "dependencies": {
     "driver.js": "^1.4.0",
     "i18next": "^26.3.4",
-    "motion": "^12.40.0",
+    "motion": "^13.3.0",
     "opencc-js": "1.4.2",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.1",
