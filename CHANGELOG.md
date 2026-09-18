@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Select new voting arguments from short discussion windows with recent context, rather than treating each brief pause as a completed argument. Keep captions immediate and preserve conditions, source contributions and genuine differences in views.
+- Simplify Traditional Chinese transcript controls by removing the original-text checkbox; retain the unchanged original JSON download.
+
 - Handle unexpected snapshots above seven groups with selection-based topic display, unique group labels and complete report description validation, while keeping the analysis capped at seven.
 
 - Support up to seven opinion groups with distinct muted colors, complete report descriptions, collision-free fallback label placement and mobile zoom controls below the plot.

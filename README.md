@@ -90,6 +90,14 @@ Other browsers <----------------- votes, tallies, reports ----------------
 
 Live captions are intentionally tentative. Each completed speech item is buffered and run through a final transcription pass before it is stored and used for claims.
 
+### Selecting voting cards
+
+The transcript preserves the full discussion; voting cards select new arguments.
+Completed captions are collected into short discussion windows, with recent context
+and existing cards available to the selector. Each window can produce zero, one or
+two cards, keeping reasons and qualifications together while skipping repeated
+examples and procedural talk. See [argument selection and its limits](docs/argument-selection.md).
+
 ## What works today
 
 - Multi-device join via session code
