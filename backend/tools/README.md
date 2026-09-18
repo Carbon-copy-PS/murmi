@@ -108,7 +108,7 @@ and argument-extraction input remain unchanged. Other room-language selections
 show the original text. Existing saved transcripts are converted when displayed,
 without rewriting their stored content.
 
-The transcript panel offers an original-text toggle, a readable `.txt` download
+The transcript panel offers a readable `.txt` download
 in the selected script, and an original `.json` download including per-item
 metadata. Downloads include completed entries and missing-segment markers;
 unconfirmed partial captions are not included. The original JSON records the
@@ -119,3 +119,11 @@ audio or first-pass text that was never saved.
 Run `node --test src/utils/transcript-text.test.mjs` from `frontend` for conversion,
 cross-delta phrase context, vocabulary preservation and export-integrity checks.
 These are deterministic text-conversion tests, not additional speech-model calls.
+
+
+## Argument selection comparison
+
+See [argument selection](../../docs/argument-selection.md) for a real-provider
+comparison of the previous fragment extraction and the contextual selector, using
+explicitly synthetic English and Traditional Chinese fixtures. The evaluation
+requires an API key and makes paid calls; no application database is accessed.

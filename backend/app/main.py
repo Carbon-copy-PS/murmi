@@ -20,6 +20,7 @@ from typing import Optional
 from .session import SessionManager, DEFAULT_COMMON_GROUND_MODE, normalize_common_ground_mode
 from .transcription import TranscriptionService
 from .analysis import AnalysisService, CG_PROMPT_VERSION
+from .argument_queue import ArgumentQueue
 from .realtime_transcription import RealtimeTranscriptionSession
 from .transcript_writer import TranscriptWriter
 from .opinion_analysis import get_opinion_analysis
@@ -72,6 +73,7 @@ async def drop_session(session_id: str):
     except Exception:
         pass
     await close_realtime_sessions(session_id)
+    await argument_queue.cancel(session_id)
     for participant in list(session.participants.values()):
         try:
             await participant.websocket.close(code=4001, reason="Session expired")
@@ -140,6 +142,7 @@ async def lifespan(_app: FastAPI):
     finally:
         for session_id in {key[0] for key in realtime_sessions}:
             await close_realtime_sessions(session_id)
+        await argument_queue.close()
         await transcript_writer.close()
         for task in (purge_task, voting_task):
             task.cancel()
@@ -164,9 +167,7 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "di
 realtime_sessions: dict[tuple[str, str], RealtimeTranscriptionSession] = {}
 realtime_unavailable: set[tuple[str, str]] = set()
 realtime_errors_seen: set[tuple[str, str]] = set()
-turn_analysis_tasks: dict[tuple[str, str], asyncio.Task] = {}
 TRANSCRIPT_MERGE_WINDOW_SECONDS = 12
-SPEAKER_TURN_IDLE_SECONDS = 2
 FILLER_TRANSCRIPTS = {
     "uh",
     "um",
@@ -628,56 +629,59 @@ def pending_turn_text(entry: dict) -> str:
     return pending
 
 
-async def run_turn_analysis(session_id: str, entry_id: str):
-    await asyncio.sleep(SPEAKER_TURN_IDLE_SECONDS)
-
+async def process_argument_window(session_id: str, snapshots: list[dict]) -> bool:
     session = sessions.get(session_id)
     if not session:
-        return
-    entry = next((e for e in session.transcript if e.get("id") == entry_id), None)
-    if not entry:
-        return
+        return True
+    order = {entry.get("id"): index for index, entry in enumerate(session.transcript)}
+    snapshots = sorted(snapshots, key=lambda entry: order.get(entry.get("id"), len(order)))
+    contributions = [{"id": entry["id"], "speaker": entry.get("speaker", "Speaker"),
+                      "text": entry.get("text", ""), "newText": pending_turn_text(entry)}
+                     for entry in snapshots if entry.get("transcriptionStatus") != "missing"]
+    contributions = [entry for entry in contributions if entry["newText"]]
+    if not contributions:
+        return True
+    ids = {entry["id"] for entry in contributions}
+    first = next((i for i, entry in enumerate(session.transcript) if entry.get("id") in ids), len(session.transcript))
+    context = [{"speaker": entry.get("speaker", "Speaker"), "text": entry.get("text", "")}
+               for entry in session.transcript[max(0, first - 8):first]
+               if entry.get("transcriptionStatus") != "missing"]
+    arguments = await analysis.extract_arguments(
+        contributions, context, [s.text for s in session.statements],
+        topic=session.topic, language=session_statement_language(session_id))
+    if arguments is None:
+        return False
+    if sessions.get(session_id) is not session:
+        return True
+    sources = {entry["id"]: entry for entry in contributions}
+    added = []
+    for argument in arguments:
+        cited = [sources[key] for key in argument["sourceIds"]]
+        speakers = list(dict.fromkeys(entry["speaker"] for entry in cited))
+        source_text = "\n".join((f"{entry['speaker']}: " if len(speakers) > 1 else "") + entry["text"] for entry in cited)
+        added.extend(sessions.add_statements(
+            session_id, [argument["text"]], source_text=source_text,
+            source_speaker=", ".join(speakers)))
+    if added:
+        auto_approve_if_no_host(session_id, added)
+        await _safe_db(db.save_statements(session, added))
+        await sessions.broadcast_statements(session_id)
+    # Mark only the captured text, even when more speech arrived during the call.
+    # An empty selection is a successful decision, not a request to invent a card.
+    for snapshot in snapshots:
+        entry = next((e for e in session.transcript if e.get("id") == snapshot.get("id")), None)
+        if entry:
+            entry["analyzedText"] = snapshot.get("text", "")
+            entry["argumentAnalyzed"] = entry.get("text") == entry["analyzedText"]
+            await persist_transcript_entry(session, entry)
+    return True
 
-    pending_text = pending_turn_text(entry)
-    if not pending_text:
-        entry["argumentAnalyzed"] = True
-        return
-    if time.time() - entry.get("updatedAt", entry.get("timestamp", 0)) < SPEAKER_TURN_IDLE_SECONDS:
-        schedule_turn_analysis(session_id, entry)
-        return
 
-    entry["argumentAnalyzed"] = True
-    entry["analyzedText"] = entry.get("text", "")
-    new_texts = await analysis.extract_turn_statement(
-        turn_entry={**entry, "text": pending_text},
-        existing_statements=[s.text for s in session.statements],
-        topic=session.topic,
-        language=session_statement_language(session_id),
-    )
-    if not new_texts:
-        return
-
-    added = sessions.add_statements(
-        session_id,
-        new_texts,
-        source_text=pending_text,
-        source_speaker=entry.get("speaker"),
-    )
-    auto_approve_if_no_host(session_id, added)
-    await _safe_db(db.save_statements(session, added))
-    await sessions.broadcast_statements(session_id)
+argument_queue = ArgumentQueue(process_argument_window)
 
 
 def schedule_turn_analysis(session_id: str, entry: dict):
-    entry_id = entry.get("id")
-    if not entry_id:
-        return
-
-    key = (session_id, entry_id)
-    existing = turn_analysis_tasks.pop(key, None)
-    if existing and not existing.done():
-        existing.cancel()
-    turn_analysis_tasks[key] = asyncio.create_task(run_turn_analysis(session_id, entry_id))
+    argument_queue.schedule(session_id, entry)
 
 
 def normalize_language(value) -> str | None:
@@ -1076,6 +1080,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 await sessions.set_recording(session_id, recording)
                 if not recording:
                     await close_realtime_sessions(session_id)
+                    argument_queue.flush(session_id)
 
             elif msg_type == "vote":
                 statement_id = data.get("statementId", "")
