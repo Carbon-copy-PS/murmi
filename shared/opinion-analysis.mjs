@@ -1,3 +1,4 @@
+import { groupLabel } from './group-label.mjs';
 import { opinionDensity } from './opinion-density.mjs';
 import { analyzePolisInspiredSession, checkProjectionSensitivity } from "../data-analysis/polis-inspired-analysis.mjs";
 
@@ -198,7 +199,7 @@ export function computeSharedOpinionAnalysis(source) {
     const mapped = members.map((a) => position(a.coordinates));
     const average = (fn) => mapped.reduce((sum, point) => sum + fn(point), 0) / mapped.length;
     return {
-      id, letter: String.fromCharCode(65 + id), size: members.length,
+      id, letter: groupLabel(id), size: members.length,
       position: centre,
       // Snapshot-only geometry, sorted spatially rather than in roster order.
       // Preserve one real projected position per voter, including overlaps.

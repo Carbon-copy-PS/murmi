@@ -1,4 +1,5 @@
 const en = {
+  overflowNote: 'With many groups, colours repeat. Select a group below to highlight its dots and topic. All group explanations remain below the map.',
   themesRetained: 'Showing previous AI themes while they update. Vote counts are current.',
   themesRetainedUnavailable: 'The theme update could not finish. Previous AI themes remain visible; vote counts are current.',
   themeEmerging: 'Theme emerging', themeEmergingNote: 'There is not yet enough evidence for a clear shared theme.',
@@ -27,6 +28,7 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
+  overflowNote: '組別較多時，顏色會重複。請點選下方組別，凸顯該組的圓點與主題。所有組別的說明仍會列在圖表下方。',
   themesRetained: '主題更新中，先保留上一版 AI 摘要。投票數已更新。',
   themesRetainedUnavailable: '主題暫時無法更新，先保留上一版 AI 摘要。投票數已更新。',
   themeEmerging: '主題形成中', themeEmergingNote: '目前還沒有足夠的投票，能清楚概括這組的共同主題。',
@@ -53,6 +55,7 @@ const zh = {
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
 const de = {
+  overflowNote: 'Bei vielen Gruppen wiederholen sich die Farben. Wähle unten eine Gruppe, um ihre Punkte und ihr Thema hervorzuheben. Alle Gruppenerklärungen bleiben unter der Karte sichtbar.',
   themesRetained: 'Während der Aktualisierung bleiben die bisherigen KI-Themen sichtbar. Die Stimmenzahlen sind aktuell.',
   themesRetainedUnavailable: 'Die Themen konnten nicht aktualisiert werden. Die bisherigen KI-Themen bleiben sichtbar; die Stimmenzahlen sind aktuell.',
   themeEmerging: 'Thema entsteht', themeEmergingNote: 'Für ein klares gemeinsames Thema liegen noch nicht genügend Antworten vor.',
@@ -79,6 +82,7 @@ const de = {
   method: 'Beide Ansichten verwenden dieselbe PCA und k-means-Berechnung mit festem Startwert. Gruppen erscheinen ab drei Abstimmenden und zwei Aussagen; eine Antwort genügt zur Aufnahme. Fehlende und neutrale Antworten bleiben getrennt. Zustimmungsstärken werden für die Karte zusammengefasst, in den Stimmenzahlen aber erhalten. Zuverlässigkeitsprüfungen kennzeichnen frühe Muster, ohne sie auszublenden.',
 }
 const fr = {
+  overflowNote: 'Avec de nombreux groupes, les couleurs se répètent. Sélectionnez un groupe ci-dessous pour mettre en évidence ses points et son thème. Toutes les explications restent sous la carte.',
   themesRetained: 'Les thèmes précédents générés par IA restent visibles pendant la mise à jour. Les votes sont à jour.',
   themesRetainedUnavailable: 'La mise à jour des thèmes a échoué. Les thèmes précédents générés par IA restent visibles ; les votes sont à jour.',
   themeEmerging: 'Thème en formation', themeEmergingNote: 'Les réponses ne suffisent pas encore à dégager un thème commun clair.',
@@ -105,6 +109,7 @@ const fr = {
   method: 'Les deux vues partagent la même ACP et le même calcul k-means déterministe. Les groupes apparaissent dès trois votants et deux propositions, avec au moins une réponse par personne. Les réponses manquantes restent distinctes des réponses neutres. L’intensité est regroupée sur la carte, mais conservée dans les décomptes. Les contrôles signalent les tendances provisoires sans les masquer.',
 }
 const it = {
+  overflowNote: 'Con molti gruppi, i colori si ripetono. Seleziona un gruppo qui sotto per evidenziarne i punti e il tema. Tutte le spiegazioni restano sotto la mappa.',
   themesRetained: 'Durante l’aggiornamento restano visibili i temi precedenti generati dall’IA. I conteggi dei voti sono aggiornati.',
   themesRetainedUnavailable: 'Non è stato possibile aggiornare i temi. Restano visibili i temi precedenti generati dall’IA; i conteggi dei voti sono aggiornati.',
   themeEmerging: 'Tema in formazione', themeEmergingNote: 'Le risposte non bastano ancora a delineare un tema comune chiaro.',

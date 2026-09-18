@@ -1,3 +1,4 @@
+import { groupLabel } from '../../../../shared/group-label.mjs'
 import { useId } from 'react'
 import { getOpinionCopy } from './copy'
 import './opinion-groups.css'
@@ -20,7 +21,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
   const copy = getOpinionCopy(language)
   const id = useId()
   if (!landscape?.available) return null
-  const groups = landscape.groups.map(group => ({...group, theme: group.theme?.sourceHash === landscape.sourceHash ||
+  const groups = landscape.groups.map(group => ({...group, letter: groupLabel(group.id), theme: group.theme?.sourceHash === landscape.sourceHash ||
     (group.theme?.retained === true && group.theme?.matchedSourceHash === landscape.sourceHash) ? group.theme : null}))
   const themes = landscape.themes?.sourceHash === landscape.sourceHash ? landscape.themes : null
   // New reports store only anonymous geometry. Keys are local rendering indexes,

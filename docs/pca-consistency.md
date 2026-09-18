@@ -120,6 +120,28 @@ Traditional Chinese, at desktop/mobile widths and in light/dark mode. The palett
 and labels are usable at seven groups, but group letters remain necessary cues:
 seven muted colors are not guaranteed distinguishable for every viewer.
 
+The analysis still has a hard seven-group maximum. More underlying preference
+patterns may be represented within those seven groups; the application does not
+claim to detect every possible group. This limit is independent of the display
+fallback for imported or future snapshots with more groups.
+
+For unexpected snapshots above seven groups, retain every group, dot and evidence
+card. Repeat the seven colors with explicit unique group labels (A–Z, AA, AB, …),
+show a localized notice, and display only the selected topic on the map. The legend
+or an individual dot selects that group and dims the others; the topic links to
+its evidence card. Normalization preserves all valid supplied report group
+descriptions instead of truncating after seven. AI response budgets and timeouts
+remain bounded: incomplete generation can still yield unavailable summaries, while
+groups and vote evidence remain visible. This fallback does not raise the analysis
+limit or promise arbitrarily large maps remain easy to read.
+
+Regression fixtures exercise eight underlying patterns under the seven-group cap,
+and unexpected 8-, 12- and 30-group snapshots. Browser checks cover English and
+Traditional Chinese, desktop and mobile, live and saved-dot report rendering,
+last-group keyboard selection and evidence navigation, all dots/cards retained,
+and no page errors or horizontal overflow. These are synthetic robustness tests,
+not naturally occurring session data.
+
 The initial 30-person demonstration deliberately used only three distinct ballot
 patterns (14, 14 and 2 identical voters). Their PCA positions therefore coincide
 at three locations. The initially shown little circles around those locations

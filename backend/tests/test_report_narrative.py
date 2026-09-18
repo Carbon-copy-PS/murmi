@@ -198,6 +198,21 @@ class ExclusiveGroupNarrativeTests(unittest.TestCase):
         }, evidence)
         self.assertEqual([item["tendencyId"] for item in result["tendencies"]], list(range(7)))
 
+    def test_unexpected_larger_snapshots_do_not_truncate_group_descriptions(self):
+        service = AnalysisService()
+        for count in (8, 12, 30):
+            with self.subTest(count=count):
+                evidence = {"statements": [{"id": "s1", "text": "Evidence"}],
+                            "opinionLandscape": {"membershipKind": "exclusive",
+                                                 "groups": [{"id": i} for i in range(count)]}}
+                result = service._normalize_report_narrative({
+                    "headline": "Patterns", "standfirst": "Synthetic patterns.",
+                    "overviewEvidenceStatementIds": ["s1"],
+                    "tendencies": [{"tendencyId": i, "title": f"Group {i}", "description": "A pattern",
+                                    "evidenceStatementIds": ["s1"]} for i in range(count + 1)],
+                }, evidence)
+                self.assertEqual([item["tendencyId"] for item in result["tendencies"]], list(range(count)))
+
     def test_keeps_all_four_group_ids_including_zero(self):
         service = AnalysisService()
         evidence = {"statements": [{"id": "s1", "text": "Evidence"}],

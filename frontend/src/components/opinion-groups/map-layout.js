@@ -61,7 +61,12 @@ export function wrapThemeTitle(title, width = 23) {
 
 // Move text only, never participants. Prefer the centre, avoiding other labels
 // and the viewer marker; a leader line preserves the link when text is displaced.
-export function layoutThemeLabels(groups, points, fallback, compact = false) {
+export const MAX_VISIBLE_THEMES = 7
+
+export function layoutThemeLabels(groups, points, fallback, compact = false, selectedGroup = null) {
+  // Imported or future snapshots may exceed the supported simultaneous labels.
+  // Preserve all data; show only the selected topic instead of crowding the map.
+  if (groups.length > MAX_VISIBLE_THEMES) groups = groups.filter(group => group.id === selectedGroup)
   const placed = []
   for (const group of groups) {
     const lines = wrapThemeTitle(group.theme?.title || fallback, compact ? 18 : 23)

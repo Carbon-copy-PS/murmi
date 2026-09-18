@@ -321,8 +321,8 @@ test('theme labels wrap multilingual titles and move text without changing point
   assert.ok(wrapThemeTitle('A'.repeat(64)).length<=3);
 });
 
-test('shared analysis can select five, six and seven groups when synthetic votes separate them', () => {
-  for (const count of [5, 6, 7]) {
+test('shared analysis selects five to seven groups and caps larger synthetic patterns', () => {
+  for (const count of [5, 6, 7, 8]) {
     let seed = 19;
     const random = () => ((seed = Math.imul(1664525, seed) + 1013904223 >>> 0) / 4294967296);
     const statements = Array.from({length: count * 4}, (_, i) => ({id:`s${String(i).padStart(2,'0')}`,text:`Synthetic proposition ${i}`,created_at:i}));
@@ -332,7 +332,8 @@ test('shared analysis can select five, six and seven groups when synthetic votes
       votes.push({participant_id:`g${group}p${person}`,statement_id:statements[i].id,vote:value>.5?'agree':value<-.5?'disagree':'neutral'});
     }
     const {landscape, live} = computeSharedOpinionAnalysis({sessionId:`synthetic-${count}-groups`,statements,votes});
-    assert.equal(landscape.groups.length, count);
+    if (count <= 7) assert.equal(landscape.groups.length, count);
+    else assert.ok(landscape.groups.length <= 7);
     assert.equal(live.points.length, count*10);
     assert.equal(landscape.groups.reduce((n,g)=>n+g.dots.length,0),count*10);
   }
@@ -353,5 +354,28 @@ test('seven crowded topic labels stay separate without moving participant positi
     }
     assert.equal(new Set(groups.map(g=>groupStyle(g.id)['--group-color'])).size,7);
     assert.deepEqual(points,[{x:.5,y:.5}]);
+  }
+});
+
+test('unexpected 8, 12 and 30 group snapshots keep dots and focus only the selected topic', async () => {
+  const {layoutThemeLabels, layoutOpinionDots} = await import('../../frontend/src/components/opinion-groups/map-layout.js');
+  const {groupLabel} = await import('../../shared/group-label.mjs');
+  const {groupStyle} = await import('../../frontend/src/components/opinion-groups/group-colors.js');
+  assert.deepEqual([0,6,7,25,26,29,51,52].map(groupLabel), ['A','G','H','Z','AA','AD','AZ','BA']);
+  for (const count of [8,12,30]) {
+    const groups = Array.from({length:count}, (_,id)=>({id,letter:groupLabel(id),position:{x:.5,y:.5},theme:{title:'支持工作者參與人工智慧決策'}}));
+    const points = groups.map(g=>({key:`person-${g.id}`,cluster:g.id,x:.5,y:.5}));
+    const before = structuredClone(points);
+    for (const compact of [false,true]) {
+      assert.deepEqual(layoutThemeLabels(groups,points,'Theme emerging',compact), []);
+      const labels = layoutThemeLabels(groups,points,'Theme emerging',compact,count-1);
+      assert.equal(labels.length,1);
+      assert.equal(labels[0].group.id,count-1);
+      assert.ok(labels[0].x-labels[0].halfWidth>=0 && labels[0].x+labels[0].halfWidth<=600);
+    }
+    assert.equal(layoutOpinionDots(points).length,count);
+    assert.deepEqual(points,before);
+    assert.equal(new Set(groups.map(g=>g.letter)).size,count);
+    assert.ok(groups.every(g=>Object.values(groupStyle(g.id)).every(color=>/^#[a-f0-9]{6}$/i.test(color))));
   }
 });

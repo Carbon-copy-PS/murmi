@@ -274,7 +274,7 @@ Respond ONLY with JSON:
   ]
 }
 
-Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, one tendency per supplied opinion group (up to 7), 4 open questions, 4 implications, and 4 limitations."""
+Return no more than 8 key statement IDs, 3 takeaways, exactly 3 principles when evidence permits, 5 action areas, 3 overlap pairs, 2 dimensions, one tendency per supplied opinion group, 4 open questions, 4 implications, and 4 limitations."""
 
 TENSION_PROMPT = """You are a deliberation facilitator. Given the live discussion transcript and vote results, write crisp votable statements that surface the key OPEN TENSIONS — the unresolved disagreements underneath the conversation that are worth testing with the room.
 
@@ -991,7 +991,7 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                     "description": description,
                     "evidenceStatementIds": evidence_ids,
                 })
-            if len(tendencies) == min(7, len(allowed_tendency_ids)):
+            if len(tendencies) == len(allowed_tendency_ids):
                 break
 
         overlap_pairs = []

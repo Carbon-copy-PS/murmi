@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Handle unexpected snapshots above seven groups with selection-based topic display, unique group labels and complete report description validation, while keeping the analysis capped at seven.
+
 - Support up to seven opinion groups with distinct muted colors, complete report descriptions, collision-free fallback label placement and mobile zoom controls below the plot.
 
 - Use flat group-tinted cards and legend pills, with spacing in place of decorative borders and statement dividers.
