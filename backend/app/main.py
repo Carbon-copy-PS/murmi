@@ -13,6 +13,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from starlette.websockets import WebSocketState
 from pydantic import BaseModel
 from typing import Optional
 
@@ -21,12 +22,15 @@ from .transcription import TranscriptionService
 from .analysis import AnalysisService, CG_PROMPT_VERSION
 from .realtime_transcription import RealtimeTranscriptionSession
 from .transcript_writer import TranscriptWriter
+from .opinion_analysis import get_opinion_analysis
+from .opinion_themes import OpinionThemeService
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
     build_opinion_landscape,
     build_report_snapshot,
     build_selected_overlaps,
+    freeze_report_source,
     narrative_evidence,
 )
 
@@ -36,6 +40,7 @@ db = Database()
 sessions = SessionManager(ttl_seconds=None)
 transcription = TranscriptionService()
 analysis = AnalysisService()
+opinion_themes = OpinionThemeService(analysis.generate_opinion_themes, enabled=not analysis._mock)
 
 SESSION_PURGE_INTERVAL_SECONDS = float(os.environ.get("SESSION_PURGE_INTERVAL_MINUTES", "15")) * 60
 REPORT_NARRATIVE_TIMEOUT_SECONDS = float(
@@ -142,6 +147,7 @@ async def lifespan(_app: FastAPI):
                 await task
             except asyncio.CancelledError:
                 pass
+        await opinion_themes.close()
         await db.disconnect()
 
 
@@ -492,13 +498,16 @@ async def run_report_generation(session_id: str):
     if not session:
         return
     try:
+        report_source = freeze_report_source(session)
         snapshot = build_report_snapshot(
-            session,
-            version=session.report_version + 1,
+            report_source,
+            version=report_source.report_version + 1,
         )
         snapshot["opinionLandscape"] = await build_opinion_landscape(
-            session
+            report_source
         )
+        snapshot["opinionLandscape"] = await opinion_themes.enrich(
+            report_source, snapshot["opinionLandscape"], wait=True)
         try:
             narrative = await asyncio.wait_for(
                 analysis.generate_report_narrative(
@@ -515,7 +524,7 @@ async def run_report_generation(session_id: str):
             print(f"Report narrative generation failed: {exc}")
         if narrative:
             selected_overlaps = build_selected_overlaps(
-                session,
+                report_source,
                 narrative.get("overlapPairs") or [],
             )
             if selected_overlaps:
@@ -993,6 +1002,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     try:
         while True:
+            # A failed background broadcast can close the send side before the
+            # next receive. Route that state through normal disconnect cleanup.
+            if websocket.application_state == WebSocketState.DISCONNECTED:
+                raise WebSocketDisconnect(code=1006)
             data = await websocket.receive_json()
             msg_type = data.get("type")
 
@@ -1097,10 +1110,17 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                         ))
 
             elif msg_type == "get_results":
-                await websocket.send_json({
-                    "type": "results",
-                    **sessions.vote_matrix(session_id, participant_id),
-                })
+                result = sessions.vote_matrix(session_id, participant_id)
+                session = sessions.get(session_id)
+                if session:
+                    calculated = await get_opinion_analysis(session)
+                    if calculated["live"]:
+                        calculated["live"]["landscape"] = await opinion_themes.enrich(
+                            session, calculated["landscape"],
+                            force=bool(data.get("refreshThemes")) and sessions.is_host(session_id, participant_id))
+                    result["opinionAnalysis"] = calculated["live"]
+                    result["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
+                await websocket.send_json({"type": "results", **result})
 
             elif msg_type == "generate_recommendations":
                 if not sessions.is_host(session_id, participant_id):
@@ -1146,7 +1166,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     if not session:
                         continue
                     from .policy_evidence import build_policy_evidence
-                    payload = build_policy_evidence(session)
+                    policy_source = freeze_report_source(session)
+                    opinion = await get_opinion_analysis(policy_source)
+                    payload = build_policy_evidence(policy_source, opinion["landscape"])
                     payload["previousFeedback"] = sessions.collect_common_ground_feedback(
                         session_id, mode="policy"
                     )
@@ -1577,6 +1599,13 @@ async def public_results(public_id: str):
     data = sessions.public_results(session_id)
     if not data:
         raise HTTPException(status_code=404, detail="Results not found")
+    if "report" not in data:
+        calculated = await get_opinion_analysis(sessions.get(session_id))
+        if calculated["live"]:
+            calculated["live"]["landscape"] = await opinion_themes.enrich(
+                sessions.get(session_id), calculated["landscape"])
+        data["opinionAnalysis"] = calculated["live"]
+        data["opinionAnalysisError"] = None if calculated["live"] else calculated["landscape"]["reason"]
     return data
 
 

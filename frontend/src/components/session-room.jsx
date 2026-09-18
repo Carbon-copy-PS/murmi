@@ -510,7 +510,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           )
           break
         case 'results':
-          setResults({ statements: msg.statements, voters: msg.voters })
+          setResults({ statements: msg.statements, voters: msg.voters, opinionAnalysis: msg.opinionAnalysis, opinionAnalysisError: msg.opinionAnalysisError })
           if (msg.commonGroundHistory) setCommonGroundHistory(msg.commonGroundHistory)
           if (msg.commonGroundMode) setCgMode(msg.commonGroundMode)
           else if (msg.commonGroundDepth) setCgMode(msg.commonGroundDepth === 'policy' ? 'policy' : 'generic')
@@ -1299,6 +1299,7 @@ export default function SessionRoom({ sessionId, userName, userLanguage, wantsHo
           reportStatus={tourActive ? 'none' : reportStatus}
           reportSnapshot={tourActive ? null : reportSnapshot}
           reportVersion={tourActive ? 0 : reportVersion}
+          onRefreshThemes={tourActive ? noop : () => wsRef.current?.send(JSON.stringify({type:'get_results', refreshThemes:true}))}
           onFinalizeReport={tourActive ? noop : finalizeReport}
           onPublishReport={tourActive ? noop : publishReport}
         />

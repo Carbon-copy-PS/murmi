@@ -16,10 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keep opinion groups, participant positions and vote evidence consistent between live results and the final report. Generate reports from one captured set of votes.
+- Show individual dots in new reports, with matching muted colors across map topics and explanation cards. Support up to seven groups and handle unexpected larger snapshots without dropping groups.
+- Explain emerging groups with optional AI topic summaries backed by votes. Keep supported themes visible during refresh and save report themes with their original evidence.
+- Keep early groups visible, distinguish missing answers from neutral, and show when the two-dimensional map leaves out important differences.
 - Change the project license from MIT to GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`).
 
 ### Fixed
 
+- Handle sockets closed during a broadcast without failing the next receive.
 - Preserve completed Realtime transcriptions directly instead of replacing them with a second pass over a shared audio buffer.
 - Keep short replies, preserve turn order, and wait for final audio acknowledgement when recording stops.
 - Retry transcript saves without blocking captions; mark missing segments and recover late results without duplicating entries.

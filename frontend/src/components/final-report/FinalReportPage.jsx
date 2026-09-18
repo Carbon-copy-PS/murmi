@@ -1,4 +1,6 @@
 import { getReportCopy } from './report-copy'
+import OpinionGroups from '../opinion-groups/OpinionGroups'
+import { getOpinionCopy } from '../opinion-groups/copy'
 import './final-report.css'
 
 function percent(value, language) {
@@ -295,13 +297,14 @@ function allocateTendencyCounts(profiles, total) {
   return new Map(profiles.map((profile, index) => [profile.tendencyId, counts[index]]))
 }
 
-function OpinionLandscape({ landscape, narrative, copy }) {
+function OpinionLandscape({ landscape, narrative, copy, language }) {
   if (!landscape?.available) {
     const message = landscape?.reason === 'privacy-threshold'
       ? copy.opinionNeedsRegeneration
       : copy.opinionUnavailable
     return <p className="story-opinion-unavailable">{message}</p>
   }
+  if (landscape.membershipKind === 'exclusive') return <OpinionGroups landscape={landscape} language={language} />
   const profiles = landscape.tendencies?.profiles || []
   const tendencyNarrative = new Map(
     (narrative?.tendencies || []).map((item) => [item.tendencyId, item]),
@@ -661,7 +664,23 @@ function StorySection({ kicker, title, lead, children, className = '' }) {
 export default function FinalReportPage({ report, preview = false }) {
   if (!report) return null
   const language = report.sourceLanguage || 'en'
-  const copy = getReportCopy(language)
+  const legacyCopy = getReportCopy(language)
+  const groupCopy = getOpinionCopy(language)
+  const exclusive = report.opinionLandscape?.membershipKind === 'exclusive'
+  const copy = exclusive ? {
+    ...legacyCopy,
+    opinionLead: groupCopy.lead,
+    opinionUnavailable: groupCopy.unavailable,
+    opinionMethod: groupCopy.method,
+    defaultLimitations: (args) => [
+      ...legacyCopy.defaultLimitations(args).slice(0, 3),
+      { title: groupCopy.title, explanation: report.opinionLandscape.status === 'provisional' ? groupCopy.provisionalNote : groupCopy.lead },
+    ],
+    methodSteps: (args) => [
+      ...legacyCopy.methodSteps(args).slice(0, 5),
+      { title: groupCopy.title, text: groupCopy.method, meaning: groupCopy.provisionalNote },
+    ],
+  } : legacyCopy
   const meta = report.meta || {}
   const results = report.evidence?.statements || []
   const analysis = report.analysis || {}
@@ -789,6 +808,7 @@ export default function FinalReportPage({ report, preview = false }) {
         >
           <OpinionLandscape
             landscape={report.opinionLandscape}
+            language={language}
             narrative={narrative}
             copy={copy}
           />
