@@ -41,7 +41,7 @@ common-ground and recommendation requests carry the same group evidence and
 provisional status. JSON exports include the landscape and anonymous dot geometry; CSV, text and
 print exports preserve group membership summaries and provisional labelling.
 
-The analysis version is `shared-opinion-groups-v3`; new story reports are
+The analysis version is `shared-opinion-groups-v4`; new story reports are
 `story-report-v6`. Changes to the settings or calculation must bump the analysis
 version. Python checks that it matches the Node result.
 
@@ -54,7 +54,7 @@ version. Python checks that it matches the Node result.
 - PCA fits with per-statement observed-mean imputation and retains the existing
   `sqrt(statement count / answered count)` projection correction. That correction
   is a heuristic, especially for sparse ballots; early results remain provisional.
-- Seeded k-means compares 2–4 groups, bounded by participant count and distinct
+- Seeded k-means compares 2–7 groups, bounded by participant count and distinct
   points, using silhouette selection. K is no longer fixed to two in reports.
 - The 2D map and group centres share one uniform scale on both axes, with equal
   display units. Group labels and results are deterministic for identical inputs,
@@ -102,6 +102,23 @@ readability, while group letters remain a second cue independent of color.
 Keyboard focus outlines remain visible. The flat styling was checked in both
 languages and color modes on mobile and desktop, including text contrast on the
 tinted cards, keyboard navigation and a successful production frontend build.
+
+The palette supports A–G with seven distinct muted hues: sage, ochre, slate blue,
+plum, terracotta, teal and rose. Dots, density shading, topic text and cards all
+index the same palette. Clustering may select up to seven groups; it still picks
+the best silhouette score within the available candidates and never forces seven.
+Report narrative validation accepts every supplied group through G, and the theme
+response budget scales with group count (1,800–3,400 tokens for up to seven groups).
+The model-call cooldown and timeouts are unchanged.
+
+Crowded topic labels fall back to spaced slots with leader lines, without moving
+participant dots. Mobile zoom controls sit below the plot so they do not cover
+labels. Synthetic vote fixtures verified selection of five, six and seven groups.
+Five- and seven-group screenshots used real model-generated descriptions of
+synthetic votes, with live/report dot and evidence parity checked in English and
+Traditional Chinese, at desktop/mobile widths and in light/dark mode. The palette
+and labels are usable at seven groups, but group letters remain necessary cues:
+seven muted colors are not guaranteed distinguishable for every viewer.
 
 The initial 30-person demonstration deliberately used only three distinct ballot
 patterns (14, 14 and 2 identical voters). Their PCA positions therefore coincide
@@ -278,7 +295,7 @@ The examples are synthetic, not real-session measurements:
 
 Additional tests cover missing versus neutral, actual group vote denominators,
 viewer-independent labels, report/live/policy parity, cache isolation, malformed
-private output rejection, frozen reports and four-group narrative validation.
+private output rejection, frozen reports and seven-group narrative validation.
 A local browser check compares the live and report group cards, snapshot hashes
 and counts, and checks the mobile layout in all five UI languages. It also checks
 individual dot selection by keyboard, the exact-position toggle, zoom, the personal

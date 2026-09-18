@@ -86,3 +86,6 @@
 .opinion-group-cards article:focus { outline-color: var(--group-ink); }
 
 .story-report .story-section.story-opinion-section { border: 0; box-shadow: none; background: var(--ds-surface); }
+@media (max-width: 480px) {
+  .opinion-map-zoom { position: static; width: max-content; margin: .25rem .5rem .5rem auto; }
+}

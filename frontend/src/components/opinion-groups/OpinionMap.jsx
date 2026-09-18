@@ -20,7 +20,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
   const dots = useMemo(() => layoutOpinionDots(points || [], separate), [points, separate])
   const textures = useMemo(() => {
     const peak = groups.reduce((max, group) => Math.max(max, ...(group.density?.values || [0])), 0)
-    return groups.map(group => densityImage(group.density, GROUP_COLORS[group.id % 4], peak))
+    return groups.map(group => densityImage(group.density, GROUP_COLORS[group.id % GROUP_COLORS.length], peak))
   }, [groups])
   const labels = useMemo(() => layoutThemeLabels(groups, points || [], copy.themeEmerging, compact), [groups, points, copy.themeEmerging, compact])
   const stacks = separate ? [] : dots.filter((point, index) => point.overlapping > 1 &&
@@ -53,7 +53,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
         </g>)}
         {dots.map((point, index) => {
           const isActive = active?.key === point.key || selected === point.key
-          const color = GROUP_COLORS[point.cluster % 4]
+          const color = GROUP_COLORS[point.cluster % GROUP_COLORS.length]
           const label = `${point.isYou ? copy.you : `${copy.participant} ${index + 1}`} · ${copy.group} ${String.fromCharCode(65 + point.cluster)}${Number.isFinite(point.answered) ? ` · ${point.answered} ${copy.responses}` : ''}`
           return <g key={point.key} className="opinion-dot" data-dot-key={point.key} data-you={point.isYou || undefined}
             opacity={dimmed(point.cluster) && !point.isYou ? .2 : 1}
@@ -85,7 +85,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
           }}}>
           <title>{group.theme?.description || copy.themeEmerging}</title>
           {Math.hypot(x-anchorX,y-anchorY)>35 && <line x1={anchorX} y1={anchorY} x2={x} y2={y}
-            stroke={GROUP_COLORS[group.id % 4]} strokeWidth="1" opacity=".65" />}
+            stroke={GROUP_COLORS[group.id % GROUP_COLORS.length]} strokeWidth="1" opacity=".65" />}
           <rect x={x-halfWidth} y={y-height/2-5} width={halfWidth*2} height={height+10} rx="8" fill="transparent" />
           <text x={x} y={y-height/2+(compact ? 21 : 15)}>
             <tspan className="opinion-theme-count" x={x}>{group.letter} · {group.size} {copy.people}</tspan>
@@ -103,7 +103,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
       {groups.map((group) => <button key={group.id} type="button" aria-pressed={selectedGroup === group.id}
         className="opinion-group-color" style={groupStyle(group.id)}
         onClick={() => {setSelectedGroup(selectedGroup === group.id ? null : group.id); setSelected(null)}}>
-        <i style={{background:GROUP_COLORS[group.id % 4]}} />{copy.group} {group.letter}<strong>{group.size}</strong><span>{copy.people}</span>
+        <i style={{background:GROUP_COLORS[group.id % GROUP_COLORS.length]}} />{copy.group} {group.letter}<strong>{group.size}</strong><span>{copy.people}</span>
       </button>)}
     </div>
     {points && <div className="opinion-map-detail" aria-live="polite">

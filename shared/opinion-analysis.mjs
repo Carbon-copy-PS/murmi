@@ -1,9 +1,9 @@
 import { opinionDensity } from './opinion-density.mjs';
 import { analyzePolisInspiredSession, checkProjectionSensitivity } from "../data-analysis/polis-inspired-analysis.mjs";
 
-export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v3";
+export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v4";
 export const OPINION_OPTIONS = Object.freeze({
-  minimumVotes: 1, minimumK: 2, maximumK: 4,
+  minimumVotes: 1, minimumK: 2, maximumK: 7,
   bootstrapReplicates: 100, sensitivityThresholds: [1, 2, 3, 7],
 });
 

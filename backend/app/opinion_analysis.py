@@ -9,7 +9,7 @@ import json
 import math
 from pathlib import Path
 
-ANALYSIS_VERSION = "shared-opinion-groups-v3"
+ANALYSIS_VERSION = "shared-opinion-groups-v4"
 VALID_VOTES = {"strongly_agree", "agree", "neutral", "disagree", "strongly_disagree"}
 SCRIPT = Path(__file__).with_name("report-opinion-analysis.mjs")
 _cache = OrderedDict()

@@ -75,10 +75,23 @@ export function layoutThemeLabels(groups, points, fallback, compact = false) {
       const y = Math.max(height/2+15, Math.min(575-height/2, anchorY + dy))
       const collisions = placed.filter(other => Math.abs(other.x-x)<halfWidth+other.halfWidth+6 && Math.abs(other.y-y)<(other.height+height)/2+10).length
       const covered = points.filter(p => Math.abs(mapPosition(p.x)-x)<halfWidth && Math.abs(mapPosition(p.y)-y)<height/2+8)
-      const cost = Math.hypot(x-anchorX,y-anchorY) + collisions*10000 + covered.reduce((n,p)=>n+(p.isYou?2000:8),0)
+      const cost = Math.hypot(x-anchorX,y-anchorY) + collisions*10000 + covered.reduce((n,p)=>n+(p.isYou?2000:80),0)
       return {x,y,cost}
     }).sort((a,b)=>a.cost-b.cost)
     placed.push({...candidates[0], anchorX, anchorY, height, halfWidth, lineHeight, lines, group})
   }
-  return placed
+  const overlaps = placed.some((a, i) => placed.slice(i + 1).some(b =>
+    Math.abs(a.x-b.x) < a.halfWidth+b.halfWidth+6 && Math.abs(a.y-b.y) < (a.height+b.height)/2+10))
+  if (!overlaps) return placed
+
+  // Dense maps can exhaust local label positions. Use spaced label slots only
+  // when needed; leader lines preserve the link and participant dots never move.
+  const rows = Math.ceil(placed.length / 2)
+  const slots = Array.from({length: rows * 2}, (_, index) => ({
+    x: index % 2 ? 450 : 150, y: 15 + (Math.floor(index / 2) + .5) * 560 / rows,
+  }))
+  return placed.map(label => {
+    slots.sort((a,b) => Math.hypot(a.x-label.anchorX,a.y-label.anchorY) - Math.hypot(b.x-label.anchorX,b.y-label.anchorY))
+    return {...label, ...slots.shift()}
+  })
 }

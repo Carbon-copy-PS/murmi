@@ -320,3 +320,38 @@ test('theme labels wrap multilingual titles and move text without changing point
   assert.ok(wrapThemeTitle('優先建立數位基礎再導入人工智慧並保障工作者的安全',18).length<=3);
   assert.ok(wrapThemeTitle('A'.repeat(64)).length<=3);
 });
+
+test('shared analysis can select five, six and seven groups when synthetic votes separate them', () => {
+  for (const count of [5, 6, 7]) {
+    let seed = 19;
+    const random = () => ((seed = Math.imul(1664525, seed) + 1013904223 >>> 0) / 4294967296);
+    const statements = Array.from({length: count * 4}, (_, i) => ({id:`s${String(i).padStart(2,'0')}`,text:`Synthetic proposition ${i}`,created_at:i}));
+    const votes = [];
+    for (let group=0; group<count; group++) for (let person=0; person<10; person++) for (let i=0; i<statements.length; i++) {
+      const value = Math.cos((group-Math.floor(i/4))*2*Math.PI/count)+(random()-.5)*.5;
+      votes.push({participant_id:`g${group}p${person}`,statement_id:statements[i].id,vote:value>.5?'agree':value<-.5?'disagree':'neutral'});
+    }
+    const {landscape, live} = computeSharedOpinionAnalysis({sessionId:`synthetic-${count}-groups`,statements,votes});
+    assert.equal(landscape.groups.length, count);
+    assert.equal(live.points.length, count*10);
+    assert.equal(landscape.groups.reduce((n,g)=>n+g.dots.length,0),count*10);
+  }
+});
+
+test('seven crowded topic labels stay separate without moving participant positions', async () => {
+  const {layoutThemeLabels} = await import('../../frontend/src/components/opinion-groups/map-layout.js');
+  const {GROUP_COLORS, groupStyle} = await import('../../frontend/src/components/opinion-groups/group-colors.js');
+  assert.equal(new Set(GROUP_COLORS.slice(0,7)).size,7);
+  const points=[{x:.5,y:.5}];
+  for(const compact of [false,true]) {
+    const groups=Array.from({length:7},(_,id)=>({id,position:{x:.5,y:.5},theme:{title:'先建立數位基礎再導入人工智慧並保障工作者安全'}}));
+    const labels=layoutThemeLabels(groups,points,'Theme emerging',compact);
+    assert.ok(labels.every(l=>l.x-l.halfWidth>=0&&l.x+l.halfWidth<=600&&l.y-l.height/2>=0&&l.y+l.height/2<=600));
+    for(let i=0;i<labels.length;i++)for(let j=i+1;j<labels.length;j++) {
+      const a=labels[i],b=labels[j];
+      assert.ok(Math.abs(a.x-b.x)>=a.halfWidth+b.halfWidth||Math.abs(a.y-b.y)>=(a.height+b.height)/2);
+    }
+    assert.equal(new Set(groups.map(g=>groupStyle(g.id)['--group-color'])).size,7);
+    assert.deepEqual(points,[{x:.5,y:.5}]);
+  }
+});
