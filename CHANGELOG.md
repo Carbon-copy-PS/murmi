@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Use flat group-tinted cards and legend pills, with spacing in place of decorative borders and statement dividers.
+
 - Show actual saved voter dots in new reports and match group colors across map topics, legends and explanation cards, with readable light/dark text shades.
 
 - Handle a WebSocket already closed by a failed broadcast before receiving its next message; verified live/report persistence through a full application restart.

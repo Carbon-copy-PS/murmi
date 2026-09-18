@@ -95,8 +95,13 @@ Previously saved reports without dot geometry retain their existing group view;
 new positions are not invented or reconstructed from density shading.
 
 Each group's muted color connects its dots, topic label, legend, explanation
-heading and card border. Text uses darker or lighter shades of the same hue for
+heading and softly tinted card background. Cards, map surfaces and legend pills
+have no decorative borders or shadows; spacing separates the supporting statements.
+Text uses darker or lighter shades of the same hue for
 readability, while group letters remain a second cue independent of color.
+Keyboard focus outlines remain visible. The flat styling was checked in both
+languages and color modes on mobile and desktop, including text contrast on the
+tinted cards, keyboard navigation and a successful production frontend build.
 
 The initial 30-person demonstration deliberately used only three distinct ballot
 patterns (14, 14 and 2 identical voters). Their PCA positions therefore coincide
