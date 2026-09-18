@@ -1,8 +1,10 @@
 # Consistent opinion groups
 
 Implemented on 2026-09-17 on `fix/pca-report-consistency`, based on deployed
-HearTheRoom commit `1c837e4`. The changes remain on this branch: no deployment,
-merge or Murmi sync has been performed.
+HearTheRoom commit `1c837e4`. Implementation through `2984565` was deployed to
+`https://murmi.org` on 2026-09-18 by fast-forwarding the server’s `main` branch.
+The source branch is pushed to HearTheRoom; its GitHub `main` was not changed.
+The Murmi open-source repository has not received this PCA work.
 
 ## Behaviour
 
@@ -225,6 +227,46 @@ view: all three labels remained visible, the refresh notice appeared, completed
 themes replaced them, and the published report stayed unchanged. A DOM observer
 confirmed that no “Theme emerging” placeholder appeared during that update. This
 check made no provider calls and is not a production deployment rehearsal.
+
+### Production rollout — 2026-09-18
+
+Released implementation: `2984565154e94b2d2bfcb1efbabd9b4d0eca2287`.
+Previous release: `1c837e426cf12f31de52afea31683f2bd5bc8a49`.
+
+The final candidate passed all 86 Python tests with disposable PostgreSQL and
+all 29 JavaScript tests locally. An isolated copy on the production server
+passed its frontend build, 84 Python tests (the two disposable-database tests
+were deliberately skipped there), and all 29 JavaScript tests using the actual
+Python 3.12 / Node 20 runtime. No dependency or database-schema change was needed.
+
+Before activation, the server had a clean checkout and no established app
+connections. A verified custom-format PostgreSQL dump, the previous frontend,
+and a rollback Git branch were saved under the server's protected backup area.
+The frontend was built separately; previous hashed assets were retained for
+existing browser tabs. PM2 restarted once and its process configuration was saved.
+
+Immediately after activation, all seven application table counts and content
+fingerprints matched the baseline, including 88 sessions, 5,006 votes and 13
+report snapshots. An existing published report also matched its previous JSON
+hash. A clearly labeled synthetic transport discussion then exercised public
+HTTPS and WebSockets with eight voters, four statements and 32 votes. Real AI
+themes and a real report narrative completed, and the published opinion landscape
+exactly matched the live groups, dot geometry, vote evidence and themes.
+
+The synthetic report and all 32 votes were read back from PostgreSQL. Excluding
+that new test session, all pre-existing table fingerprints and the previously
+published report remained unchanged. The test report rendered eight dots and two
+groups on desktop and mobile, with working keyboard links to evidence, no failed
+resources, no browser errors and no horizontal overflow. The application remained
+online with no extra restarts or error markers in logs since activation.
+
+The synthetic verification session is retained as a labeled deployment example;
+no existing discussion was edited or republished. Backups remain under
+`/home/ubuntu/backups/pca-2984565`, and the code rollback branch on the server is
+`rollback/pre-pca-2984565`. Rollback requires restoring that code and the saved
+frontend together, followed by restarting `hear-backend`; ordinary code rollback
+does not require restoring the database. Server-side verification scripts and
+results are under `/home/ubuntu/releases/pca-2984565`.
 
 ### Deployment verification — 2026-09-18
 
