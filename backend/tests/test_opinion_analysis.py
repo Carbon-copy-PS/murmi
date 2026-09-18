@@ -56,7 +56,16 @@ class SharedOpinionTests(unittest.IsolatedAsyncioTestCase):
         for saved, narrated in zip(landscape["groups"], evidence["opinionLandscape"]["groups"]):
             self.assertEqual(len(saved["density"]["values"]), 51 * 51)
             self.assertNotIn("density", narrated)
+            self.assertEqual(len(saved["dots"]), saved["size"])
+            self.assertNotIn("dots", narrated)
             self.assertEqual(saved["statements"], narrated["statements"])
+
+    def test_report_dots_allow_only_bounded_geometry_without_identifiers(self):
+        self.assertFalse(opinions._contains_private_fields({"size": 2, "dots": [{"x": .5, "y": .5}, {"x": .5, "y": .5}]}))
+        for dot in ({"x": .5, "y": .5, "key": "person"}, {"x": .5, "y": .5, "answered": 3},
+                    {"x": float('nan'), "y": .5}, {"x": 2, "y": .5}, {"x": True, "y": .5}):
+            self.assertTrue(opinions._contains_private_fields({"size": 1, "dots": [dot]}))
+        self.assertTrue(opinions._contains_private_fields({"size": 2, "dots": [{"x": .5, "y": .5}]}))
 
     async def test_reordered_restored_session_and_different_viewers_match(self):
         manager = SessionManager()

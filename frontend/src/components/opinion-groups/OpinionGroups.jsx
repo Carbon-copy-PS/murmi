@@ -1,9 +1,8 @@
 import { useId } from 'react'
 import { getOpinionCopy } from './copy'
 import './opinion-groups.css'
-import OpinionMap, { GROUP_COLORS } from './OpinionMap'
-
-const COLORS = GROUP_COLORS
+import OpinionMap from './OpinionMap'
+import { groupStyle } from './group-colors'
 
 function VoteEvidence({ statement, copy }) {
   return <li>
@@ -24,6 +23,11 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
   const groups = landscape.groups.map(group => ({...group, theme: group.theme?.sourceHash === landscape.sourceHash ||
     (group.theme?.retained === true && group.theme?.matchedSourceHash === landscape.sourceHash) ? group.theme : null}))
   const themes = landscape.themes?.sourceHash === landscape.sourceHash ? landscape.themes : null
+  // New reports store only anonymous geometry. Keys are local rendering indexes,
+  // never participant IDs or links to individual ballots.
+  const mapPoints = points ?? (groups.every(group => Array.isArray(group.dots))
+    ? groups.flatMap(group => group.dots.map((dot, index) => ({...dot, cluster: group.id, key: `snapshot-${group.id}-${index}`})))
+    : undefined)
   const provisional = landscape.status === 'provisional'
   const check = landscape.projectionCheck
   const variance = Math.min(1, (landscape.explainedVariance || []).reduce((sum, value) => sum + value, 0))
@@ -33,7 +37,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
       <strong>{provisional ? copy.provisional : copy.supported}</strong>
       <span>{provisional ? copy.provisionalNote : copy.lead}</span>
     </p>
-    <OpinionMap groups={groups} points={points} copy={copy} onSelectGroup={groupId => {
+    <OpinionMap groups={groups} points={mapPoints} copy={copy} onSelectGroup={groupId => {
       const card = document.getElementById(`${id}-group-${groupId}`)
       card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest', behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'})
     }} />
@@ -66,8 +70,8 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
         const refs = group.theme?.evidenceStatementIds || []
         const limit = refs.length || 3
         const evidence = group.statements.filter(s => s.responded > 0).sort((a,b) => Number(refs.includes(b.id))-Number(refs.includes(a.id)))
-        return <article key={group.id} id={`${id}-group-${group.id}`} tabIndex="-1" style={{ borderTopColor: COLORS[group.id % COLORS.length] }}>
-          <h4>{copy.group} {group.letter} <span>{group.size} {copy.people}</span></h4>
+        return <article key={group.id} id={`${id}-group-${group.id}`} tabIndex="-1" className="opinion-group-color" style={groupStyle(group.id)}>
+          <h4><strong className="opinion-group-name"><i aria-hidden="true" />{copy.group} {group.letter}</strong> <span>{group.size} {copy.people}</span></h4>
           <div className="opinion-group-theme"><strong>{group.theme?.title || copy.themeEmerging}</strong>
             <p>{group.theme?.description || (themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.status === 'pending' ? copy.themesPending : copy.themeEmergingNote)}</p>
             {group.theme && <small>{copy.supportingVotes}</small>}

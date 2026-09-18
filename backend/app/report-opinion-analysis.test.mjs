@@ -110,7 +110,7 @@ function runWrapper(source) {
 }
 
 
-test("publishes aggregate exclusive groups without participant-level fields", async () => {
+test("publishes exclusive groups without participant identifiers or ballot rows", async () => {
   const result = await runWrapper(syntheticSource());
   assert.equal(result.available, true);
   assert.equal(result.membershipKind, 'exclusive');
@@ -287,6 +287,19 @@ test('map fitting preserves relative PCA distances without separating groups art
       assert.ok(Math.abs(after - before * scale) < 1e-7);
     }
   }
+});
+
+test('report dots retain every exact live position including overlaps, without ballot keys', () => {
+  const source = smallTendencySource();
+  const {live, landscape} = computeSharedOpinionAnalysis(source);
+  for (const group of landscape.groups) {
+    const positions = live.points.filter(p=>p.cluster===group.id).map(({x,y})=>({x,y})).sort((a,b)=>a.x-b.x || a.y-b.y);
+    assert.equal(group.dots.length, group.size);
+    assert.deepEqual(group.dots, positions);
+    assert.ok(group.dots.every(dot=>Object.keys(dot).sort().join(',')==='x,y'));
+  }
+  const reversed = computeSharedOpinionAnalysis({...source, votes:[...source.votes].reverse()});
+  assert.deepEqual(reversed.landscape.groups.map(g=>g.dots), landscape.groups.map(g=>g.dots));
 });
 
 test('theme labels wrap multilingual titles and move text without changing points', async () => {

@@ -8,9 +8,11 @@ merge or Murmi sync has been performed.
 
 Live results and newly generated reports use the same groups, identifiers,
 headcounts, group centres, statement counts and provisional status for the same
-input snapshot. The shared renderer shows individual anonymous points in live
-results and aggregate group centres in reports. Reports do not contain individual
-points, participant identifiers or ballot rows.
+input snapshot. The shared renderer shows one dot per voter in both live results
+and newly generated reports. Reports save only each dot's normalized x/y position
+within its group, sorted spatially; they contain no participant identifiers,
+viewer markers, response counts per dot, or individual ballot rows. Rendering
+indexes are generated locally and are not persistent participant identities.
 
 Groups appear from **three voters and two approved statements**. Anyone with one
 valid response is included. A small or unstable group remains visible, labelled
@@ -36,10 +38,10 @@ snapshots. Failed calculations are not cached or replaced by another algorithm.
 
 Live results, report generation and policy evidence consume that result. Generic
 common-ground and recommendation requests carry the same group evidence and
-provisional status. JSON exports include the aggregate landscape; CSV, text and
+provisional status. JSON exports include the landscape and anonymous dot geometry; CSV, text and
 print exports preserve group membership summaries and provisional labelling.
 
-The analysis version is `shared-opinion-groups-v2`; new story reports are
+The analysis version is `shared-opinion-groups-v3`; new story reports are
 `story-report-v6`. Changes to the settings or calculation must bump the analysis
 version. Python checks that it matches the Node result.
 
@@ -85,8 +87,16 @@ shared calculation saves a 51 × 51 aggregate grid per group (four-bandwidth ker
 truncation), and both views render it using one common density scale. Empty spaces
 between separate concentrations are not filled merely because the centroid sits
 there. Smoothing width is a visual choice, not an uncertainty estimate or a
-probability of group membership. Reports omit individual dots and retain the
-aggregate grids; this aggregation is not a formal anonymization guarantee.
+probability of group membership. Reports retain both the aggregate grids and
+the original projected dot positions, including coincident positions. The dot
+geometry is validated to contain exactly x/y coordinates in [0,1], with one dot
+per group member. Removing identifiers is not a formal anonymization guarantee.
+Previously saved reports without dot geometry retain their existing group view;
+new positions are not invented or reconstructed from density shading.
+
+Each group's muted color connects its dots, topic label, legend, explanation
+heading and card border. Text uses darker or lighter shades of the same hue for
+readability, while group letters remain a second cue independent of color.
 
 The initial 30-person demonstration deliberately used only three distinct ballot
 patterns (14, 14 and 2 identical voters). Their PCA positions therefore coincide
@@ -120,7 +130,7 @@ candidate evidence, duplicate-only citations, and overlong text. This checks
 structure and reference validity; it does not prove semantic entailment of every
 model-written phrase. Themes remain explicitly labelled AI-generated and should
 be reviewed through their supporting votes. No personal motives or identities
-are requested. Rendering grids and individual ballot rows are never model input.
+are requested. Rendering grids, dot positions and individual ballot rows are never model input.
 
 Live generation runs in the background when the result views poll (five seconds
 in the room, eight seconds on the public page). Changed snapshots can trigger a
@@ -202,6 +212,15 @@ branch; the workflow's test commands were exercised directly instead. The live
 process remained online and the homepage returned HTTP 200. Temporary services
 and server test files were cleaned up. These checks verify this release path;
 they are not a large-session load test or a broad evaluation of model quality.
+
+The subsequent color/dot update was checked in English and Traditional Chinese,
+on mobile and desktop, in light and dark mode. Browser checks compare all 60
+synthetic live/report dot positions and colors, theme/card text-color equality,
+text contrast of at least 4.5:1, keyboard selection and old-report fallback.
+All 84 backend tests passed against disposable PostgreSQL, all 26 JavaScript
+tests passed, and the production frontend build passed. The real-provider,
+synthetic-vote publication/restart rehearsal was repeated for the new geometry:
+the full published landscape, including dot positions, survived unchanged.
 
 ### What the map leaves out
 

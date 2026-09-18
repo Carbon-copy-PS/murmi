@@ -6,9 +6,10 @@ from collections import OrderedDict
 from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
 
-ANALYSIS_VERSION = "shared-opinion-groups-v2"
+ANALYSIS_VERSION = "shared-opinion-groups-v3"
 VALID_VOTES = {"strongly_agree", "agree", "neutral", "disagree", "strongly_disagree"}
 SCRIPT = Path(__file__).with_name("report-opinion-analysis.mjs")
 _cache = OrderedDict()
@@ -46,6 +47,14 @@ def _unavailable(reason):
 def _contains_private_fields(value):
     forbidden = {"participantIndex", "participant_id", "participantId", "assignments", "coordinates", "points", "votes"}
     if isinstance(value, dict):
+        if "dots" in value:
+            dots = value["dots"]
+            if not isinstance(dots, list) or len(dots) != value.get("size"):
+                return True
+            if any(not isinstance(dot, dict) or set(dot) != {"x", "y"} or
+                   any(type(n) not in (int, float) or not math.isfinite(n) or not 0 <= n <= 1
+                       for n in dot.values()) for dot in dots):
+                return True
         return bool(forbidden.intersection(value)) or any(_contains_private_fields(item) for item in value.values())
     if isinstance(value, list):
         return any(_contains_private_fields(item) for item in value)

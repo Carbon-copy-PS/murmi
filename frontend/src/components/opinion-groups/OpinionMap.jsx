@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { densityImage, mapPosition, layoutOpinionDots, layoutThemeLabels } from './map-layout'
-
-export const GROUP_COLORS = ['#60876c', '#b4944c', '#7089ad', '#9a7da3']
+import { GROUP_COLORS, groupStyle } from './group-colors'
+export { GROUP_COLORS } from './group-colors'
 
 export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 480px)').matches)
@@ -54,7 +54,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
         {dots.map((point, index) => {
           const isActive = active?.key === point.key || selected === point.key
           const color = GROUP_COLORS[point.cluster % 4]
-          const label = `${point.isYou ? copy.you : `${copy.participant} ${index + 1}`} · ${copy.group} ${String.fromCharCode(65 + point.cluster)} · ${point.answered || 0} ${copy.responses}`
+          const label = `${point.isYou ? copy.you : `${copy.participant} ${index + 1}`} · ${copy.group} ${String.fromCharCode(65 + point.cluster)}${Number.isFinite(point.answered) ? ` · ${point.answered} ${copy.responses}` : ''}`
           return <g key={point.key} className="opinion-dot" data-dot-key={point.key} data-you={point.isYou || undefined}
             opacity={dimmed(point.cluster) && !point.isYou ? .2 : 1}
             role="button" tabIndex="0" aria-label={label} aria-pressed={selected === point.key}
@@ -76,7 +76,7 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
         {stacks.map(point => <text key={point.key} x={point.plotX + 18} y={point.plotY - 16}
           className="opinion-stack-count" aria-hidden="true">{point.overlapping}</text>)}
         {showThemes && labels.map(({group, x, y, anchorX, anchorY, height, halfWidth, lineHeight, lines}) => <g
-          key={group.id} className="opinion-theme-label" role="button" tabIndex="0"
+          key={group.id} className="opinion-theme-label opinion-group-color" style={groupStyle(group.id)} role="button" tabIndex="0"
           aria-label={`${copy.group} ${group.letter}: ${group.theme?.title || copy.themeEmerging}. ${copy.viewEvidence}`}
           opacity={dimmed(group.id) ? .3 : 1}
           onClick={() => {setSelectedGroup(group.id); onSelectGroup?.(group.id)}}
@@ -101,13 +101,14 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
     </div>
     <div className="opinion-map-legend" aria-label={copy.title}>
       {groups.map((group) => <button key={group.id} type="button" aria-pressed={selectedGroup === group.id}
+        className="opinion-group-color" style={groupStyle(group.id)}
         onClick={() => {setSelectedGroup(selectedGroup === group.id ? null : group.id); setSelected(null)}}>
         <i style={{background:GROUP_COLORS[group.id % 4]}} />{copy.group} {group.letter}<strong>{group.size}</strong><span>{copy.people}</span>
       </button>)}
     </div>
     {points && <div className="opinion-map-detail" aria-live="polite">
       {active ? <><strong>{active.isYou ? copy.you : `${copy.participant} ${dots.indexOf(active) + 1}`}</strong>
-        <span>{copy.group} {String.fromCharCode(65 + active.cluster)} · {active.answered || 0} {copy.responses}</span>
+        <span>{copy.group} {String.fromCharCode(65 + active.cluster)}{Number.isFinite(active.answered) && <> · {active.answered} {copy.responses}</>}</span>
         {active.overlapping > 1 && <span>{copy.samePosition}: {active.overlapping}</span>}</> : <span>{copy.mapInvite}</span>}
     </div>}
     <figcaption>

@@ -71,3 +71,14 @@
 @media print { .opinion-theme-status button { display: none; } }
 @media (max-width: 480px) { .opinion-theme-label text { font-size: 23px; } .opinion-theme-label .opinion-theme-count { font-size: 19px; } }
 .opinion-theme-label rect, .opinion-theme-label line { pointer-events: none; }
+.opinion-group-color { --group-ink: var(--group-ink-light); }
+[data-theme='dark'] .opinion-group-color { --group-ink: var(--group-ink-dark); }
+.opinion-theme-label text { fill: var(--group-ink); }
+.opinion-map-legend button.opinion-group-color { color: var(--group-ink); }
+.opinion-map-legend button[aria-pressed='true'] { border-color: var(--group-color); background: color-mix(in srgb, var(--group-color) 12%, var(--ds-surface)); }
+.opinion-theme-label:hover rect, .opinion-theme-label:focus-visible rect { stroke: var(--group-ink); }
+.opinion-group-cards article { border-top-color: var(--group-color); }
+.opinion-group-name { display: inline-flex; align-items: center; gap: .45rem; color: var(--group-ink); }
+.opinion-group-name i { width: .7rem; height: .7rem; border-radius: 50%; background: var(--group-color); flex-shrink: 0; }
+.opinion-group-theme > strong { color: var(--group-ink); }
+.opinion-group-cards article:focus { outline-color: var(--group-ink); }

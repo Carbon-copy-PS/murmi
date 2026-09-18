@@ -1,7 +1,7 @@
 import { opinionDensity } from './opinion-density.mjs';
 import { analyzePolisInspiredSession, checkProjectionSensitivity } from "../data-analysis/polis-inspired-analysis.mjs";
 
-export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v2";
+export const OPINION_ANALYSIS_VERSION = "shared-opinion-groups-v3";
 export const OPINION_OPTIONS = Object.freeze({
   minimumVotes: 1, minimumK: 2, maximumK: 4,
   bootstrapReplicates: 100, sensitivityThresholds: [1, 2, 3, 7],
@@ -200,6 +200,9 @@ export function computeSharedOpinionAnalysis(source) {
     return {
       id, letter: String.fromCharCode(65 + id), size: members.length,
       position: centre,
+      // Snapshot-only geometry, sorted spatially rather than in roster order.
+      // Preserve one real projected position per voter, including overlaps.
+      dots: mapped.map(({x, y}) => ({x, y})).sort((a, b) => a.x - b.x || a.y - b.y),
       density: opinionDensity(mapped),
       spread: {
         xx: round(average((point) => (point.x - centre.x) ** 2), 6),

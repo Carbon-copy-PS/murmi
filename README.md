@@ -137,3 +137,6 @@ Group maps also show emerging AI-generated theme labels with links to supporting
 statement votes. They update in the background when evidence changes, and reports
 save the labels with the same vote snapshot. Without an API key or sufficient
 evidence, grouping remains available with a “Theme emerging” label.
+New reports also save the same individual dot positions as live results, without
+participant identifiers or individual ballots. Group colors connect map topics
+to their explanation cards in both views.
