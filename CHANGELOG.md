@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Transcript text and original-data downloads, Traditional Chinese display with an original-text toggle, and documented transcription evaluation tools.
+- Transcript text and original-data downloads, Traditional Chinese display, and documented transcription evaluation tools.
 - A Chinese explanation of the September transcription changes and their limitations.
 
 - Open-source release files: license, community health docs, issue/PR templates, Dependabot, and CI.
 
 ### Changed
 
+- Select meaningful voting arguments from short discussion windows with recent context. Keep related reasons and conditions together while captions remain immediate.
+- Remove the original-text checkbox from the transcript; preserve the original JSON download.
 - Keep opinion groups, participant positions and vote evidence consistent between live results and the final report. Generate reports from one captured set of votes.
 - Show individual dots in new reports, with matching muted colors across map topics and explanation cards. Support up to seven groups and handle unexpected larger snapshots without dropping groups.
 - Explain emerging groups with optional AI topic summaries backed by votes. Keep supported themes visible during refresh and save report themes with their original evidence.

@@ -110,6 +110,14 @@ See [how opinion groups are calculated](docs/pca-consistency.md) for the method,
 limitations, theme refresh behavior and tests. The backend needs Node.js for the
 shared calculation.
 
+### Selecting voting cards
+
+The transcript preserves the full discussion; voting cards select new arguments.
+Completed captions are collected into short discussion windows, with recent context
+and existing cards available to the selector. Each window can produce zero, one or
+two cards, keeping reasons and qualifications together while skipping repeated
+examples and procedural talk. See [argument selection and its limits](docs/argument-selection.md).
+
 ## What works today
 
 - Multi-device join via session code

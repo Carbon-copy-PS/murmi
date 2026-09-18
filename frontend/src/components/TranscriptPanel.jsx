@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { usesTraditionalChinese, buildTranscriptDownload, buildOriginalTranscriptDownload } from '../utils/transcript-text'
+import { buildTranscriptDownload, buildOriginalTranscriptDownload } from '../utils/transcript-text'
 import { downloadFile, exportVotesFilename } from '../utils/export-results'
 
 const originalText = (text) => text || ''
@@ -8,12 +8,10 @@ const originalText = (text) => text || ''
 export default function TranscriptPanel({ entries, partial, error, finishing = false, recording = false, language = 'en', sessionId, formatText = originalText, allowExport = true }) {
   const { t } = useTranslation()
   const bottomRef = useRef(null)
-  const [showOriginal, setShowOriginal] = useState(false)
-  const displayLanguage = showOriginal ? null : language
   const readableEntries = useMemo(() => entries.map((entry) => ({
-    ...entry, text: formatText(entry.text, displayLanguage),
-  })), [entries, displayLanguage, formatText])
-  const readablePartial = formatText(partial?.text, displayLanguage)
+    ...entry, text: formatText(entry.text, language),
+  })), [entries, language, formatText])
+  const readablePartial = formatText(partial?.text, language)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -36,12 +34,6 @@ export default function TranscriptPanel({ entries, partial, error, finishing = f
   return (
     <div className="transcript">
       <div className="transcript-tools">
-        {usesTraditionalChinese(language) && (
-          <label>
-            <input type="checkbox" checked={showOriginal} onChange={(event) => setShowOriginal(event.target.checked)} />
-            {t('transcript.showOriginal')}
-          </label>
-        )}
         {allowExport && (
           <>
             <button type="button" disabled={!entries.length} onClick={() => downloadFile(
