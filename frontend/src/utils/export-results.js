@@ -1,5 +1,6 @@
-import { APP_NAME } from '../constants/app'
-import { resolveCgMode } from '../constants/common-ground-mode'
+import { getOpinionCopy } from '../components/opinion-groups/copy.js'
+import { APP_NAME } from '../constants/app.js'
+import { resolveCgMode } from '../constants/common-ground-mode.js'
 
 const GROUP_LETTERS = ['A', 'B', 'C', 'D']
 
@@ -213,6 +214,7 @@ export function buildCSV(ctx) {
   const row = (...cells) => lines.push(cells.map(csvCell).join(','))
 
   row(`${APP_NAME} — Results`)
+  if (cluster?.landscape?.status === 'provisional') row(getOpinionCopy(ctx.lang).provisionalNote)
   row('Topic', topic || 'Untitled session')
   if (sessionId) row('Session', sessionId)
   if (cluster?.voterCount != null) row('Participants', cluster.voterCount)
@@ -333,6 +335,7 @@ export function buildJSON(ctx) {
     session: sessionId || null,
     participants: cluster?.voterCount ?? null,
     opinionGroups: cluster?.k ?? null,
+    opinionAnalysis: cluster?.landscape ?? null,
     voteType: likert ? 'likert' : 'binary',
   }
 
@@ -425,6 +428,7 @@ export function buildSummary(ctx) {
     if (cluster.k != null) bits.push(tr('export.opinionGroups', '{{count}} opinion groups', { count: cluster.k }))
     if (likert) bits.push(tr('export.likertScale', 'Likert scale'))
     out.push(bits.join(' · '))
+    if (cluster.landscape?.status === 'provisional') out.push(getOpinionCopy(ctx.lang).provisionalNote)
   }
 
   cgHistory.forEach((item, index) => {
@@ -585,6 +589,9 @@ export function buildPrintableHTML(ctx) {
   }
 
   const sections = []
+  if (cluster?.landscape?.status === 'provisional') {
+    sections.push(`<p>${esc(getOpinionCopy(lang).provisionalNote)}</p>`)
+  }
 
   cgHistory.forEach((item, index) => {
     const cg = commonGroundBlock(item)

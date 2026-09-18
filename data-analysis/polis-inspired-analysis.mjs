@@ -446,7 +446,7 @@ function observedCountsByParticipant(matrix) {
   ));
 }
 
-function computePcaProjection(matrix, maximumIterations) {
+function computePcaProjection(matrix, maximumIterations, dimensions = 2) {
   const participantCount = matrix.length;
   const statementCount = matrix[0]?.length ?? 0;
   const columnMeans = new Array(statementCount).fill(0);
@@ -483,11 +483,15 @@ function computePcaProjection(matrix, maximumIterations) {
     }
   }
 
-  const first = topEigenpair(covariance, [], 1, maximumIterations);
-  const firstBasis = first.value > EPSILON ? [first.vector] : [];
-  const second = topEigenpair(covariance, firstBasis, 2, maximumIterations);
-  const components = [first.vector, second.vector];
-  const eigenvalues = [first.value, second.value];
+  const pairs = [];
+  const basis = [];
+  for (let dimension = 0; dimension < dimensions; dimension += 1) {
+    const pair = topEigenpair(covariance, basis, dimension + 1, maximumIterations);
+    pairs.push(pair);
+    if (pair.value > EPSILON) basis.push(pair.vector);
+  }
+  const components = pairs.map((pair) => pair.vector);
+  const eigenvalues = pairs.map((pair) => pair.value);
   const totalVariance = covariance.reduce((result, row, index) => result + row[index], 0);
   const explainedVarianceRatio = eigenvalues.map((value) => (
     totalVariance > EPSILON ? value / totalVariance : 0
@@ -515,7 +519,7 @@ function computePcaProjection(matrix, maximumIterations) {
     totalVariance,
     explainedVarianceRatio,
     explainedVarianceRatioTotal: sum(explainedVarianceRatio),
-    iterations: [first.iterations, second.iterations],
+    iterations: pairs.map((pair) => pair.iterations),
     coordinates,
   };
 }
@@ -1475,5 +1479,35 @@ export function analyzePolisInspiredSession(source, options = {}) {
     },
     opinionTendencies,
     ...analysis,
+  };
+}
+
+
+/** Compare the displayed 2D partition with up to five PCA dimensions.
+ * This is a sensitivity diagnostic, never a second set of published groups.
+ */
+export function checkProjectionSensitivity(source, options, reference) {
+  const normalized = normalizeSession(source);
+  const settings = normalizeOptions(normalized.sessionId, options);
+  const dimensions = Math.min(5, normalized.statements.length, normalized.participantCount - 1);
+  const pca = computePcaProjection(normalized.matrix, settings.pcaMaximumIterations, Math.max(2, dimensions));
+  const eligible = observedCountsByParticipant(normalized.matrix)
+    .flatMap((count, index) => count >= settings.minimumVotes ? [index] : []);
+  const points = eligible.map((index) => pca.coordinates[index]);
+  const compared = selectClustering(points, settings, mixSeed(settings.seed, "primary-clustering")).selected;
+  const assignments = (reference.assignments || []);
+  const ari = compared && assignments.length === eligible.length
+    ? adjustedRandIndex(assignments.map((item) => item.groupId), compared.clustering.assignments)
+    : null;
+  return {
+    dimensionsCompared: Math.max(2, dimensions),
+    explainedVariance2D: sum(pca.explainedVarianceRatio.slice(0, 2)),
+    explainedVarianceCompared: pca.explainedVarianceRatioTotal,
+    selectedK2D: reference.diagnostics?.clustering?.selectedK ?? null,
+    selectedKCompared: compared?.k ?? null,
+    adjustedRand: ari,
+    changed: ari !== null && ari < 0.9,
+    // 0.9 is an application diagnostic threshold, not a significance test.
+    agreementThreshold: 0.9,
   };
 }

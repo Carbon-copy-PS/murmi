@@ -94,6 +94,22 @@ Selecting Traditional Chinese converts captions and transcript displays to Taiwa
 
 Save retries are held in memory: a server crash during a database outage can still lose unsaved text. Script conversion does not repair misheard words.
 
+### Opinion groups in live results and reports
+
+Live results and the final report now use the same opinion groups and participant
+dot positions. Early groups remain visible with a provisional label. Missing
+answers stay separate from neutral, and each group can be explored through its
+actual votes and an optional AI-generated topic summary.
+
+The map uses up to seven muted group colors, matching the topic labels and
+explanation cards. Topics remain visible while supported updates are being
+prepared. Saved reports retain the groups, dots and themes from their captured
+votes. Without an API key, grouping and vote evidence still work.
+
+See [how opinion groups are calculated](docs/pca-consistency.md) for the method,
+limitations, theme refresh behavior and tests. The backend needs Node.js for the
+shared calculation.
+
 ## What works today
 
 - Multi-device join via session code

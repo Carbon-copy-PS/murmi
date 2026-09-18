@@ -184,5 +184,48 @@ class ReportNarrativeNormalizationTests(unittest.TestCase):
         )
 
 
+class ExclusiveGroupNarrativeTests(unittest.TestCase):
+    def test_keeps_all_seven_groups_without_invented_ids(self):
+        service = AnalysisService()
+        evidence = {"statements": [{"id": "s1", "text": "Evidence"}],
+                    "opinionLandscape": {"membershipKind": "exclusive",
+                                         "groups": [{"id": i} for i in range(7)]}}
+        result = service._normalize_report_narrative({
+            "headline": "Seven patterns", "standfirst": "Synthetic patterns.",
+            "overviewEvidenceStatementIds": ["s1"],
+            "tendencies": [{"tendencyId": i, "title": f"Group {i}", "description": "A pattern",
+                            "evidenceStatementIds": ["s1"]} for i in range(8)],
+        }, evidence)
+        self.assertEqual([item["tendencyId"] for item in result["tendencies"]], list(range(7)))
+
+    def test_unexpected_larger_snapshots_do_not_truncate_group_descriptions(self):
+        service = AnalysisService()
+        for count in (8, 12, 30):
+            with self.subTest(count=count):
+                evidence = {"statements": [{"id": "s1", "text": "Evidence"}],
+                            "opinionLandscape": {"membershipKind": "exclusive",
+                                                 "groups": [{"id": i} for i in range(count)]}}
+                result = service._normalize_report_narrative({
+                    "headline": "Patterns", "standfirst": "Synthetic patterns.",
+                    "overviewEvidenceStatementIds": ["s1"],
+                    "tendencies": [{"tendencyId": i, "title": f"Group {i}", "description": "A pattern",
+                                    "evidenceStatementIds": ["s1"]} for i in range(count + 1)],
+                }, evidence)
+                self.assertEqual([item["tendencyId"] for item in result["tendencies"]], list(range(count)))
+
+    def test_keeps_all_four_group_ids_including_zero(self):
+        service = AnalysisService()
+        evidence = {"statements": [{"id": "s1", "text": "Evidence"}],
+                    "opinionLandscape": {"membershipKind": "exclusive", "status": "provisional",
+                                         "groups": [{"id": i} for i in range(4)]}}
+        result = service._normalize_report_narrative({
+            "headline": "Early patterns", "standfirst": "These groups may change.",
+            "overviewEvidenceStatementIds": ["s1"],
+            "tendencies": [{"tendencyId": i, "title": f"Group {i}", "description": "A pattern",
+                            "evidenceStatementIds": ["s1"]} for i in range(5)],
+        }, evidence)
+        self.assertEqual([item["tendencyId"] for item in result["tendencies"]], [0, 1, 2, 3])
+
+
 if __name__ == "__main__":
     unittest.main()

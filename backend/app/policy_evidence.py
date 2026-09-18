@@ -6,16 +6,6 @@ included in model-facing payloads.
 """
 from __future__ import annotations
 
-import math
-
-
-VOTE_VALUE = {
-    "strongly_agree": 2,
-    "agree": 1,
-    "disagree": -1,
-    "strongly_disagree": -2,
-}
-
 AGREE_SET = frozenset({"agree", "strongly_agree"})
 DISAGREE_SET = frozenset({"disagree", "strongly_disagree"})
 NEUTRAL_SET = frozenset({"neutral"})
@@ -28,170 +18,6 @@ def _is_agree(v: str | None) -> bool:
 
 def _is_disagree(v: str | None) -> bool:
     return v in DISAGREE_SET
-
-
-def _dot(a: list[float], b: list[float]) -> float:
-    return sum(x * y for x, y in zip(a, b))
-
-
-def _mat_vec(m: list[list[float]], v: list[float]) -> list[float]:
-    return [_dot(row, v) for row in m]
-
-
-def _normalize(v: list[float]) -> list[float]:
-    n = math.sqrt(_dot(v, v)) or 1.0
-    return [x / n for x in v]
-
-
-def _top_eigenvector(c: list[list[float]], iters: int = 120) -> tuple[list[float], float]:
-    d = len(c)
-    v = _normalize([math.sin(i + 1) + 0.5 for i in range(d)])
-    for _ in range(iters):
-        v = _normalize(_mat_vec(c, v))
-    lam = _dot(v, _mat_vec(c, v))
-    return v, lam
-
-
-def _deflate(c: list[list[float]], vec: list[float], value: float) -> list[list[float]]:
-    d = len(c)
-    return [
-        [c[i][j] - value * vec[i] * vec[j] for j in range(d)]
-        for i in range(d)
-    ]
-
-
-def _pca2d(centered: list[list[float]], dim: int) -> list[list[float]]:
-    c = [[0.0] * dim for _ in range(dim)]
-    for row in centered:
-        for i in range(dim):
-            ri = row[i]
-            if ri == 0:
-                continue
-            for j in range(i, dim):
-                v = ri * row[j]
-                c[i][j] += v
-                if i != j:
-                    c[j][i] += v
-    e1, lam1 = _top_eigenvector(c)
-    c2 = _deflate(c, e1, lam1)
-    e2, _ = _top_eigenvector(c2)
-    return [[_dot(row, e1), _dot(row, e2)] for row in centered]
-
-
-def _sq_dist(a: list[float], b: list[float]) -> float:
-    dx = a[0] - b[0]
-    dy = a[1] - b[1]
-    return dx * dx + dy * dy
-
-
-def _mulberry32(seed: int):
-    state = seed & 0xFFFFFFFF
-
-    def rand() -> float:
-        nonlocal state
-        state = (state + 0x6D2B79F5) & 0xFFFFFFFF
-        t = state
-        t = ((t ^ (t >> 15)) * (1 | t)) & 0xFFFFFFFF
-        t = ((t ^ (t >> 7)) * (61 | t)) & 0xFFFFFFFF
-        return ((t ^ (t >> 14)) & 0xFFFFFFFF) / 4294967296
-
-    return rand
-
-
-def _kmeanspp_init(points: list[list[float]], k: int, seed: int) -> list[list[float]]:
-    rand = _mulberry32(seed + 1)
-    centers = [list(points[int(rand() * len(points))])]
-    while len(centers) < k:
-        dists = [min(_sq_dist(p, c) for c in centers) for p in points]
-        total = sum(dists) or 1.0
-        t = rand() * total
-        idx = 0
-        for i, d in enumerate(dists):
-            t -= d
-            if t <= 0:
-                idx = i
-                break
-        centers.append(list(points[idx]))
-    return centers
-
-
-def _kmeans(
-    points: list[list[float]],
-    k: int,
-    restarts: int = 6,
-    iters: int = 60,
-) -> dict:
-    n = len(points)
-    best = None
-    for r in range(restarts):
-        centers = _kmeanspp_init(points, k, r)
-        assign = [0] * n
-        for _ in range(iters):
-            moved = False
-            for i in range(n):
-                best_c = 0
-                best_d = float("inf")
-                for c in range(k):
-                    d = _sq_dist(points[i], centers[c])
-                    if d < best_d:
-                        best_d = d
-                        best_c = c
-                if assign[i] != best_c:
-                    assign[i] = best_c
-                    moved = True
-            for c in range(k):
-                members = [points[i] for i, a in enumerate(assign) if a == c]
-                if members:
-                    centers[c] = [
-                        sum(p[0] for p in members) / len(members),
-                        sum(p[1] for p in members) / len(members),
-                    ]
-            if not moved:
-                break
-        inertia = sum(_sq_dist(points[i], centers[assign[i]]) for i in range(n))
-        if best is None or inertia < best["inertia"]:
-            best = {"assign": list(assign), "centers": centers, "inertia": inertia}
-    return best or {"assign": [0] * n, "centers": [], "inertia": 0}
-
-
-def _silhouette(points: list[list[float]], assign: list[int], k: int) -> float:
-    n = len(points)
-    if k < 2 or n <= k:
-        return -1.0
-    total = 0.0
-    count = 0
-    for i in range(n):
-        own = assign[i]
-        groups: list[list[int]] = [[] for _ in range(k)]
-        for j in range(n):
-            if j != i:
-                groups[assign[j]].append(j)
-        if not groups[own]:
-            continue
-        a = sum(math.sqrt(_sq_dist(points[i], points[j])) for j in groups[own]) / len(groups[own])
-        b = float("inf")
-        for c in range(k):
-            if c == own or not groups[c]:
-                continue
-            d = sum(math.sqrt(_sq_dist(points[i], points[j])) for j in groups[c]) / len(groups[c])
-            if d < b:
-                b = d
-        if b == float("inf"):
-            continue
-        total += (b - a) / max(a, b)
-        count += 1
-    return total / count if count else -1.0
-
-
-def _scale_coords(coords: list[list[float]]) -> list[list[float]]:
-    xs = [c[0] for c in coords]
-    ys = [c[1] for c in coords]
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-    span = max(max_x - min_x, max_y - min_y, 1e-9)
-    cx = (min_x + max_x) / 2
-    cy = (min_y + max_y) / 2
-    return [[((x - cx) / span) * 1.7, ((y - cy) / span) * 1.7] for x, y in coords]
 
 
 def _pct(n: int, d: int) -> float:
@@ -235,98 +61,6 @@ def _statement_stats(statements: list, voters: list[dict], roster_size: int) -> 
             "dist": dist,
         })
     return stats
-
-
-def _compute_clusters(
-    statements: list,
-    voters: list[dict],
-    vote_type: str,
-) -> dict:
-    dim = len(statements)
-    n = len(voters)
-    if n < 3 or dim < 2:
-        return {"ok": False, "k": 0, "groups": [], "assign": []}
-
-    s_index = {s.id: i for i, s in enumerate(statements)}
-    raw = []
-    for v in voters:
-        row = [0.0] * dim
-        for sid, val in (v.get("votes") or {}).items():
-            idx = s_index.get(sid)
-            if idx is not None:
-                row[idx] = float(VOTE_VALUE.get(val, 0))
-        raw.append(row)
-
-    means = [sum(raw[i][j] for i in range(n)) / n for j in range(dim)]
-    centered = [[row[j] - means[j] for j in range(dim)] for row in raw]
-    coords = _scale_coords(_pca2d(centered, dim))
-
-    max_k = min(4, n - 1)
-    best_k = 2
-    best_score = -float("inf")
-    best_assign = None
-    for k in range(2, max_k + 1):
-        km = _kmeans(coords, k)
-        score = _silhouette(coords, km["assign"], k)
-        if score > best_score:
-            best_score = score
-            best_k = k
-            best_assign = km["assign"]
-    if best_assign is None:
-        best_k = 1
-        best_assign = [0] * n
-
-    groups = []
-    for c in range(best_k):
-        member_idxs = [i for i, a in enumerate(best_assign) if a == c]
-        if not member_idxs:
-            continue
-        members = [voters[i] for i in member_idxs]
-        letter = GROUP_LETTERS[len(groups)] if len(groups) < len(GROUP_LETTERS) else str(len(groups))
-        min_votes = max(1, math.ceil(len(members) * 0.5))
-        member_count = len(members) or 1
-        stances = []
-        for s in statements:
-            agree = sum(1 for m in members if _is_agree((m.get("votes") or {}).get(s.id)))
-            disagree = sum(1 for m in members if _is_disagree((m.get("votes") or {}).get(s.id)))
-            strong_agree = sum(
-                1 for m in members if (m.get("votes") or {}).get(s.id) == "strongly_agree"
-            )
-            strong_disagree = sum(
-                1 for m in members if (m.get("votes") or {}).get(s.id) == "strongly_disagree"
-            )
-            directed = agree + disagree
-            if vote_type == "likert":
-                if strong_agree >= min_votes and strong_agree / member_count >= 0.4:
-                    lean = "strongly_agree"
-                elif agree >= min_votes and agree / member_count >= 0.5 and strong_agree / member_count < 0.4:
-                    lean = "agree"
-                elif strong_disagree >= min_votes and strong_disagree / member_count >= 0.4:
-                    lean = "strongly_disagree"
-                elif disagree >= min_votes and disagree / member_count >= 0.5 and strong_disagree / member_count < 0.4:
-                    lean = "disagree"
-                else:
-                    lean = "mixed"
-            else:
-                rate = agree / directed if directed else 0.5
-                if directed >= min_votes and rate >= 0.6:
-                    lean = "agree"
-                elif directed >= min_votes and rate <= 0.4:
-                    lean = "disagree"
-                else:
-                    lean = "mixed"
-            stances.append({
-                "argumentId": s.id,
-                "lean": lean,
-                "support": agree,
-                "opposition": disagree,
-            })
-        groups.append({
-            "group": letter,
-            "size": len(members),
-            "stances": stances,
-        })
-    return {"ok": True, "k": len(groups), "groups": groups, "assign": best_assign}
 
 
 def _co_support_pairs(statements: list, voters: list[dict], min_shared: int = 2) -> list[dict]:
@@ -374,7 +108,7 @@ def _co_support_pairs(statements: list, voters: list[dict], min_shared: int = 2)
     return pairs
 
 
-def build_policy_evidence(session) -> dict:
+def build_policy_evidence(session, landscape=None) -> dict:
     """Build model-facing evidence from approved statements and votes on a Session."""
     approved = [s for s in session.statements if s.approved]
     roster_pids = set(session.known_participants.values()) | set(session.participants.keys())
@@ -390,7 +124,26 @@ def build_policy_evidence(session) -> dict:
             voters.append({"pid": pid, "votes": votes})
 
     stats = _statement_stats(approved, voters, roster_size)
-    clusters = _compute_clusters(approved, voters, session.vote_type or "binary")
+    groups = []
+    for group in (landscape or {}).get("groups", []):
+        stances = []
+        for statement in group["statements"]:
+            responded = statement["responded"]
+            lean = "mixed"
+            if responded:
+                if statement["dist"]["strongly_agree"] / responded > 0.5:
+                    lean = "strongly_agree"
+                elif statement["agree"] / responded > 0.5:
+                    lean = "agree"
+                elif statement["dist"]["strongly_disagree"] / responded > 0.5:
+                    lean = "strongly_disagree"
+                elif statement["disagree"] / responded > 0.5:
+                    lean = "disagree"
+            stances.append({"argumentId": statement["id"], "lean": lean,
+                            "support": statement["agree"], "opposition": statement["disagree"],
+                            "neutral": statement["neutral"], "missing": statement["missing"],
+                            "responded": responded})
+        groups.append({"group": group["letter"], "size": group["size"], "stances": stances})
     co_support = _co_support_pairs(approved, voters)
 
     # Short aliases are much more reliable for the model than opaque hex statement ids.
@@ -419,7 +172,6 @@ def build_policy_evidence(session) -> dict:
 
     # Group differences: which arguments diverge most across clusters.
     group_differences = []
-    groups = clusters.get("groups") or []
     if len(groups) >= 2:
         for st in stats:
             leans = []
@@ -463,6 +215,9 @@ def build_policy_evidence(session) -> dict:
         "voteType": session.vote_type or "binary",
         "arguments": arguments,
         "opinionGroups": opinion_groups,
+        "opinionAnalysisStatus": (landscape or {}).get("status", "unavailable"),
+        "opinionSourceHash": (landscape or {}).get("sourceHash"),
+        "opinionCaveat": "Provisional groups are early patterns for discussion, not reliable or fixed camps. Retain response and missing-answer counts in every interpretation.",
         "groupDifferences": group_differences,
         "coSupport": co_support_aliased,
         "validArgumentIds": list(alias_map.keys()),
