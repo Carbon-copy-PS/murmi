@@ -652,7 +652,7 @@ function StorySection({ kicker, title, lead, children, className = '' }) {
   return (
     <section className={`story-section ${className}`}>
       <header className="story-section-head">
-        <p className="story-kicker">{kicker}</p>
+        {kicker && <p className="story-kicker">{kicker}</p>}
         <h2>{title}</h2>
         {lead && <p className="story-lead">{lead}</p>}
       </header>
@@ -669,7 +669,7 @@ export default function FinalReportPage({ report, preview = false }) {
   const exclusive = report.opinionLandscape?.membershipKind === 'exclusive'
   const copy = exclusive ? {
     ...legacyCopy,
-    opinionLead: groupCopy.lead,
+    opinionLead: language.split('-')[0] === 'zh' ? '' : groupCopy.lead,
     opinionUnavailable: groupCopy.unavailable,
     opinionMethod: groupCopy.method,
     defaultLimitations: (args) => [

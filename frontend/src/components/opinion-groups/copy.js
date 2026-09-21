@@ -1,4 +1,5 @@
 const en = {
+  mapNotes: 'How to read the map', analysisNotes: 'Analysis details',
   overflowNote: 'With many groups, colours repeat. Select a group below to highlight its dots and topic. All group explanations remain below the map.',
   themesRetained: 'Showing previous AI themes while they update. Vote counts are current.',
   themesRetainedUnavailable: 'The theme update could not finish. Previous AI themes remain visible; vote counts are current.',
@@ -28,33 +29,35 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
-  overflowNote: '組別較多時，顏色會重複。請點選下方組別，凸顯該組的圓點與主題。所有組別的說明仍會列在圖表下方。',
+  mapNotes: '圖表說明', analysisNotes: '分組與計算方式',
+  overflowNote: '顏色可能重複；點選組別可凸顯其圓點。',
   themesRetained: '主題更新中，先保留上一版 AI 摘要。投票數已更新。',
   themesRetainedUnavailable: '主題暫時無法更新，先保留上一版 AI 摘要。投票數已更新。',
-  themeEmerging: '主題形成中', themeEmergingNote: '目前還沒有足夠的投票，能清楚概括這組的共同主題。',
+  themeEmerging: '尚無明確主題', themeEmergingNote: '投票不足，尚無明確主題。',
   showThemes: '顯示組別主題', themesPending: '正在依最新投票更新主題…', themesUnavailable: '暫時無法產生主題摘要，分組和投票結果仍可查看。',
-  themesNote: 'AI 主題摘要根據實際投票產生，可能隨討論進展而改變。', updated: '更新時間', refreshThemes: '更新主題',
-  sharedAcrossGroups: '各組共同支持', viewEvidence: '查看依據的陳述', supportingVotes: '這段摘要的投票依據',
-  exactNote: '圓點預設顯示計算後的實際位置，數字表示重疊的人數。圖會依這次資料縮放，因此距離只適合在同一張圖內比較。',
-  everyDot: '每一個點，都是一個人', mapInvite: '點選圓點，看看每個人在討論中的位置。',
+  themesNote: '主題由 AI 依投票摘要。', updated: '更新', refreshThemes: '更新主題',
+  sharedAcrossGroups: '共同支持', viewEvidence: '查看依據', supportingVotes: '投票依據',
+  exactNote: '數字表示重疊人數；距離僅適合在同一張圖內比較。',
+  everyDot: '每點一人', mapInvite: '點選查看組別。',
   findMe: '找到我', participant: '參與者', zoom: '地圖縮放', zoomOut: '縮小', zoomIn: '放大', resetMap: '重設地圖',
   samePosition: '投票位置相同的人數', separateDots: '攤開重疊的圓點',
-  cloudNote: '越多人落在相近的位置，顏色就越深。每個人對柔和色彩的貢獻相同，不同組別的色彩可以重疊。柔化不會移動圓點，也不代表分組機率。',
-  offsetNote: '重疊的圓點會稍微移開，讓每個人都看得見。分組和投票結果不會改變。',
+  cloudNote: '顏色越深，人數越集中；色彩可重疊，不代表分組機率。',
+  offsetNote: '僅移開重疊圓點，分組與票數不變。',
   title: '意見分組', group: '組別', you: '你', people: '人',
   provisional: '初步分組', supported: '較穩定的分組',
-  provisionalNote: '為了幫助討論，少量回覆時也會先顯示分組。回覆較少或意見模式仍在變動時，隨著更多人投票，組別和人數可能改變。',
-  lead: '分組依據這次討論中相似的投票，並不代表固定身分或立場。',
+  provisionalNote: '分組尚不穩定，可能隨投票改變。',
+  lead: '依投票相似度分組，不代表固定立場。',
   map: '圓點代表參與者，字母代表組別中心。位置概括投票的相似程度。',
   publicMap: '字母代表組別中心。這份舊版報告未儲存個別圓點的位置。',
   support: '支持', neutral: '中立', oppose: '反對', missing: '未作答', responses: '份回覆', all: '查看這組對所有陳述的投票',
-  variance: '這張二維圖呈現的投票差異比例',
-  changed: '納入更多維度後，分組有所改變。這張圖未呈現部分重要差異。',
+  variance: '圖中呈現的投票差異',
+  changed: '更多維度會改變分組；圖中省略了部分差異。',
   unchanged: '納入更多維度後，分組大致相同。', twoOnly: '這些資料沒有額外維度可供比較。', dimensions: '比較的維度數',
   retry: '暫時無法計算意見分組，請重新整理結果再試一次。',
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
 const de = {
+  mapNotes: 'Karte lesen', analysisNotes: 'Details zur Analyse',
   overflowNote: 'Bei vielen Gruppen wiederholen sich die Farben. Wähle unten eine Gruppe, um ihre Punkte und ihr Thema hervorzuheben. Alle Gruppenerklärungen bleiben unter der Karte sichtbar.',
   themesRetained: 'Während der Aktualisierung bleiben die bisherigen KI-Themen sichtbar. Die Stimmenzahlen sind aktuell.',
   themesRetainedUnavailable: 'Die Themen konnten nicht aktualisiert werden. Die bisherigen KI-Themen bleiben sichtbar; die Stimmenzahlen sind aktuell.',
@@ -82,6 +85,7 @@ const de = {
   method: 'Beide Ansichten verwenden dieselbe PCA und k-means-Berechnung mit festem Startwert. Gruppen erscheinen ab drei Abstimmenden und zwei Aussagen; eine Antwort genügt zur Aufnahme. Fehlende und neutrale Antworten bleiben getrennt. Zustimmungsstärken werden für die Karte zusammengefasst, in den Stimmenzahlen aber erhalten. Zuverlässigkeitsprüfungen kennzeichnen frühe Muster, ohne sie auszublenden.',
 }
 const fr = {
+  mapNotes: 'Lire la carte', analysisNotes: 'Détails de l’analyse',
   overflowNote: 'Avec de nombreux groupes, les couleurs se répètent. Sélectionnez un groupe ci-dessous pour mettre en évidence ses points et son thème. Toutes les explications restent sous la carte.',
   themesRetained: 'Les thèmes précédents générés par IA restent visibles pendant la mise à jour. Les votes sont à jour.',
   themesRetainedUnavailable: 'La mise à jour des thèmes a échoué. Les thèmes précédents générés par IA restent visibles ; les votes sont à jour.',
@@ -109,6 +113,7 @@ const fr = {
   method: 'Les deux vues partagent la même ACP et le même calcul k-means déterministe. Les groupes apparaissent dès trois votants et deux propositions, avec au moins une réponse par personne. Les réponses manquantes restent distinctes des réponses neutres. L’intensité est regroupée sur la carte, mais conservée dans les décomptes. Les contrôles signalent les tendances provisoires sans les masquer.',
 }
 const it = {
+  mapNotes: 'Come leggere la mappa', analysisNotes: 'Dettagli dell’analisi',
   overflowNote: 'Con molti gruppi, i colori si ripetono. Seleziona un gruppo qui sotto per evidenziarne i punti e il tema. Tutte le spiegazioni restano sotto la mappa.',
   themesRetained: 'Durante l’aggiornamento restano visibili i temi precedenti generati dall’IA. I conteggi dei voti sono aggiornati.',
   themesRetainedUnavailable: 'Non è stato possibile aggiornare i temi. Restano visibili i temi precedenti generati dall’IA; i conteggi dei voti sono aggiornati.',
@@ -139,7 +144,7 @@ export function getOpinionCopy(language = 'en') {
   const code = language.split('-')[0]
   const countNote = {
     en: 'Support counts agree and strongly agree out of everyone who answered the statement. Unanswered statements are counted separately.',
-    zh: '支持包含同意與強烈同意，分母是有回答該陳述的人數。未作答另行列出。',
+    zh: '支持＝同意＋強烈同意；分母為該題回應人數，未作答另計。',
     de: 'Zustimmung umfasst Zustimmung und starke Zustimmung unter allen Antworten auf die Aussage. Fehlende Antworten werden separat gezählt.',
     fr: 'Le soutien regroupe accord et fort accord parmi les personnes ayant répondu à la proposition. Les absences de réponse sont comptées séparément.',
     it: 'Il sostegno comprende accordo e forte accordo tra chi ha risposto all’affermazione. Le risposte mancanti sono conteggiate separatamente.',

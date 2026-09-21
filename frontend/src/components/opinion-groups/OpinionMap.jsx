@@ -109,17 +109,19 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
         <i style={{background:GROUP_COLORS[group.id % GROUP_COLORS.length]}} />{copy.group} {group.letter}<strong>{group.size}</strong><span>{copy.people}</span>
       </button>)}
     </div>
-    {points && <div className="opinion-map-detail" aria-live="polite">
-      {active ? <><strong>{active.isYou ? copy.you : `${copy.participant} ${dots.indexOf(active) + 1}`}</strong>
+    {points && <div className={`opinion-map-detail${active ? '' : ' is-empty'}`} aria-live="polite">
+      {active && <><strong>{active.isYou ? copy.you : `${copy.participant} ${dots.indexOf(active) + 1}`}</strong>
         <span>{copy.group} {groupLabel(active.cluster)}{Number.isFinite(active.answered) && <> · {active.answered} {copy.responses}</>}</span>
-        {active.overlapping > 1 && <span>{copy.samePosition}: {active.overlapping}</span>}</> : <span>{copy.mapInvite}</span>}
+        {active.overlapping > 1 && <span>{copy.samePosition}: {active.overlapping}</span>}</>}
     </div>}
     <figcaption>
       <label className="opinion-map-spread-toggle"><input type="checkbox" checked={showThemes} onChange={event=>setShowThemes(event.target.checked)} />{copy.showThemes}</label>
-      <p>{copy.cloudNote}</p>
-      {points && !separate && <small>{copy.exactNote}</small>}
       {points && <label className="opinion-map-spread-toggle"><input type="checkbox" checked={separate} onChange={(event) => setSeparate(event.target.checked)} />{copy.separateDots}</label>}
-      {points && separate && <small>{copy.offsetNote}</small>}
+      <details className="opinion-map-notes">
+        <summary>{copy.mapNotes}</summary>
+        <p>{copy.cloudNote}</p>
+        {points && <small>{separate ? copy.offsetNote : copy.exactNote}</small>}
+      </details>
     </figcaption>
   </figure>
 }

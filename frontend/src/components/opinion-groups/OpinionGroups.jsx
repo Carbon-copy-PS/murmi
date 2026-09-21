@@ -48,13 +48,16 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
       </span>
       {onRefreshThemes && <button type="button" onClick={onRefreshThemes}>{copy.refreshThemes}</button>}
     </div>
-    <div className="opinion-projection-check">
-      <p>{copy.variance}: <strong>{percent}</strong></p>
-      {check && <p>{check.dimensionsCompared > 2
-        ? `${check.changed ? copy.changed : copy.unchanged} ${copy.dimensions}: 2 → ${check.dimensionsCompared}.`
-        : copy.twoOnly}</p>}
-    </div>
-    <p className="opinion-projection-check">{copy.countNote}</p>
+    <details className="opinion-analysis-notes">
+      <summary>{copy.analysisNotes}</summary>
+      <div className="opinion-projection-check">
+        <p>{copy.variance}: <strong>{percent}</strong></p>
+        {check && <p>{check.dimensionsCompared > 2
+          ? `${check.changed ? copy.changed : copy.unchanged} ${copy.dimensions}: 2 → ${check.dimensionsCompared}.`
+          : copy.twoOnly}</p>}
+      </div>
+      <p className="opinion-projection-check">{copy.countNote}</p>
+    </details>
     {themes?.shared && <aside className="opinion-shared-theme">
       <strong>{copy.sharedAcrossGroups} · {themes.shared.title}</strong>
       <p>{themes.shared.description}</p>

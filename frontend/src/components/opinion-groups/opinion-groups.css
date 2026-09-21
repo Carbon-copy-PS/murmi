@@ -31,6 +31,10 @@
 .opinion-map-legend strong { margin-left: .25rem; font-variant-numeric: tabular-nums; }
 .opinion-map-legend span { color: var(--ds-text-muted); font-weight: 400; }
 .opinion-map-detail { min-height: 3rem; display: flex; align-content: center; align-items: center; flex-wrap: wrap; gap: .35rem .8rem; font-size: .85rem; padding: .75rem; background: var(--ds-surface-3); border-radius: 10px; }
+.opinion-map-detail.is-empty { min-height: 0; padding: 0; }
+.opinion-map-notes, .opinion-analysis-notes { margin: .6rem 0; color: var(--ds-text-muted); font-size: .8rem; line-height: 1.5; }
+.opinion-map-notes summary, .opinion-analysis-notes summary { cursor: pointer; color: var(--ds-text); }
+.story-report .opinion-status { display: flex; flex-wrap: wrap; gap: .3rem .7rem; padding: .65rem .85rem; }
 .opinion-map figcaption { font-size: .8rem; line-height: 1.5; padding: .3rem; color: var(--ds-text-muted); }
 .opinion-map figcaption p { margin: .5rem 0; }
 .opinion-map-spread-toggle { display: flex; align-items: center; gap: .5rem; min-height: 36px; cursor: pointer; margin: .5rem 0 .15rem; color: var(--ds-text); }
