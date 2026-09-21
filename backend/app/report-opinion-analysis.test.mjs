@@ -227,7 +227,7 @@ test("JSON exports retain canonical group evidence and all exports label provisi
   const ctx = {cluster, statements:[], lang:'en', voteType:'likert'};
   assert.deepEqual(JSON.parse(buildJSON(ctx)).opinionAnalysis, cluster.landscape);
   for (const build of [buildCSV, buildSummary, buildPrintableHTML]) {
-    assert.ok(build(ctx).includes('Groups appear early'));
+    assert.ok(build(ctx).includes('Groups are still tentative and may change as more people vote.'));
   }
 });
 

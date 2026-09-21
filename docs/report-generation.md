@@ -79,6 +79,18 @@ provider, connect to a database, or publish anything. The output JSON remains a 
 the local display adapter only enables the report view in the existing public-page
 component. `--write-only` writes the fixture without starting a server.
 
+An English public-library discussion exercises majority support, opposition, neutral
+responses, mixed votes, and low coverage. It includes 120 synthetic voters and seven
+statements. Its narrative is handwritten and group descriptions use fixture vote
+counts; neither calls a live model. Run it separately from the Chinese preview:
+
+```sh
+.venv/bin/python -m backend.tools.preview_report --language en --port 8781
+```
+
+Open `http://127.0.0.1:8781/r/local-preview`. Both language fixtures run in the check
+script, including a check that the English report contains no Chinese copy.
+
 `REPORT_PYTHON` can select another Python executable. The check script clears service
 credentials before tests. Database persistence tests require a disposable PostgreSQL
 instance (`MURMI_TEST_POSTGRES_PORT`); otherwise they are explicitly skipped. CI runs

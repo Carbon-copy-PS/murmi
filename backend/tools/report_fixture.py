@@ -2,8 +2,24 @@
 from backend.app.session import Session, Statement
 
 
-def synthetic_session():
+ENGLISH_STATEMENTS = [
+    "Publish clear instructions for using library services",
+    "Run a small library-service pilot before expanding it",
+    "Make online booking the only way to reserve library services",
+    "We have enough information to decide library service fees",
+    "Remove all staffed library service desks",
+    "Require every library user to pass a digital-skills test",
+    "Extend weekend library opening hours",
+]
+
+
+def synthetic_session(language="zh"):
+    if language not in ("zh", "en"):
+        raise ValueError("Supported fixture languages: zh, en")
     session = Session(id="LOCAL-FIXTURE", topic="本機測試草稿：公共服務方案（合成資料）", language="zh", created_at=1700000000)
+    if language == "en":
+        session.topic = "Local mock discussion: the future of our public library"
+        session.language = "en"
     patterns = [
         ("提供清楚的服務使用說明", ['agree'] * 20),
         ("先進行小規模試辦，再決定是否擴大", ['agree'] * 17 + ['disagree'] * 3),
@@ -14,13 +30,17 @@ def synthetic_session():
         ("延長週末服務時間", ['agree'] * 4),
     ]
     for index, (text, values) in enumerate(patterns):
+        if language == "en":
+            text = ENGLISH_STATEMENTS[index]
         session.statements.append(Statement(id=f"fixture-s{index}", text=text, round=1, approved=True,
             votes={f"synthetic-person-{n}-{copy}": vote for n, vote in enumerate(values) for copy in range(6)}))
     session.known_participants = {f"synthetic-person-{n}-{copy}": f"synthetic-client-{n}-{copy}" for n in range(20) for copy in range(6)}
     return session
 
 
-def synthetic_narrative():
+def synthetic_narrative(language="zh"):
+    if language == "en":
+        return english_narrative()
     # A fixed model-response substitute; aggregate calculations still use the real pipeline.
     return {
         "headline": "服務說明獲支持，全面數位化仍有分歧",
@@ -36,3 +56,52 @@ def synthetic_narrative():
         "implications": [{"title": "設計小規模試辦", "explanation": "把服務說明與實體窗口需求納入試辦。", "evidenceStatementIds": ["fixture-s0", "fixture-s1", "fixture-s4"]}],
         "limitations": [{"title": "回應涵蓋率不同", "explanation": "週末時段只有少數人回答，不能推及全體。", "evidenceStatementIds": ["fixture-s6"]}],
     }
+
+
+def english_narrative():
+    """Handwritten response substitute, checked against the synthetic ballots."""
+    return {
+        "headline": "Pilot new library services while preserving access to staff",
+        "standfirst": "A fictional discussion with 120 synthetic voters; narrative and group descriptions are mock responses, not live AI output.",
+        "overviewEvidenceStatementIds": ["fixture-s1", "fixture-s4"],
+        "takeaways": [
+            {"title": "Clear instructions are a shared starting point", "explanation": "All 120 respondents support clear service instructions. This is a concrete first step across the different voting groups.", "evidenceStatementIds": ["fixture-s0"]},
+            {"title": "A pilot has broad support", "explanation": "102 of 120 respondents support a small pilot before expansion; 18 oppose it. Support is broad, but not unanimous.", "evidenceStatementIds": ["fixture-s1"]},
+            {"title": "Online booking does not settle the role of staff", "explanation": "Online-only booking has 72 supporters out of 120, while 84 of 120 oppose removing staffed desks. These separate results leave the service design open.", "evidenceStatementIds": ["fixture-s2", "fixture-s4"]},
+            {"title": "A compulsory skills test has no clear majority", "explanation": "48 support the test, 36 are neutral and 36 oppose it. The votes do not establish agreement on this condition of access.", "evidenceStatementIds": ["fixture-s5"]},
+        ],
+        "openQuestions": [
+            {"title": "What would help people assess fees?", "explanation": "72 of 120 responses are neutral about having enough information to decide fees. Ask what needs clarification; neutrality alone does not explain their reasons.", "evidenceStatementIds": ["fixture-s3"]},
+        ],
+        "implications": [
+            {"title": "Test a small service pilot with staffed help", "explanation": "Consider a pilot with clear instructions and staffed assistance, then ask participants how booking and access should work together.", "evidenceStatementIds": ["fixture-s0", "fixture-s1", "fixture-s2", "fixture-s4"]},
+            {"title": "Seek more responses on weekend hours", "explanation": "Ask the participants who have not answered before treating extended hours as a shared priority.", "evidenceStatementIds": ["fixture-s6"]},
+        ],
+        "limitations": [
+            {"title": "Weekend hours reached only a fifth of voters", "explanation": "All 24 respondents support longer weekend hours, but 96 voters did not answer. That is 100% support among respondents and 20% coverage, not unanimous support from the room.", "evidenceStatementIds": ["fixture-s6"]},
+        ],
+    }
+
+
+def english_themes(evidence):
+    """Deterministic mock prose from actual group counts; never a model call."""
+    topics = ["Clear instructions", "A small pilot", "Online-only booking", "Deciding fees now",
+              "Removing staffed desks", "A compulsory skills test", "Longer weekend hours"]
+    groups = []
+    for group in evidence["groups"]:
+        statements = group["statements"][:2]
+        if len(statements) < 2:
+            continue
+        clauses = []
+        for statement in statements:
+            topic = topics[int(statement["id"].removeprefix("fixture-s"))]
+            supports = statement["support"] > statement["oppose"]
+            verb = "support" if supports else "oppose"
+            count = statement["support"] if supports else statement["oppose"]
+            clauses.append(f"{count}/{statement['responded']} {verb} {topic.lower()}.")
+        first = statements[0]
+        title = ("Back " if first["support"] > first["oppose"] else "Oppose ") + topics[int(first["id"].removeprefix("fixture-s"))].lower()
+        groups.append({"groupId": group["groupId"], "title": title,
+                       "description": " ".join(clauses),
+                       "evidenceStatementIds": [s["id"] for s in statements]})
+    return {"groups": groups, "shared": None}

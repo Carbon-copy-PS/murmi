@@ -98,3 +98,36 @@ class DraftGenerationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(session.report_snapshot['status'], 'draft_ready')
         self.assertEqual(len(session.report_snapshot['evidence']['statements']), 7)
         self.assertIn('responseCoverage', session.report_snapshot['analysis'])
+
+
+class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_english_mock_keeps_language_counts_and_evidence(self):
+        from backend.tools.preview_report import build_fixture
+        report = await build_fixture("en")
+        self.assertEqual(report["sourceLanguage"], "en")
+        self.assertEqual(report["status"], "draft_ready")
+        narrative = report["narrative"]["en"]
+        self.assertEqual(len(narrative["takeaways"]), 4)
+        self.assertEqual(len(narrative["implications"]), 2)
+        self.assertEqual(len(narrative["limitations"]), 1)
+        self.assertEqual(narrative["principles"], [])
+        self.assertEqual(narrative["actionAreas"], [])
+        statements = {s["id"]: s for s in report["evidence"]["statements"]}
+        self.assertEqual(len(statements), 7)
+        for index, support, neutral, oppose, responded in [
+            (0, 120, 0, 0, 120), (1, 102, 0, 18, 120),
+            (2, 72, 0, 48, 120), (3, 24, 72, 24, 120),
+            (4, 18, 18, 84, 120), (5, 48, 36, 36, 120),
+            (6, 24, 0, 0, 24),
+        ]:
+            result = statements[f"fixture-s{index}"]
+            self.assertEqual((result["support"], result["neutral"], result["oppose"], result["responded"]),
+                             (support, neutral, oppose, responded))
+        self.assertEqual(statements["fixture-s6"]["coverageRate"], .2)
+        themes = report["opinionLandscape"]["themes"]
+        self.assertEqual(themes["status"], "ready")
+        self.assertEqual(len(themes["groups"]), len(report["opinionLandscape"]["groups"]))
+        for group in themes["groups"]:
+            self.assertEqual(len(group["evidenceStatementIds"]), 2)
+            self.assertTrue(group["title"].startswith(("Back ", "Oppose ")))
+            self.assertNotIn("方案", group["description"])

@@ -11,5 +11,7 @@ node --test data-analysis/polis-inspired-analysis.test.mjs
 node --test frontend/src/utils/transcript-text.test.mjs frontend/src/components/opinion-groups/group-differences.test.mjs frontend/src/components/final-report/statement-patterns.test.mjs
 "$REPORT_PYTHON" -m backend.tools.preview_report --write-only
 node scripts/check-report-render.mjs
+"$REPORT_PYTHON" -m backend.tools.preview_report --language en --write-only
+node scripts/check-report-render.mjs outputs/local-report-preview-en.json
 node frontend/node_modules/vite/bin/vite.js build frontend
 git diff --check
