@@ -148,3 +148,7 @@ evidence, grouping remains available with a “Theme emerging” label.
 New reports also save the same individual dot positions as live results, without
 participant identifiers or individual ballots. Group colors connect map topics
 to their explanation cards in both views.
+
+## Report changes and local review
+
+See [Report generation and release review](docs/report-generation.md) for the versioned report format, local checks and synthetic preview. Production changes and pushes require explicit approval for the reviewed release.

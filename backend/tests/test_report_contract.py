@@ -1,0 +1,100 @@
+import json
+import unittest
+from copy import deepcopy
+from unittest.mock import AsyncMock, patch
+
+from backend.app.analysis import AnalysisService
+from backend.app.report_contract import REPORT_FORMAT_VERSION, REPORT_NARRATIVE_VERSION
+from backend.app.reporting import build_report_snapshot, narrative_evidence
+from backend.tools.report_fixture import synthetic_session, synthetic_narrative
+
+
+class ConciseReportTests(unittest.TestCase):
+    def setUp(self):
+        self.session = synthetic_session()
+        self.snapshot = build_report_snapshot(self.session, version=1)
+        self.evidence = narrative_evidence(self.snapshot)
+        self.service = AnalysisService()
+
+    def test_same_votes_produce_same_evidence_without_person_identifiers(self):
+        other = build_report_snapshot(self.session, version=2)
+        self.assertEqual(self.snapshot['sourceHash'], other['sourceHash'])
+        self.assertEqual(self.snapshot['analysis'], other['analysis'])
+        self.assertEqual(self.snapshot['evidence'], other['evidence'])
+        self.assertEqual(self.snapshot['presentationVersion'], REPORT_FORMAT_VERSION)
+        self.assertNotIn('synthetic-person', json.dumps(self.evidence))
+        self.assertTrue(self.evidence['pairedSupport'])
+        for pair in self.evidence['pairedSupport']:
+            self.assertEqual(pair['jointResponses'], sum(pair[k] for k in ['both', 'leftOnly', 'rightOnly', 'neither']))
+
+    def test_new_format_rejects_removed_sections_even_if_model_returns_them(self):
+        raw = synthetic_narrative()
+        for key in ['principles', 'actionAreas']:
+            raw[key] = deepcopy(raw['takeaways'])
+        result = self.service._normalize_report_narrative(raw, self.evidence)
+        self.assertEqual(result['narrativeVersion'], REPORT_NARRATIVE_VERSION)
+        self.assertEqual(len(result['takeaways']), 4)
+        for key in ['principles', 'actionAreas', 'overlapPairs']: self.assertEqual(result[key], [])
+        self.assertLessEqual(len(result['implications']), 3)
+
+    def test_rejects_partially_invented_citations_without_silently_salvaging_claim(self):
+        raw = synthetic_narrative()
+        raw['takeaways'][0]['evidenceStatementIds'].append('invented')
+        result = self.service._normalize_report_narrative(raw, self.evidence)
+        self.assertEqual(len(result['takeaways']), 3)
+        raw['overviewEvidenceStatementIds'].append('invented')
+        self.assertIsNone(self.service._normalize_report_narrative(raw, self.evidence))
+
+    def test_rejects_malformed_or_overlong_text_and_deduplicates_titles(self):
+        raw = synthetic_narrative()
+        raw['takeaways'][0]['explanation'] = 'x' * 241
+        raw['takeaways'].append(deepcopy(raw['takeaways'][1]))
+        result = self.service._normalize_report_narrative(raw, self.evidence)
+        self.assertEqual(len(result['takeaways']), 3)
+        raw['takeaways'] = 4
+        self.assertIsNone(self.service._normalize_report_narrative(raw, self.evidence))
+        self.assertIsNone(self.service._normalize_report_narrative([], self.evidence))
+        raw = synthetic_narrative()
+        raw['headline'] = 'x' * 81
+        self.assertIsNone(self.service._normalize_report_narrative(raw, self.evidence))
+
+
+class DraftGenerationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generation_saves_a_draft_and_never_publishes(self):
+        from backend.app import main
+        from backend.app.session import SessionManager
+        manager = SessionManager()
+        session = synthetic_session()
+        manager.sessions[session.id] = session
+        captured = []
+        async def generate(evidence, language):
+            captured.append(evidence)
+            return main.analysis._normalize_report_narrative(synthetic_narrative(), evidence)
+        with (patch.object(main, 'sessions', manager),
+              patch.object(main, 'build_opinion_landscape', new=AsyncMock(return_value={'available': False})),
+              patch.object(main.analysis, 'generate_report_narrative', side_effect=generate),
+              patch.object(main.db, 'save_report_snapshot', new_callable=AsyncMock) as saved,
+              patch.object(main, 'broadcast_report_state', new_callable=AsyncMock),
+              patch.object(manager, 'publish_report', wraps=manager.publish_report) as publish):
+            await main.run_report_generation(session.id)
+        self.assertEqual(session.report_snapshot['status'], 'draft_ready')
+        self.assertIsNone(session.report_snapshot['publishedAt'])
+        self.assertEqual(captured[0]['presentationVersion'], REPORT_FORMAT_VERSION)
+        saved.assert_awaited_once()
+        publish.assert_not_called()
+
+    async def test_ai_failure_preserves_complete_evidence_and_coverage(self):
+        from backend.app import main
+        from backend.app.session import SessionManager
+        manager = SessionManager()
+        session = synthetic_session()
+        manager.sessions[session.id] = session
+        with (patch.object(main, 'sessions', manager),
+              patch.object(main, 'build_opinion_landscape', new=AsyncMock(return_value={'available': False})),
+              patch.object(main.analysis, 'generate_report_narrative', new=AsyncMock(side_effect=TimeoutError)),
+              patch.object(main.db, 'save_report_snapshot', new_callable=AsyncMock),
+              patch.object(main, 'broadcast_report_state', new_callable=AsyncMock)):
+            await main.run_report_generation(session.id)
+        self.assertEqual(session.report_snapshot['status'], 'draft_ready')
+        self.assertEqual(len(session.report_snapshot['evidence']['statements']), 7)
+        self.assertIn('responseCoverage', session.report_snapshot['analysis'])

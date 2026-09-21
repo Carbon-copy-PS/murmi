@@ -8,7 +8,7 @@ import hashlib
 import json
 import time
 
-THEME_VERSION = "opinion-themes-v1"
+THEME_VERSION = "opinion-themes-v2"
 
 
 def theme_evidence(landscape, topic=None):
@@ -66,7 +66,7 @@ def validate_themes(data, evidence):
         if not all(isinstance(ref, str) and ref in allowed for ref in refs):
             return None
         refs = list(dict.fromkeys(refs))
-        if not minimum <= len(refs) <= 3:
+        if not minimum <= len(refs) <= (4 if minimum == 2 else 3):
             return None
         return {"title": title.strip(), "description": text.strip(), "evidenceStatementIds": refs}
 

@@ -7,6 +7,7 @@ import math
 import time
 from itertools import combinations
 
+from .report_contract import REPORT_FORMAT_VERSION, REPORT_NARRATIVE_VERSION
 
 ANALYSIS_VERSION = "story-report-v6"
 SUPPORT_VOTES = {"agree", "strongly_agree"}
@@ -471,6 +472,8 @@ def build_report_snapshot(session, version: int) -> dict:
 
     return {
         "schemaVersion": 2,
+        "presentationVersion": REPORT_FORMAT_VERSION,
+        "narrativeVersion": REPORT_NARRATIVE_VERSION,
         "analysisVersion": ANALYSIS_VERSION,
         "version": version,
         "status": "draft_ready",
@@ -581,6 +584,8 @@ def narrative_evidence(snapshot: dict) -> dict:
             for group in landscape["groups"]
         ]}
     return {
+        "presentationVersion": snapshot.get("presentationVersion"),
+        "pairedSupport": deepcopy(story.get("overlaps", [])),
         "topic": snapshot.get("meta", {}).get("topic"),
         "counts": snapshot.get("meta"),
         "strongestCommonGround": selected(

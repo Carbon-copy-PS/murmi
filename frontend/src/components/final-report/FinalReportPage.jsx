@@ -643,6 +643,7 @@ function StorySection({ kicker, title, lead, children, className = '' }) {
 export default function FinalReportPage({ report, preview = false }) {
   if (!report) return null
   const language = report.sourceLanguage || 'en'
+  const conciseReport = report.presentationVersion === 'concise-report-v1'
   const legacyCopy = getReportCopy(language)
   const groupCopy = getOpinionCopy(language)
   const exclusive = report.opinionLandscape?.membershipKind === 'exclusive'
@@ -813,7 +814,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {!proposal?.groupStatement && principles.length > 0 && (
+      {!conciseReport && !proposal?.groupStatement && principles.length > 0 && (
         <StorySection
           kicker={copy.principlesKicker}
           title={copy.principlesTitle}
@@ -839,7 +840,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {!proposal?.groupStatement && actionAreas.length > 0 && (
+      {!conciseReport && !proposal?.groupStatement && actionAreas.length > 0 && (
         <StorySection
           kicker={copy.actionKicker}
           title={copy.actionTitle}
@@ -865,7 +866,7 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {overlaps.length > 0 && (
+      {!conciseReport && overlaps.length > 0 && (
         <StorySection
           kicker={copy.overlapKicker}
           title={copy.overlapTitle}

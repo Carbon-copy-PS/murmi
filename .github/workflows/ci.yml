@@ -9,25 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  frontend:
-    name: Frontend build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: node --test src/utils/transcript-text.test.mjs
-      - run: npm run build
-
   tests:
-    name: Backend and analysis tests
+    name: Report and application checks
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -53,11 +36,10 @@ jobs:
           node-version: "20"
       - name: Install Python dependencies
         run: python -m pip install -r backend/requirements.txt
-      - name: Python unit tests
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+      - name: Full report and application checks
         env:
           MURMI_TEST_POSTGRES_PORT: "5432"
-        run: python -m unittest discover -s backend/tests -t .
-      - name: Node tests
-        run: |
-          node --test backend/app/report-opinion-analysis.test.mjs
-          node --test data-analysis/polis-inspired-analysis.test.mjs
+          REPORT_PYTHON: python
+        run: scripts/check-reports.sh
