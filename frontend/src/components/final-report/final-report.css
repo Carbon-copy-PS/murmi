@@ -1613,11 +1613,41 @@
   }
 }
 
-/* Murmi product UI skin — aligned with the home page rather than editorial print. */
+/* Flat report surfaces with a scoped blue-green palette. */
+.pub-shell:has(.story-report),
+.story-report {
+  --ds-bg: #f3f8f7;
+  --ds-surface: #ffffff;
+  --ds-surface-2: #deebe8;
+  --ds-surface-3: #eaf3f1;
+  --ds-text: #183337;
+  --ds-text-muted: #476166;
+  --ds-accent: #187873;
+  --ds-on-accent: #ffffff;
+  --ds-accent-soft: #b6dcd5;
+  --ds-navy: #123b41;
+}
+
+[data-theme="dark"] .pub-shell:has(.story-report),
+[data-theme="dark"] .story-report {
+  --ds-bg: #101e22;
+  --ds-surface: #172a2e;
+  --ds-surface-2: #2a4448;
+  --ds-surface-3: #1e3438;
+  --ds-text: #e6f2f0;
+  --ds-text-muted: #adc6c5;
+  --ds-accent: #75c9bd;
+  --ds-on-accent: #102b2a;
+  --ds-accent-soft: #315e59;
+}
+
 .pub-shell:has(.story-report) {
-  background:
-    radial-gradient(ellipse 70% 24% at 10% 8%, color-mix(in srgb, var(--ds-accent-soft) 24%, transparent), transparent 62%),
-    var(--ds-surface-3);
+  background: var(--ds-bg);
+}
+
+.pub-shell:has(.story-report) :is(.pub-share, .pub-share-copy, .pub-share-native, .pub-social-btn, .pub-live, .theme-toggle) {
+  border: 0;
+  box-shadow: none;
 }
 
 .pub-shell:has(.story-report) .pub-header,
@@ -1659,7 +1689,7 @@
 .story-stale {
   margin: 0;
   padding: 0.9rem 1.1rem;
-  border: 1px solid color-mix(in srgb, #a66b18 45%, var(--ds-border));
+  border: 0;
   border-radius: 1rem;
   background: color-mix(in srgb, #a66b18 8%, var(--ds-surface));
 }
@@ -1669,17 +1699,14 @@
   overflow: hidden;
   padding: clamp(2.25rem, 6vw, 4.75rem);
   border: 0;
-  border-radius: clamp(1.5rem, 4vw, 2.6rem);
-  background:
-    radial-gradient(circle at 88% 12%, rgba(189, 189, 255, 0.34), transparent 30%),
-    radial-gradient(circle at 8% 92%, rgba(2, 0, 221, 0.28), transparent 34%),
-    #050714;
-  box-shadow: 0 28px 68px rgba(5, 7, 20, 0.2);
+  border-radius: 1.25rem;
+  background: #123b41;
+  box-shadow: none;
   color: #fff;
 }
 
 .story-opening .story-kicker {
-  color: #bdbdff;
+  color: #b6dcd5;
 }
 
 .story-opening h1 {
@@ -1707,10 +1734,10 @@
 
 .story-stats div {
   padding: 1rem 1.1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 0;
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(8px);
+
 }
 
 .story-stats dt {
@@ -1726,10 +1753,10 @@
 .story-section {
   display: block;
   padding: clamp(1.6rem, 4vw, 3rem);
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 9%, var(--ds-border));
-  border-radius: clamp(1.25rem, 3vw, 1.85rem);
+  border: 0;
+  border-radius: 1.25rem;
   background: var(--ds-surface);
-  box-shadow: 0 16px 42px color-mix(in srgb, var(--ds-navy) 7%, transparent);
+  box-shadow: none;
 }
 
 .story-section-head {
@@ -1771,7 +1798,7 @@
   min-width: 0;
   margin: 0;
   padding: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 7%, var(--ds-border));
+  border: 0;
   border-radius: 1.2rem;
   background: color-mix(in srgb, var(--ds-accent) 4%, var(--ds-surface-3));
 }
@@ -1833,7 +1860,7 @@
 }
 
 .story-action-list > li {
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 7%, var(--ds-border));
+  border: 0;
   border-radius: 1.15rem;
   background: var(--ds-surface-3);
 }
@@ -1857,7 +1884,7 @@
 
 .story-venn {
   padding: 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 7%, var(--ds-border));
+  border: 0;
   border-radius: 1.25rem;
   background: var(--ds-surface-3);
 }
@@ -1867,8 +1894,8 @@
 }
 
 .story-venn-circle.right {
-  border-color: #5e5cff;
-  background: color-mix(in srgb, #bdbdff 34%, transparent);
+  border-color: #3e8a9a;
+  background: color-mix(in srgb, #a9d7db 34%, transparent);
 }
 
 .story-overall-distribution,
@@ -1910,7 +1937,7 @@
 .story-reliability,
 .story-opinion-interpretation {
   padding: 1.2rem;
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 7%, var(--ds-border));
+  border: 0;
   border-radius: 1.2rem;
   background: var(--ds-surface-3);
 }
@@ -1966,7 +1993,7 @@
 .story-proposal-list {
   display: block;
   padding: 1.2rem 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--ds-accent) 7%, var(--ds-border));
+  border: 0;
   border-radius: 1rem;
   background: var(--ds-surface-3);
 }
@@ -2055,3 +2082,27 @@
 .story-complete-statements > li > p { font-size: .98rem; line-height: 1.6; margin: 0 0 .75rem; }
 .story-statement-number { color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
 .story-complete-statements small { display: block; margin-top: .55rem; color: var(--ds-text-muted); font-size: .78rem; }
+
+/* Use space and soft fills instead of outlines to separate report content. */
+.story-report :is(.story-methods, .story-all-statements, .story-proposal-tradeoffs,
+  .story-overall-distribution, .story-complete-statements > li, .opinion-difference) {
+  border: 0;
+  box-shadow: none;
+}
+
+.story-report .opinion-difference {
+  background: var(--ds-surface-3);
+}
+
+.story-report .story-methods {
+  padding: 1rem 1.25rem;
+  background: var(--ds-surface-3);
+}
+
+.story-report .story-coverage-section {
+  background: var(--ds-surface-3);
+}
+
+.story-report .story-coverage-section :is(.story-coverage-stats > div, .story-coverage-segments > div) {
+  background: var(--ds-surface);
+}
