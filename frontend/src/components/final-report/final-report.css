@@ -2041,3 +2041,17 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.story-report .story-all-statements { margin: 0; font-family: inherit; }
+.story-statement-patterns { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .65rem; }
+.story-statement-patterns > div { display: grid; gap: .3rem; padding: .9rem; border-radius: 12px; background: var(--ds-surface-3); }
+.story-statement-patterns strong { font-size: 1.7rem; }
+.story-statement-patterns span { font-size: .85rem; }
+.story-statement-category { margin-top: 2rem; }
+.story-statement-category > h3 { display: flex; gap: .65rem; align-items: baseline; font-size: 1.1rem; }
+.story-statement-category > h3 span { color: var(--ds-text-muted); font-size: .85rem; }
+.story-complete-statements { list-style: none; padding: 0; margin: 0; }
+.story-complete-statements > li { padding: 1.2rem 0; border-top: 1px solid var(--ds-border); scroll-margin-top: 1.5rem; }
+.story-complete-statements > li > p { font-size: .98rem; line-height: 1.6; margin: 0 0 .75rem; }
+.story-statement-number { color: var(--ds-text-muted); font-variant-numeric: tabular-nums; }
+.story-complete-statements small { display: block; margin-top: .55rem; color: var(--ds-text-muted); font-size: .78rem; }

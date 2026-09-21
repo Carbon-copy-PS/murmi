@@ -1,4 +1,5 @@
 import { getReportCopy } from './report-copy'
+import { statementPattern, statementPatternCopy, statementPatternOrder } from './statement-patterns'
 import OpinionGroups from '../opinion-groups/OpinionGroups'
 import { getOpinionCopy } from '../opinion-groups/copy'
 import './final-report.css'
@@ -44,7 +45,7 @@ function neutralRate(result) {
   return result.neutralRate ?? responseRate(result.neutral, result.responded)
 }
 
-function ResponseDistribution({ result, copy, language }) {
+function ResponseDistribution({ result, copy, language, aggregate = false, showCounts = false }) {
   const responded = result.responded ?? result.responses ?? 0
   const counts = result.counts || {}
   const hasFivePointScale = Object.prototype.hasOwnProperty.call(
@@ -67,11 +68,11 @@ function ResponseDistribution({ result, copy, language }) {
   const neutralShare = result.neutralRate ?? responseRate(result.neutral, responded)
   const opposeShare = result.opposeRate ?? responseRate(result.oppose, responded)
   const aggregateParts = [
-    { className: 'support', label: copy.support, share: supportShare },
-    { className: 'neutral', label: copy.neutral, share: neutralShare },
-    { className: 'oppose', label: copy.oppose, share: opposeShare },
+    { className: 'support', label: copy.support, share: supportShare, count: result.support },
+    { className: 'neutral', label: copy.neutral, share: neutralShare, count: result.neutral },
+    { className: 'oppose', label: copy.oppose, share: opposeShare, count: result.oppose },
   ]
-  const parts = hasFivePointScale ? fivePointParts : aggregateParts
+  const parts = hasFivePointScale && !aggregate ? fivePointParts : aggregateParts
   const label = parts.map((part) => (
     `${percent(part.share, language)} ${part.label}`
   )).join(', ')
@@ -91,10 +92,10 @@ function ResponseDistribution({ result, copy, language }) {
         {parts.map((part) => (
           <span key={part.className}>
             <i className={part.className} />
-            {part.label} {percent(part.share, language)}
+            {part.label} {showCounts ? `${part.count || 0} (${percent(part.share, language)})` : percent(part.share, language)}
           </span>
         ))}
-        <span>{responded} {copy.responses}</span>
+        {!showCounts && <span>{responded} {copy.responses}</span>}
       </div>
     </div>
   )
@@ -182,45 +183,23 @@ function CoverageOverview({ results, summary, voterCount, copy, language }) {
 
 function AllStatementsTable({ results, voterCount, copy, language }) {
   if (!results.length) return null
-  return (
-    <details className="story-all-statements">
-      <summary>{copy.allStatementsTitle(results.length)}</summary>
-      <div>
-        <p>{copy.allStatementsIntro}</p>
-        <div className="story-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>{copy.statement}</th>
-                <th>{copy.responses}</th>
-                <th>{copy.coverage}</th>
-                <th>{copy.support}</th>
-                <th>{copy.neutral}</th>
-                <th>{copy.oppose}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((result, index) => (
-                <tr key={result.id}>
-                  <td>{index + 1}</td>
-                  <td>{result.text}</td>
-                  <td>{result.responded}/{voterCount}</td>
-                  <td>{percent(result.coverageRate, language)}</td>
-                  <td>{result.support} ({percent(result.supportRate, language)})</td>
-                  <td>{result.neutral} ({percent(neutralRate(result), language)})</td>
-                  <td>{result.oppose} ({percent(
-                    result.opposeRate ?? responseRate(result.oppose, result.responded),
-                    language,
-                  )})</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </details>
-  )
+  const labels = statementPatternCopy(language)
+  const buckets = statementPatternOrder.map(key => ({ key, items: results.map((result, index) => ({ result, number: index + 1 })).filter(({ result }) => statementPattern(result) === key) }))
+  return <StorySection title={copy.allStatementsTitle(results.length)} lead={labels.intro} className="story-all-statements" >
+    <div className="story-statement-patterns">
+      {buckets.filter(({ key, items }) => key !== 'unanswered' || items.length).map(({ key, items }) => <div key={key} className={`pattern-${key}`}><strong>{items.length}</strong><span>{labels[key]}</span></div>)}
+    </div>
+    {buckets.filter(({ items }) => items.length).map(({ key, items }) => <section key={key} className="story-statement-category">
+      <h3>{labels[key]} <span>{items.length}</span></h3>
+      <ol className="story-complete-statements">
+        {items.map(({ result, number }) => <li key={result.id} id={`report-statement-${result.id}`} value={number}>
+          <p><span className="story-statement-number">{number}.</span> {result.text}</p>
+          <ResponseDistribution result={result} copy={copy} language={language} aggregate showCounts />
+          <small>{result.responded}/{voterCount} {labels.answered} · {Math.max(0, voterCount - result.responded)} {labels.missing}</small>
+        </li>)}
+      </ol>
+    </section>)}
+  </StorySection>
 }
 
 function VennFigure({ overlap, statements, copy, language }) {
@@ -688,9 +667,6 @@ export default function FinalReportPage({ report, preview = false }) {
   const fallbackTakeaways = (report.story?.takeawayStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
-  const fallbackCommonGround = (report.story?.commonGroundStatementIds || [])
-    .map((id) => statements.get(id))
-    .filter(Boolean)
   const coverageSummary = analysis.responseCoverage || {
     averageRate: meta.responseCoverageRate || 0,
     medianRate: 0,
@@ -715,16 +691,6 @@ export default function FinalReportPage({ report, preview = false }) {
   const overlaps = report.story?.overlaps || []
   const proposal = report.commonGroundProposal
   const narrative = report.narrative?.[language] || null
-  const keyStatementIds = (
-    narrative?.keyStatementIds
-    || report.story?.keyStatementIds
-    || []
-  )
-  const keyStatements = (
-    keyStatementIds.length > 0
-      ? keyStatementIds.map((id) => statements.get(id)).filter(Boolean)
-      : fallbackCommonGround
-  )
   const narrativeTakeaways = (narrative?.takeaways || []).filter(
     (item) => (item.evidenceStatementIds || []).some((id) => statements.has(id)),
   )
@@ -844,23 +810,6 @@ export default function FinalReportPage({ report, preview = false }) {
               )
             })}
           </ol>
-        </StorySection>
-      )}
-
-      {!proposal?.groupStatement && keyStatements.length > 0 && (
-        <StorySection
-          kicker={copy.commonKicker}
-          title={copy.commonTitle}
-          lead={copy.commonLead}
-        >
-          <div className="story-statement-table">
-            {keyStatements.map((result) => (
-              <div className="story-statement-row" key={result.id}>
-                <p>{result.text}</p>
-                <ResponseDistribution result={result} copy={copy} language={language} />
-              </div>
-            ))}
-          </div>
         </StorySection>
       )}
 
@@ -1003,6 +952,7 @@ export default function FinalReportPage({ report, preview = false }) {
         <StorySection
           kicker={implications.length > 0 ? copy.implicationsKicker : copy.nextKicker}
           title={implications.length > 0 ? copy.implicationsTitle : copy.nextTitle}
+          lead={copy.actionLead}
         >
           {implications.length > 0 ? (
             <ol className="story-next-list story-implications-list">

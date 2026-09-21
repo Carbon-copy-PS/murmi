@@ -41,6 +41,25 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
       const card = document.getElementById(`${id}-group-${groupId}`)
       card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest', behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'})
     }} />
+    <div className="opinion-group-cards">
+      {groups.map((group) => {
+        const refs = group.theme?.evidenceStatementIds || []
+        const limit = refs.length || 3
+        const evidence = group.statements.filter(s => s.responded > 0).sort((a,b) => Number(refs.includes(b.id))-Number(refs.includes(a.id)))
+        return <article key={group.id} id={`${id}-group-${group.id}`} tabIndex="-1" className="opinion-group-color" style={groupStyle(group.id)}>
+          <h4><strong className="opinion-group-name"><i aria-hidden="true" />{copy.group} {group.letter}</strong> <span>{group.size} {copy.people}</span></h4>
+          <div className="opinion-group-theme"><strong>{group.theme?.title || copy.themeEmerging}</strong>
+            <p>{group.theme?.description || (themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.status === 'pending' ? copy.themesPending : copy.themeEmergingNote)}</p>
+          </div>
+          <details><summary>{copy.viewEvidence}</summary>
+            <ul>{evidence.slice(0, limit).map((statement) => <VoteEvidence key={statement.id} statement={statement} copy={copy} />)}</ul>
+          </details>
+          {evidence.length > limit && <details><summary>{copy.all}</summary>
+            <ul>{evidence.slice(limit).map((statement) => <VoteEvidence key={statement.id} statement={statement} copy={copy} />)}</ul>
+          </details>}
+        </article>
+      })}
+    </div>
     <GroupDifferences groups={groups} copy={copy} language={language} />
     <div className="opinion-theme-status">
       <span>{themes?.retained ? (themes.status === 'unavailable' ? copy.themesRetainedUnavailable : copy.themesRetained) : themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
@@ -70,23 +89,6 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
         }).join(' · ')}</p></li>
       })}</ul></details>
     </aside>}
-    <div className="opinion-group-cards">
-      {groups.map((group) => {
-        const refs = group.theme?.evidenceStatementIds || []
-        const limit = refs.length || 3
-        const evidence = group.statements.filter(s => s.responded > 0).sort((a,b) => Number(refs.includes(b.id))-Number(refs.includes(a.id)))
-        return <article key={group.id} id={`${id}-group-${group.id}`} tabIndex="-1" className="opinion-group-color" style={groupStyle(group.id)}>
-          <h4><strong className="opinion-group-name"><i aria-hidden="true" />{copy.group} {group.letter}</strong> <span>{group.size} {copy.people}</span></h4>
-          <div className="opinion-group-theme"><strong>{group.theme?.title || copy.themeEmerging}</strong>
-            <p>{group.theme?.description || (themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.status === 'pending' ? copy.themesPending : copy.themeEmergingNote)}</p>
-            {group.theme && <small>{copy.supportingVotes}</small>}
-          </div>
-          <ul>{evidence.slice(0, limit).map((statement) => <VoteEvidence key={statement.id} statement={statement} copy={copy} />)}</ul>
-          {evidence.length > limit && <details><summary>{copy.all}</summary>
-            <ul>{evidence.slice(limit).map((statement) => <VoteEvidence key={statement.id} statement={statement} copy={copy} />)}</ul>
-          </details>}
-        </article>
-      })}
-    </div>
+
   </section>
 }
