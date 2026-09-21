@@ -37,8 +37,6 @@
 .story-report .opinion-status { display: flex; flex-wrap: wrap; gap: .3rem .7rem; padding: .65rem .85rem; }
 .opinion-map figcaption { font-size: .8rem; line-height: 1.5; padding: .3rem; color: var(--ds-text-muted); }
 .opinion-map figcaption p { margin: .5rem 0; }
-.opinion-map-spread-toggle { display: flex; align-items: center; gap: .5rem; min-height: 36px; cursor: pointer; margin: .5rem 0 .15rem; color: var(--ds-text); }
-.opinion-map-spread-toggle input { width: 16px; height: 16px; accent-color: var(--ds-accent); }
 .opinion-map figcaption small { display: block; line-height: 1.5; }
 .opinion-projection-check { font-size: .85rem; line-height: 1.5; margin: 1rem 0; color: var(--ds-text-muted); }
 .opinion-projection-check strong { color: var(--ds-text); }
@@ -55,7 +53,7 @@
 .opinion-group-cards summary { cursor: pointer; margin: .6rem 0; font-size: .8rem; color: var(--ds-text-muted); }
 @media (max-width: 480px) { .opinion-map { padding: 0; } .opinion-map-heading { gap: .5rem; } .opinion-map-legend { gap: .35rem; } .opinion-map-legend button { padding: .4rem .5rem; gap: .3rem; font-size: .78rem; } }
 @media (prefers-reduced-motion: reduce) { .opinion-map button { transition: none; } }
-@media print { .opinion-map { break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .opinion-map-zoom, .opinion-find-me, .opinion-map-spread-toggle { display: none; } .opinion-group-cards { display: block; } .opinion-group-cards article { margin-bottom: 1rem; } }
+@media print { .opinion-map { break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .opinion-map-zoom, .opinion-find-me { display: none; } .opinion-group-cards { display: block; } .opinion-group-cards article { margin-bottom: 1rem; } }
 .opinion-theme-label { cursor: pointer; outline: none; }
 .opinion-theme-label text { font-size: 17px; font-weight: 700; paint-order: stroke; stroke: var(--ds-surface-3); stroke-width: 5px; stroke-linejoin: round; }
 .opinion-theme-label .opinion-theme-count { font-size: 14px; font-weight: 600; }
