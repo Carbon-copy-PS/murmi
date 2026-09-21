@@ -101,6 +101,39 @@ class DraftGenerationTests(unittest.IsolatedAsyncioTestCase):
 
 
 class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_traffic_mock_preserves_divisions_and_missing_responses(self):
+        from backend.tools.preview_report import build_fixture
+        report = await build_fixture("en", "traffic")
+        self.assertEqual(report["status"], "draft_ready")
+        self.assertIsNone(report["publishedAt"])
+        self.assertEqual(report["meta"]["participantCount"], 60)
+        statements = {s["id"]: s for s in report["evidence"]["statements"]}
+        self.assertEqual(len(statements), 9)
+        for index, support, neutral, oppose, responded in [
+            (0, 60, 0, 0, 60), (1, 40, 0, 20, 60), (2, 20, 20, 20, 60),
+            (3, 20, 0, 40, 60), (4, 60, 0, 0, 60), (5, 60, 0, 0, 60),
+            (6, 0, 40, 20, 60), (7, 20, 20, 20, 60), (8, 9, 0, 0, 9),
+        ]:
+            result = statements[f"traffic-s{index}"]
+            self.assertEqual((result["support"], result["neutral"], result["oppose"], result["responded"]),
+                             (support, neutral, oppose, responded))
+        self.assertEqual(statements["traffic-s8"]["coverageRate"], .15)
+        narrative = report["narrative"]["en"]
+        self.assertEqual(len(narrative["takeaways"]), 4)
+        self.assertEqual(len(narrative["implications"]), 3)
+        self.assertEqual(len(narrative["openQuestions"]), 1)
+        self.assertEqual(len(narrative["limitations"]), 1)
+        themes = report["opinionLandscape"]["themes"]
+        self.assertEqual(themes["status"], "ready")
+        self.assertEqual(len(themes["groups"]), len(report["opinionLandscape"]["groups"]))
+        self.assertEqual({g["title"] for g in themes["groups"]}, {
+            "Extend the pedestrian zone", "A Saturday trial with limits",
+            "Better buses without road restrictions",
+        })
+        for group in themes["groups"]:
+            self.assertEqual(len(group["evidenceStatementIds"]), 3)
+            self.assertTrue(all(s in statements for s in group["evidenceStatementIds"]))
+
     async def test_english_mock_keeps_language_counts_and_evidence(self):
         from backend.tools.preview_report import build_fixture
         report = await build_fixture("en")

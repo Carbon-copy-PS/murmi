@@ -14,14 +14,21 @@ from backend.app.analysis import AnalysisService
 from backend.app.opinion_themes import OpinionThemeService
 from backend.app.reporting import build_report_snapshot, build_opinion_landscape, narrative_evidence
 from backend.tools.report_fixture import synthetic_session, synthetic_narrative, english_themes
+from backend.tools.traffic_report_fixture import traffic_session, traffic_narrative, traffic_themes
 
 
-async def build_fixture(language="zh"):
-    session = synthetic_session(language)
+async def build_fixture(language="zh", scenario="library"):
+    if scenario not in ("library", "traffic"):
+        raise ValueError("Unknown preview scenario")
+    if scenario == "traffic" and language != "en":
+        raise ValueError("The traffic fixture is English-only")
+    session = traffic_session() if scenario == "traffic" else synthetic_session(language)
     report = build_report_snapshot(session, version=1)
     landscape = await build_opinion_landscape(session)
 
     async def fixed_themes(evidence, language):
+        if scenario == "traffic":
+            return traffic_themes(evidence)
         if language == "en":
             return english_themes(evidence)
         return {"groups": [{"groupId": g["groupId"], "title": f"方案回應模式 {g['groupId'] + 1}",
@@ -35,19 +42,25 @@ async def build_fixture(language="zh"):
     finally:
         await themes.close()
     with patch.dict(os.environ, {"OPENAI_API_KEY": ""}):
-        report["narrative"] = {language: AnalysisService()._normalize_report_narrative(synthetic_narrative(language), narrative_evidence(report))}
+        raw_narrative = traffic_narrative() if scenario == "traffic" else synthetic_narrative(language)
+        report["narrative"] = {language: AnalysisService()._normalize_report_narrative(raw_narrative, narrative_evidence(report))}
     return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--language', choices=['zh', 'en'], default='zh')
+    parser.add_argument('--scenario', choices=['library', 'traffic'], default='library')
     parser.add_argument('--port', type=int, default=8780)
     parser.add_argument('--write-only', action='store_true', help='Generate the fixture without starting a server')
     parser.add_argument('--output', help='Defaults to a separate preview file for each language')
     args = parser.parse_args()
-    report = asyncio.run(build_fixture(args.language))
+    if args.scenario == 'traffic' and args.language != 'en':
+        parser.error('--scenario traffic requires --language en')
+    report = asyncio.run(build_fixture(args.language, args.scenario))
     default_output = "outputs/local-report-preview-en.json" if args.language == "en" else "outputs/local-report-preview.json"
+    if args.scenario == 'traffic':
+        default_output = 'outputs/local-report-preview-traffic.json'
     dest = Path(args.output or default_output)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')

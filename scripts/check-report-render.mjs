@@ -17,6 +17,7 @@ const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 for (const group of report.opinionLandscape.groups || []) group.density = null
 const extra = { title: 'SHOULD_NOT_RENDER', explanation: 'Removed section', evidenceStatementIds: ['fixture-s0'] }
 const language = report.sourceLanguage
+const isTraffic = report.evidence.statements.some(s => s.id === 'traffic-s8')
 report.narrative[language].principles = [extra]
 report.narrative[language].actionAreas = [extra]
 let html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
@@ -28,11 +29,23 @@ assert.ok(!html.includes('story-overlap-section'))
 assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods'))
 const profilesIndex = html.indexOf('opinion-group-cards')
 const comparisonIndex = html.indexOf('data-testid="group-differences"')
-assert.ok(profilesIndex >= 0 && comparisonIndex > profilesIndex)
+assert.ok(profilesIndex >= 0)
+if (isTraffic) {
+  // Tiny coverage-split groups fail the comparison's minimum response gate.
+  assert.equal(comparisonIndex, -1)
+} else {
+  assert.ok(comparisonIndex > profilesIndex)
+}
 if (language === 'en') {
   for (const label of ['Majority support', 'Majority opposition', 'Neutral most common', 'No clear majority']) assert.ok(html.includes(label))
-  assert.ok(html.includes('Pilot new library services while preserving access to staff'))
-  assert.ok(html.includes('96 unanswered'))
+  if (isTraffic) {
+    assert.ok(html.includes('A Saturday trial has support; permanent restrictions remain open'))
+    assert.ok(html.includes('51 unanswered'))
+    for (const title of ['Extend the pedestrian zone', 'A Saturday trial with limits', 'Better buses without road restrictions']) assert.ok(html.includes(title))
+  } else {
+    assert.ok(html.includes('Pilot new library services while preserving access to staff'))
+    assert.ok(html.includes('96 unanswered'))
+  }
   assert.ok(html.includes('Key findings') && html.includes('Next steps'))
   assert.ok(!html.includes('Three findings') && !html.includes('a more even division'))
   assert.ok(!/[\u3400-\u9fff]/u.test(html), 'English report must not contain Chinese copy')

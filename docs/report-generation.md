@@ -94,6 +94,29 @@ by the fixture votes and cite their supporting statements; neither calls a live 
 Open `http://127.0.0.1:8781/r/local-preview`. Both language fixtures run in the check
 script, including a check that the English report contains no Chinese copy.
 
+A second English fixture covers a town-centre pedestrian-zone discussion with 60
+synthetic voters and nine statements. Three contrasting voting patterns share access
+priorities but differ on a Saturday trial, permanence and weekday restrictions.
+It also tests neutral responses and a proposal with only 15% coverage. Like the
+library fixture, its prose is handwritten; it does not validate live AI generation.
+
+```sh
+.venv/bin/python -m backend.tools.preview_report --language en --scenario traffic --port 8782
+```
+
+Open `http://127.0.0.1:8782/r/local-preview`. This fixture is also included in the
+automated numerical and rendering checks, with its own output file.
+
+Review finding from this fixture: the current clustering splits the three ballot
+patterns into six groups, separating respondents to the low-coverage events question
+from nonrespondents. The mock profile descriptions therefore repeat. The automated
+checks verify complete profiles and correct counts, not that six is a meaningful
+group count. A control with all 60 people supporting the events question produces
+three groups of 20. With partial responses, the three groups of only three people
+also cause the comparison section to be omitted by its minimum-response gate.
+Investigate this coverage sensitivity before treating the grouping as
+release-ready; do not merge groups or rewrite the evidence just to hide the result.
+
 `REPORT_PYTHON` can select another Python executable. The check script clears service
 credentials before tests. Database persistence tests require a disposable PostgreSQL
 instance (`MURMI_TEST_POSTGRES_PORT`); otherwise they are explicitly skipped. CI runs

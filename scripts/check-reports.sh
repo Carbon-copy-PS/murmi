@@ -13,5 +13,7 @@ node --test frontend/src/utils/transcript-text.test.mjs frontend/src/components/
 node scripts/check-report-render.mjs
 "$REPORT_PYTHON" -m backend.tools.preview_report --language en --write-only
 node scripts/check-report-render.mjs outputs/local-report-preview-en.json
+"$REPORT_PYTHON" -m backend.tools.preview_report --language en --scenario traffic --write-only
+node scripts/check-report-render.mjs outputs/local-report-preview-traffic.json
 node frontend/node_modules/vite/bin/vite.js build frontend
 git diff --check
