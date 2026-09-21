@@ -31,8 +31,6 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
     : undefined)
   const provisional = landscape.status === 'provisional'
   const check = landscape.projectionCheck
-  const variance = Math.min(1, (landscape.explainedVariance || []).reduce((sum, value) => sum + value, 0))
-  const percent = new Intl.NumberFormat(language, { style: 'percent', maximumFractionDigits: 0 }).format(variance)
   return <section className="opinion-groups" data-testid="shared-opinion-groups" data-source-hash={landscape.sourceHash}>
     <p className={`opinion-status ${provisional ? 'provisional' : ''}`}>
       <strong>{provisional ? copy.provisional : copy.supported}</strong>
@@ -51,9 +49,9 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
     <details className="opinion-analysis-notes">
       <summary>{copy.analysisNotes}</summary>
       <div className="opinion-projection-check">
-        <p>{copy.variance}: <strong>{percent}</strong></p>
+        <p>{copy.lead}</p>
         {check && <p>{check.dimensionsCompared > 2
-          ? `${check.changed ? copy.changed : copy.unchanged} ${copy.dimensions}: 2 → ${check.dimensionsCompared}.`
+          ? (check.changed ? copy.changed : copy.unchanged)
           : copy.twoOnly}</p>}
       </div>
       <p className="opinion-projection-check">{copy.countNote}</p>

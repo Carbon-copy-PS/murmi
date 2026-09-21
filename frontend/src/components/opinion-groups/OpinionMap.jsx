@@ -108,12 +108,5 @@ export default function OpinionMap({ groups, points, copy, onSelectGroup }) {
         <span>{copy.group} {groupLabel(active.cluster)}{Number.isFinite(active.answered) && <> · {active.answered} {copy.responses}</>}</span>
         {active.overlapping > 1 && <span>{copy.samePosition}: {active.overlapping}</span>}</>}
     </div>}
-    <figcaption>
-      <details className="opinion-map-notes">
-        <summary>{copy.mapNotes}</summary>
-        <p>{copy.cloudNote}</p>
-        {points && <small>{copy.offsetNote}</small>}
-      </details>
-    </figcaption>
   </figure>
 }

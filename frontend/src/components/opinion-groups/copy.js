@@ -29,7 +29,7 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
-  mapNotes: '圖表說明', analysisNotes: '分組與計算方式',
+  mapNotes: '圖表說明', analysisNotes: '這些組別代表什麼？',
   overflowNote: '顏色可能重複；點選組別可凸顯其圓點。',
   themesRetained: '主題更新中，先保留上一版 AI 摘要。投票數已更新。',
   themesRetainedUnavailable: '主題暫時無法更新，先保留上一版 AI 摘要。投票數已更新。',
@@ -46,13 +46,13 @@ const zh = {
   title: '意見分組', group: '組別', you: '你', people: '人',
   provisional: '初步分組', supported: '較穩定的分組',
   provisionalNote: '分組尚不穩定，可能隨投票改變。',
-  lead: '依投票相似度分組，不代表固定立場。',
+  lead: '系統把投票答案相近的人分在同一組，不代表固定立場。',
   map: '圓點代表參與者，字母代表組別中心。位置概括投票的相似程度。',
   publicMap: '字母代表組別中心。這份舊版報告未儲存個別圓點的位置。',
   support: '支持', neutral: '中立', oppose: '反對', missing: '未作答', responses: '份回覆', all: '查看這組對所有陳述的投票',
   variance: '圖中呈現的投票差異',
-  changed: '更多維度會改變分組；圖中省略了部分差異。',
-  unchanged: '納入更多維度後，分組大致相同。', twoOnly: '這些資料沒有額外維度可供比較。', dimensions: '比較的維度數',
+  changed: '納入更多投票差異後，有些人的組別會改變，因此分組僅供參考。',
+  unchanged: '納入更多投票差異後，分組仍大致相同。', twoOnly: '目前沒有更多投票差異可供比較。', dimensions: '比較的維度數',
   retry: '暫時無法計算意見分組，請重新整理結果再試一次。',
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
@@ -144,7 +144,7 @@ export function getOpinionCopy(language = 'en') {
   const code = language.split('-')[0]
   const countNote = {
     en: 'Support counts agree and strongly agree out of everyone who answered the statement. Unanswered statements are counted separately.',
-    zh: '支持＝同意＋強烈同意；分母為該題回應人數，未作答另計。',
+    zh: '「9/11 支持」表示回答該題的 11 人中，有 9 人同意或強烈同意；未作答的人另計。',
     de: 'Zustimmung umfasst Zustimmung und starke Zustimmung unter allen Antworten auf die Aussage. Fehlende Antworten werden separat gezählt.',
     fr: 'Le soutien regroupe accord et fort accord parmi les personnes ayant répondu à la proposition. Les absences de réponse sont comptées séparément.',
     it: 'Il sostegno comprende accordo e forte accordo tra chi ha risposto all’affermazione. Le risposte mancanti sono conteggiate separatamente.',
