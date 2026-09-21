@@ -1616,7 +1616,9 @@
 /* Flat report surfaces with a scoped blue-green palette. */
 .pub-shell:has(.story-report),
 .story-report {
-  --ds-bg: #f3f8f7;
+  --ds-bg: #f8f7f3;
+  --story-warm-surface: #f5e4da;
+  --story-warm-ink: #94523e;
   --ds-surface: #ffffff;
   --ds-surface-2: #deebe8;
   --ds-surface-3: #eaf3f1;
@@ -1631,6 +1633,8 @@
 [data-theme="dark"] .pub-shell:has(.story-report),
 [data-theme="dark"] .story-report {
   --ds-bg: #101e22;
+  --story-warm-surface: #47332d;
+  --story-warm-ink: #efbaa3;
   --ds-surface: #172a2e;
   --ds-surface-2: #2a4448;
   --ds-surface-3: #1e3438;
@@ -2105,4 +2109,27 @@
 
 .story-report .story-coverage-section :is(.story-coverage-stats > div, .story-coverage-segments > div) {
   background: var(--ds-surface);
+}
+
+/* Light clay accents balance teal without changing vote or group colours. */
+.story-report .story-number {
+  background: var(--story-warm-surface);
+  color: var(--story-warm-ink);
+}
+
+.story-report :is(.story-next-list, .story-implications-list) > li {
+  background: var(--story-warm-surface);
+}
+
+.story-report .story-stats > div:nth-child(2) {
+  background: #f5e4da;
+}
+
+.story-report .story-stats > div:nth-child(2) :is(dt, dd) {
+  color: #78412f;
+}
+
+@media (max-width: 480px) {
+  .story-report .story-stats > div { min-width: 0; padding: .8rem .6rem; }
+  .story-report .story-stats dd { font-size: .72rem; overflow-wrap: anywhere; }
 }
