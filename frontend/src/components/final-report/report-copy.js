@@ -1,6 +1,7 @@
 const COPY = {
   en: {
     finalReport: 'Final report',
+    reportSummary: 'Discussion summary',
     version: 'Version',
     stale: 'Voting reopened after this report was published. The findings below reflect the earlier finalised snapshot.',
     openingTitle: 'What the room found',
@@ -225,6 +226,7 @@ const COPY = {
   },
   zh: {
     finalReport: '成果報告',
+    reportSummary: '討論摘要',
     version: '版本',
     stale: '本報告發布後，投票已重新開放。以下內容反映的是先前定稿時的資料。',
     openingTitle: '討論結果',
@@ -452,6 +454,7 @@ const COPY = {
 COPY.de = {
   ...COPY.en,
   finalReport: 'Abschlussbericht',
+    reportSummary: 'Zusammenfassung der Diskussion',
   version: 'Version',
   stale: 'Die Abstimmung wurde nach Veröffentlichung dieses Berichts wieder geöffnet. Die Ergebnisse beziehen sich auf den früheren Datenstand.',
   openingTitle: 'Was die Gruppe herausgefunden hat',
@@ -678,6 +681,7 @@ COPY.de = {
 COPY.fr = {
   ...COPY.en,
   finalReport: 'Rapport final',
+    reportSummary: 'Synthèse de la discussion',
   stale: 'Le vote a été rouvert après la publication de ce rapport. Les résultats ci-dessous correspondent à la version finalisée précédente.',
   openingTitle: 'Ce que le groupe a fait ressortir',
   intro: ({ voterCount, statementCount, responseCount }) =>
@@ -903,6 +907,7 @@ COPY.fr = {
 COPY.it = {
   ...COPY.en,
   finalReport: 'Rapporto finale',
+    reportSummary: 'Sintesi della discussione',
   stale: 'La votazione è stata riaperta dopo la pubblicazione del rapporto. I risultati riflettono la precedente istantanea finalizzata.',
   openingTitle: 'Che cosa è emerso dal gruppo',
   intro: ({ voterCount, statementCount, responseCount }) =>
