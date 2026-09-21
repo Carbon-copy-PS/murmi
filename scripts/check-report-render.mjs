@@ -41,6 +41,12 @@ if (language === 'en') {
 }
 assert.ok(!html.includes('攤開重疊的圓點') && !html.includes('顯示組別主題'))
 assert.ok(!html.includes('Show group themes') && !html.includes('Spread overlapping dots'))
+assert.ok(!html.includes('opinion-map-legend') && !html.includes('opinion-map-detail'))
+const dotTags = html.match(/<g class="opinion-dot"[^>]*>/g) || []
+assert.equal(dotTags.length, report.opinionLandscape.groups.reduce((n, group) => n + group.dots.length, 0))
+assert.ok(dotTags.every(tag => !tag.includes('role="button"') && !tag.includes('tabindex') && tag.includes('aria-hidden="true"')))
+assert.ok(!html.includes('Participant 1') && !html.includes('Select a dot'))
+assert.equal((html.match(/class="opinion-theme-label opinion-group-color"/g) || []).length, report.opinionLandscape.groups.length)
 // Missing AI output must still leave a complete, readable report.
 delete report.narrative
 html = renderToStaticMarkup(<FinalReportPage report={report} preview />)

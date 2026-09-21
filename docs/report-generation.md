@@ -24,7 +24,9 @@ The current format contains:
 
 - An overview and up to four distinct findings. Shared principles and useful paired
   comparisons belong in findings, not separate sections.
-- An opinion map with visible themes and spread dots. Visible group profiles precede
+- An opinion map with visible themes and spread dots. Individual dots are not selectable;
+  group labels in the map open profiles, without a duplicate row of group controls.
+  Visible group profiles precede
   the strongest adequately answered group comparisons. Profiles describe actual
   support, reservations, or opposition; they do not label people's identities.
 - Response coverage, retained as a full section.
