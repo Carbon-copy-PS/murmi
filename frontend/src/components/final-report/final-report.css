@@ -1673,13 +1673,13 @@
   padding: clamp(2.25rem, 6vw, 4.75rem);
   border: 0;
   border-radius: 1.25rem;
-  background: var(--ds-navy);
+  background: #181a1e;
   box-shadow: none;
   color: #fff;
 }
 
 .story-opening .story-kicker {
-  color: var(--ds-accent-soft);
+  color: rgba(255, 255, 255, .76);
 }
 
 .story-opening h1 {
@@ -1773,7 +1773,7 @@
   padding: 1.25rem;
   border: 0;
   border-radius: 1.2rem;
-  background: color-mix(in srgb, var(--ds-accent) 4%, var(--ds-surface-3));
+  background: var(--ds-surface-3);
 }
 
 .story-report .story-number {
@@ -1784,7 +1784,7 @@
   justify-content: center;
   margin-bottom: 1rem;
   border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--ds-accent-soft) 42%, var(--ds-surface));
+  background: var(--ds-surface-2);
   color: var(--ds-accent);
   font-weight: 700;
 }
@@ -1799,7 +1799,7 @@
   padding: 0.8rem 0.9rem;
   border: 0;
   border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--ds-accent) 4%, var(--ds-surface));
+  background: var(--ds-surface);
 }
 
 .story-evidence-track {
@@ -1916,9 +1916,7 @@
 }
 
 .story-proposal-section {
-  background:
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--ds-accent-soft) 30%, transparent), transparent 35%),
-    var(--ds-surface);
+  background: var(--ds-surface);
 }
 
 .story-proposal-metrics {
@@ -1942,14 +1940,14 @@
 }
 
 .story-proposal-bar.is-agreement {
-  background: color-mix(in srgb, var(--ds-accent-soft) 54%, var(--ds-surface-2));
+  background: var(--ds-surface-2);
 }
 
 .story-proposal-section blockquote {
   padding: 1.35rem 1.45rem;
   border: 0;
   border-radius: 1.2rem;
-  background: color-mix(in srgb, var(--ds-accent) 5%, var(--ds-surface-3));
+  background: var(--ds-surface-3);
   color: var(--ds-text);
   font-family: 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
   font-size: clamp(1.05rem, 1.8vw, 1.3rem);
@@ -2083,4 +2081,11 @@
 @media (max-width: 480px) {
   .story-report .story-stats > div { min-width: 0; padding: .8rem .6rem; }
   .story-report .story-stats dd { font-size: .72rem; overflow-wrap: anywhere; }
+}
+
+/* Keep report surfaces neutral, including the accent used in dark mode. */
+[data-theme="dark"] .pub-shell:has(.story-report),
+[data-theme="dark"] .story-report {
+  --ds-accent: #8db9ef;
+  --ds-accent-soft: #34475d;
 }
