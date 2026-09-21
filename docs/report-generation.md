@@ -84,8 +84,8 @@ component. `--write-only` writes the fixture without starting a server.
 
 An English public-library discussion exercises majority support, opposition, neutral
 responses, mixed votes, and low coverage. It includes 120 synthetic voters and seven
-statements. Its narrative is handwritten and group descriptions use fixture vote
-counts; neither calls a live model. Run it separately from the Chinese preview:
+statements. Its narrative and descriptive group profiles are handwritten; profiles are selected
+by the fixture votes and cite their supporting statements; neither calls a live model. Run it separately from the Chinese preview:
 
 ```sh
 .venv/bin/python -m backend.tools.preview_report --language en --port 8781

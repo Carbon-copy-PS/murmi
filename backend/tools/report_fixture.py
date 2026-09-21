@@ -84,24 +84,41 @@ def english_narrative():
 
 
 def english_themes(evidence):
-    """Deterministic mock prose from actual group counts; never a model call."""
-    topics = ["Clear instructions", "A small pilot", "Online-only booking", "Deciding fees now",
-              "Removing staffed desks", "A compulsory skills test", "Longer weekend hours"]
+    """Handwritten mock profiles selected by evidence, not group letters or IDs."""
+    profiles = [
+        ([(1, "oppose"), (2, "support"), (4, "oppose")],
+         "Online booking, no pilot",
+         "These respondents support online-only booking but oppose the proposed pilot. They also oppose removing staffed desks: digital booking does not mean dropping staff support."),
+        ([(2, "support"), (5, "oppose"), (1, "support")],
+         "Online booking without tests",
+         "They support online-only booking and a small pilot, but oppose making a digital-skills test a condition of using the library."),
+        ([(2, "support"), (1, "support"), (4, "oppose")],
+         "Online booking with staffed help",
+         "They support a small pilot and online-only booking, while opposing removal of staffed desks. Booking rules and access to staff are separate choices in this group’s votes."),
+        ([(2, "oppose"), (4, "oppose"), (1, "support")],
+         "Keep offline booking options",
+         "They oppose online-only booking and removing staffed desks, while supporting a pilot. There is room to test changes without making online booking compulsory."),
+        ([(2, "support"), (4, "support"), (5, "support")],
+         "Digital booking with entry requirements",
+         "They support online-only booking, a compulsory skills test and removing staffed desks. This differs from groups that want to retain staffed help."),
+        ([(4, "support"), (2, "oppose"), (5, "support")],
+         "Remove desks, retain booking options",
+         "They support removing staffed desks and requiring a skills test, but oppose online-only booking. Those votes leave the alternative booking arrangements unresolved."),
+        ([(2, "oppose"), (5, "support"), (1, "support")],
+         "Skills test, flexible booking",
+         "They support a digital-skills test and a small pilot, but oppose online-only booking. Requiring a test and requiring online booking draw different responses here."),
+    ]
     groups = []
     for group in evidence["groups"]:
-        statements = group["statements"][:2]
-        if len(statements) < 2:
-            continue
-        clauses = []
-        for statement in statements:
-            topic = topics[int(statement["id"].removeprefix("fixture-s"))]
-            supports = statement["support"] > statement["oppose"]
-            verb = "support" if supports else "oppose"
-            count = statement["support"] if supports else statement["oppose"]
-            clauses.append(f"{count}/{statement['responded']} {verb} {topic.lower()}.")
-        first = statements[0]
-        title = ("Back " if first["support"] > first["oppose"] else "Oppose ") + topics[int(first["id"].removeprefix("fixture-s"))].lower()
-        groups.append({"groupId": group["groupId"], "title": title,
-                       "description": " ".join(clauses),
-                       "evidenceStatementIds": [s["id"] for s in statements]})
+        statements = {s["id"]: s for s in group["statements"]}
+        for required, title, description in profiles:
+            if all(
+                (statement := statements.get(f"fixture-s{index}"))
+                and statement[direction] > statement["responded"] / 2
+                for index, direction in required
+            ):
+                groups.append({"groupId": group["groupId"], "title": title,
+                               "description": description,
+                               "evidenceStatementIds": [f"fixture-s{index}" for index, _ in required]})
+                break
     return {"groups": groups, "shared": None}

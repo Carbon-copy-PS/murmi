@@ -128,6 +128,6 @@ class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(themes["status"], "ready")
         self.assertEqual(len(themes["groups"]), len(report["opinionLandscape"]["groups"]))
         for group in themes["groups"]:
-            self.assertEqual(len(group["evidenceStatementIds"]), 2)
-            self.assertTrue(group["title"].startswith(("Back ", "Oppose ")))
+            self.assertEqual(len(group["evidenceStatementIds"]), 3)
+            self.assertNotRegex(group["description"], r"\d+/\d+")
             self.assertNotIn("方案", group["description"])

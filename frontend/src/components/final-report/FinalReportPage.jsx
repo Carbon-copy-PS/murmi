@@ -743,7 +743,6 @@ export default function FinalReportPage({ report, preview = false }) {
       {report.status === 'stale' && <p className="story-stale">{copy.stale}</p>}
 
       <section className="story-opening">
-        <p className="story-report-label">{copy.reportSummary}</p>
         <h1>{narrative?.headline || copy.openingTitle}</h1>
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
         <ReportStats meta={meta} copy={copy} />

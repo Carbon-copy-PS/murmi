@@ -694,7 +694,13 @@ For each group with sufficient evidence, write a neutral 2–5 word topic/positi
 (at most 48 characters), one or two short sentences (at most 180 characters), and 2–4 distinct
 supporting evidenceStatementIds drawn only from that group's supplied statements.
 Explain both what this group supports and where it differs from other groups, when the
-evidence supports a contrast. Use human descriptions of responses, not vague topic labels.
+evidence supports a contrast. Explain the combination in plain language: what these
+respondents support together, what they oppose, and what remains unresolved. Do not
+just list vote tallies or repeat statement titles; the application shows those below.
+Use a short descriptive title that captures the combination, followed by one or two
+connected sentences. Describe a contrast only when outsideGroup evidence supports it.
+When the pattern is ambiguous, say what remains unclear instead of inventing a shared
+motivation. Preserve distinctions such as online booking versus removing staffed help.
 Every substantive clause in the description must be supported by those exact 2–4 cited
 statements, not uncited statements elsewhere in the input. Before returning, remove any
 clause that your chosen citations do not support. Never prefix titles with filler

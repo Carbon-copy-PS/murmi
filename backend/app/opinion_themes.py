@@ -8,7 +8,7 @@ import hashlib
 import json
 import time
 
-THEME_VERSION = "opinion-themes-v2"
+THEME_VERSION = "opinion-themes-v3"
 
 
 def theme_evidence(landscape, topic=None):

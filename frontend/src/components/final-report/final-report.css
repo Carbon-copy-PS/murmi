@@ -2133,16 +2133,3 @@
   .story-report .story-stats > div { min-width: 0; padding: .8rem .6rem; }
   .story-report .story-stats dd { font-size: .72rem; overflow-wrap: anywhere; }
 }
-
-.story-report .story-report-label {
-  display: inline-block;
-  margin: 0 0 1.25rem;
-  padding: .5rem .8rem;
-  border-radius: .5rem;
-  background: #f5e4da;
-  color: #78412f;
-  font-size: .9rem;
-  font-weight: 700;
-  line-height: 1.4;
-  letter-spacing: .025em;
-}
