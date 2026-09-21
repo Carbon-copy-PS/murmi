@@ -2035,3 +2035,9 @@
   }
 
 }
+
+@media (min-width: 761px) {
+  .story-report .story-takeaways:has(> li:nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
