@@ -3,6 +3,7 @@ import { useId } from 'react'
 import { getOpinionCopy } from './copy'
 import './opinion-groups.css'
 import OpinionMap from './OpinionMap'
+import GroupDifferences from './GroupDifferences'
 import { groupStyle } from './group-colors'
 
 function VoteEvidence({ statement, copy }) {
@@ -40,6 +41,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
       const card = document.getElementById(`${id}-group-${groupId}`)
       card?.focus({preventScroll:true});card?.scrollIntoView({block:'nearest', behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'})
     }} />
+    <GroupDifferences groups={groups} copy={copy} language={language} />
     <div className="opinion-theme-status">
       <span>{themes?.retained ? (themes.status === 'unavailable' ? copy.themesRetainedUnavailable : copy.themesRetained) : themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
         {themes?.generatedAt && <> · {copy.updated} {new Intl.DateTimeFormat(language, {hour:'2-digit',minute:'2-digit'}).format(new Date(themes.generatedAt * 1000))}</>}
@@ -55,6 +57,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
           : copy.twoOnly}</p>}
       </div>
       <p className="opinion-projection-check">{copy.countNote}</p>
+      <p className="opinion-projection-check">{copy.differencesMethod}</p>
     </details>
     {themes?.shared && <aside className="opinion-shared-theme">
       <strong>{copy.sharedAcrossGroups} · {themes.shared.title}</strong>

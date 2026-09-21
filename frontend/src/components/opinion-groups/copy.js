@@ -1,4 +1,8 @@
 const en = {
+  differencesTitle: 'Where do the groups differ?',
+  differencesLead: 'The largest gaps in support. Groups are based on all votes, not just these statements.',
+  differenceGap: n => `${n} percentage-point support gap`,
+  differencesMethod: 'Comparisons require at least half of each group and at least five people per group to answer. We show up to two statements with the largest support gaps of 20 percentage points or more.',
   mapNotes: 'How to read the map', analysisNotes: 'Analysis details',
   overflowNote: 'With many groups, colours repeat. Select a group below to highlight its dots and topic. All group explanations remain below the map.',
   themesRetained: 'Showing previous AI themes while they update. Vote counts are current.',
@@ -29,6 +33,10 @@ const en = {
   method: 'Both views use the same PCA and seeded k-means calculation. Groups appear from three voters and two statements, including anyone with at least one response. Missing answers stay separate from neutral; agreement strength is retained in the vote counts but combined for mapping. Reliability checks label early patterns without hiding them.',
 }
 const zh = {
+  differencesTitle: '組別差在哪裡？',
+  differencesLead: '作答較充分的題目中，以下主張的支持比例差距最大。分組依整體投票形成。',
+  differenceGap: n => `支持比例相差 ${n} 個百分點`,
+  differencesMethod: '僅比較各組至少半數且不少於 5 人作答的題目，列出支持比例相差至少 20 個百分點的前兩題。',
   mapNotes: '圖表說明', analysisNotes: '這些組別代表什麼？',
   overflowNote: '顏色可能重複；點選組別可凸顯其圓點。',
   themesRetained: '主題更新中，先保留上一版 AI 摘要。投票數已更新。',
@@ -57,6 +65,10 @@ const zh = {
   method: '即時結果和報告使用相同的 PCA 與固定種子的 k-means 計算。三人投票、兩項陳述即可顯示分組，至少回答一題的人都會納入。未作答與中立分開處理；圖中合併同意程度，實際票數仍保留強烈同意與同意的差別。可靠度檢查會標示初步模式，不會把它隱藏。',
 }
 const de = {
+  differencesTitle: 'Worin unterscheiden sich die Gruppen?',
+  differencesLead: 'Die größten Unterschiede in der Zustimmung. Die Gruppen beruhen auf allen Stimmen, nicht nur auf diesen Aussagen.',
+  differenceGap: n => `${n} Prozentpunkte Unterschied`,
+  differencesMethod: 'Mindestens die Hälfte jeder Gruppe und mindestens fünf Personen pro Gruppe müssen geantwortet haben. Gezeigt werden höchstens zwei Aussagen mit den größten Zustimmungsunterschieden ab 20 Prozentpunkten.',
   mapNotes: 'Karte lesen', analysisNotes: 'Details zur Analyse',
   overflowNote: 'Bei vielen Gruppen wiederholen sich die Farben. Wähle unten eine Gruppe, um ihre Punkte und ihr Thema hervorzuheben. Alle Gruppenerklärungen bleiben unter der Karte sichtbar.',
   themesRetained: 'Während der Aktualisierung bleiben die bisherigen KI-Themen sichtbar. Die Stimmenzahlen sind aktuell.',
@@ -85,6 +97,10 @@ const de = {
   method: 'Beide Ansichten verwenden dieselbe PCA und k-means-Berechnung mit festem Startwert. Gruppen erscheinen ab drei Abstimmenden und zwei Aussagen; eine Antwort genügt zur Aufnahme. Fehlende und neutrale Antworten bleiben getrennt. Zustimmungsstärken werden für die Karte zusammengefasst, in den Stimmenzahlen aber erhalten. Zuverlässigkeitsprüfungen kennzeichnen frühe Muster, ohne sie auszublenden.',
 }
 const fr = {
+  differencesTitle: 'Sur quoi les groupes diffèrent-ils ?',
+  differencesLead: 'Les plus grands écarts de soutien. Les groupes reposent sur tous les votes, pas seulement sur ces propositions.',
+  differenceGap: n => `${n} points de pourcentage d’écart`,
+  differencesMethod: 'Chaque groupe doit compter au moins cinq réponses et la moitié de ses membres doit avoir répondu. Nous affichons au plus deux propositions avec les plus grands écarts de soutien, à partir de 20 points.',
   mapNotes: 'Lire la carte', analysisNotes: 'Détails de l’analyse',
   overflowNote: 'Avec de nombreux groupes, les couleurs se répètent. Sélectionnez un groupe ci-dessous pour mettre en évidence ses points et son thème. Toutes les explications restent sous la carte.',
   themesRetained: 'Les thèmes précédents générés par IA restent visibles pendant la mise à jour. Les votes sont à jour.',
@@ -113,6 +129,10 @@ const fr = {
   method: 'Les deux vues partagent la même ACP et le même calcul k-means déterministe. Les groupes apparaissent dès trois votants et deux propositions, avec au moins une réponse par personne. Les réponses manquantes restent distinctes des réponses neutres. L’intensité est regroupée sur la carte, mais conservée dans les décomptes. Les contrôles signalent les tendances provisoires sans les masquer.',
 }
 const it = {
+  differencesTitle: 'Dove differiscono i gruppi?',
+  differencesLead: 'Le maggiori differenze nel sostegno. I gruppi si basano su tutti i voti, non solo su queste affermazioni.',
+  differenceGap: n => `${n} punti percentuali di differenza`,
+  differencesMethod: 'Deve aver risposto almeno metà di ogni gruppo, con almeno cinque risposte per gruppo. Mostriamo fino a due affermazioni con le maggiori differenze di sostegno, da 20 punti percentuali in su.',
   mapNotes: 'Come leggere la mappa', analysisNotes: 'Dettagli dell’analisi',
   overflowNote: 'Con molti gruppi, i colori si ripetono. Seleziona un gruppo qui sotto per evidenziarne i punti e il tema. Tutte le spiegazioni restano sotto la mappa.',
   themesRetained: 'Durante l’aggiornamento restano visibili i temi precedenti generati dall’IA. I conteggi dei voti sono aggiornati.',
