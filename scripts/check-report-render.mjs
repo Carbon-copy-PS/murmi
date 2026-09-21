@@ -25,7 +25,7 @@ assert.ok(html.includes('story-section story-all-statements'))
 assert.ok(!html.includes('<details class="story-all-statements"'))
 assert.ok(!html.includes('SHOULD_NOT_RENDER'))
 assert.ok(!html.includes('story-overlap-section'))
-assert.ok(html.includes('story-coverage-section'))
+assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods'))
 const profilesIndex = html.indexOf('opinion-group-cards')
 const comparisonIndex = html.indexOf('data-testid="group-differences"')
 assert.ok(profilesIndex >= 0 && comparisonIndex > profilesIndex)
@@ -51,7 +51,7 @@ assert.equal((html.match(/class="opinion-theme-label opinion-group-color"/g) || 
 delete report.narrative
 html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
 assert.equal((html.match(/id="report-statement-/g) || []).length, report.evidence.statements.length)
-assert.ok(html.includes('story-coverage-section'))
+assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods'))
 assert.ok(!html.includes('story-overlap-section'))
 console.log('Report render checks passed (' + language + '): complete statements, concise sections, profiles, coverage, and AI fallback.')
 `

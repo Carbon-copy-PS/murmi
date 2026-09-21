@@ -29,10 +29,11 @@ The current format contains:
   Visible group profiles precede
   the strongest adequately answered group comparisons. Profiles describe actual
   support, reservations, or opposition; they do not label people's identities.
-- Response coverage, retained as a full section.
+- Response coverage, retained as a full section at the very bottom, after statements
+  and methodology, to separate participation context from findings.
 - Unresolved questions that explain what still needs clarification.
 - Up to three concrete next steps, combining action areas and implications.
-- Every statement, visible at the bottom, with support, neutral, disagreement, and
+- Every statement, visible below next steps, with support, neutral, disagreement, and
   unanswered counts. More than half of respondents is a majority; a neutral
   plurality is not automatically uncertainty. Missing is never a neutral vote.
 - Expandable methodology and limitations.

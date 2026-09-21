@@ -887,31 +887,6 @@ export default function FinalReportPage({ report, preview = false }) {
         </StorySection>
       )}
 
-      {results.length > 0 && (
-        <StorySection
-          kicker={copy.coverageKicker}
-          title={copy.coverageTitle}
-          lead={copy.coverageLead}
-          className="story-coverage-section"
-        >
-          <div className="story-overall-distribution">
-            <h3>{copy.overallResponsePattern}</h3>
-            <ResponseDistribution
-              result={voteDistribution}
-              copy={copy}
-              language={language}
-            />
-          </div>
-          <CoverageOverview
-            results={results}
-            summary={coverageSummary}
-            voterCount={meta.voterCount || 0}
-            copy={copy}
-            language={language}
-          />
-        </StorySection>
-      )}
-
       {(narrativeQuestions.length > 0 || openQuestions.length > 0) && (
         <StorySection
           kicker={copy.questionsKicker}
@@ -1015,6 +990,31 @@ export default function FinalReportPage({ report, preview = false }) {
           </dl>
         </div>
       </details>
+
+      {results.length > 0 && (
+        <StorySection
+          kicker={copy.coverageKicker}
+          title={copy.coverageTitle}
+          lead={copy.coverageLead}
+          className="story-coverage-section"
+        >
+          <div className="story-overall-distribution">
+            <h3>{copy.overallResponsePattern}</h3>
+            <ResponseDistribution
+              result={voteDistribution}
+              copy={copy}
+              language={language}
+            />
+          </div>
+          <CoverageOverview
+            results={results}
+            summary={coverageSummary}
+            voterCount={meta.voterCount || 0}
+            copy={copy}
+            language={language}
+          />
+        </StorySection>
+      )}
     </article>
   )
 }
