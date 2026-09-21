@@ -1613,38 +1613,7 @@
   }
 }
 
-/* Flat report surfaces with a scoped blue-green palette. */
-.pub-shell:has(.story-report),
-.story-report {
-  --ds-bg: #f8f7f3;
-  --story-warm-surface: #f5e4da;
-  --story-warm-ink: #94523e;
-  --ds-surface: #ffffff;
-  --ds-surface-2: #deebe8;
-  --ds-surface-3: #eaf3f1;
-  --ds-text: #183337;
-  --ds-text-muted: #476166;
-  --ds-accent: #187873;
-  --ds-on-accent: #ffffff;
-  --ds-accent-soft: #b6dcd5;
-  --ds-navy: #123b41;
-}
-
-[data-theme="dark"] .pub-shell:has(.story-report),
-[data-theme="dark"] .story-report {
-  --ds-bg: #101e22;
-  --story-warm-surface: #47332d;
-  --story-warm-ink: #efbaa3;
-  --ds-surface: #172a2e;
-  --ds-surface-2: #2a4448;
-  --ds-surface-3: #1e3438;
-  --ds-text: #e6f2f0;
-  --ds-text-muted: #adc6c5;
-  --ds-accent: #75c9bd;
-  --ds-on-accent: #102b2a;
-  --ds-accent-soft: #315e59;
-}
-
+/* Flat report surfaces using the shared Murmi palette. */
 .pub-shell:has(.story-report) {
   background: var(--ds-bg);
 }
@@ -1704,13 +1673,13 @@
   padding: clamp(2.25rem, 6vw, 4.75rem);
   border: 0;
   border-radius: 1.25rem;
-  background: #123b41;
+  background: var(--ds-navy);
   box-shadow: none;
   color: #fff;
 }
 
 .story-opening .story-kicker {
-  color: #b6dcd5;
+  color: var(--ds-accent-soft);
 }
 
 .story-opening h1 {
@@ -1898,8 +1867,8 @@
 }
 
 .story-venn-circle.right {
-  border-color: #3e8a9a;
-  background: color-mix(in srgb, #a9d7db 34%, transparent);
+  border-color: var(--ds-accent);
+  background: color-mix(in srgb, var(--ds-accent-soft) 34%, transparent);
 }
 
 .story-overall-distribution,
@@ -2109,24 +2078,6 @@
 
 .story-report .story-coverage-section :is(.story-coverage-stats > div, .story-coverage-segments > div) {
   background: var(--ds-surface);
-}
-
-/* Light clay accents balance teal without changing vote or group colours. */
-.story-report .story-number {
-  background: var(--story-warm-surface);
-  color: var(--story-warm-ink);
-}
-
-.story-report :is(.story-next-list, .story-implications-list) > li {
-  background: var(--story-warm-surface);
-}
-
-.story-report .story-stats > div:nth-child(2) {
-  background: #f5e4da;
-}
-
-.story-report .story-stats > div:nth-child(2) :is(dt, dd) {
-  color: #78412f;
 }
 
 @media (max-width: 480px) {
