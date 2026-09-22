@@ -1,7 +1,7 @@
 # Report release review — 2026-09-22
 
-Status: local candidate validated; production model access and release approval
-are still pending. Nothing has been pushed, deployed or republished.
+Status: local candidate and production model access validated; release approval
+is still pending. Nothing has been pushed, deployed or republished.
 
 ## Candidate
 
@@ -42,12 +42,24 @@ Local evidence (ignored, synthetic): `outputs/release-final-checks.log`,
 Earlier database setup attempts used SQL_ASCII and failed Unicode checks; the final
 run used a fresh UTF-8 cluster, not relaxed assertions.
 
-## Remaining server check
+## Server check — completed 2026-09-22
 
-Verify the actual production API account can invoke the selected models, and check
-the server's runtime and currently deployed revision. The successful local API
-tests used the explicitly supplied experiment key; they do not establish access
-for a different production key. No production credentials were copied into tests.
+The production service's configured API key successfully invoked both selected
+models using its installed OpenAI SDK, low reasoning effort, `store: false` and
+the candidate's 8,000-token completion cap. Luna returned valid strict-schema JSON
+in 2.58 seconds; Astra returned valid JSON-object output in 2.73 seconds. These were
+two tiny synthetic connectivity requests, not report regeneration or a production
+load test. The key remained on the server and was never printed or copied locally.
+
+The server runs Python 3.12.13, Node 20.20.2, OpenAI SDK 1.50.0 and HTTPX 0.27.2.
+Its clean `main` checkout is `587c8f8232844a38f804293a6f2f9df65ed812ae`, an ancestor
+of tested code candidate `d4d1d39`. The active service remains on its existing model
+configuration until an approved deployment. No dependency upgrade is required.
+
+Before/after checks confirmed `hear-backend` stayed online with the same PID and
+restart count. The main session's published report stayed at version 5 with an
+identical JSON fingerprint, and its public HTTPS page returned 200. No application
+session, vote, report, configuration or running process was modified by the probes.
 
 ## Activation and rollback plan
 
