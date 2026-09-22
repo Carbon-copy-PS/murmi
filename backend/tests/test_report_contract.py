@@ -107,6 +107,11 @@ class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["status"], "draft_ready")
         self.assertIsNone(report["publishedAt"])
         self.assertEqual(report["meta"]["participantCount"], 60)
+        proposal = report["commonGroundProposal"]
+        self.assertEqual(proposal["status"], "endorsed")
+        self.assertEqual(proposal["votes"], {"agree": 48, "disagree": 6, "total": 54})
+        self.assertEqual(proposal["endorsement"]["rosterSize"], 60)
+        self.assertNotIn("traffic-person", json.dumps(proposal))
         statements = {s["id"]: s for s in report["evidence"]["statements"]}
         self.assertEqual(len(statements), 9)
         for index, support, neutral, oppose, responded in [
@@ -141,6 +146,7 @@ class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["sourceLanguage"], "en")
         self.assertEqual(report["status"], "draft_ready")
         narrative = report["narrative"]["en"]
+        self.assertIsNone(report["commonGroundProposal"])
         self.assertEqual(len(narrative["takeaways"]), 4)
         self.assertEqual(len(narrative["implications"]), 2)
         self.assertEqual(len(narrative["limitations"]), 1)

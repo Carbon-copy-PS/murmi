@@ -21,6 +21,24 @@ const isTraffic = report.evidence.statements.some(s => s.id === 'traffic-s8')
 report.narrative[language].principles = [extra]
 report.narrative[language].actionAreas = [extra]
 let html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
+if (isTraffic) {
+  const proposalIndex = html.indexOf('story-proposal-section');
+  assert.ok(proposalIndex > html.indexOf('story-opening'));
+  assert.ok(proposalIndex < html.indexOf('story-opinion-section'));
+  assert.ok(html.includes('AI common ground'));
+  assert.ok(html.includes('Participant-verified common ground'));
+  assert.ok(html.includes(report.commonGroundProposal.groupStatement));
+  assert.ok(html.includes('48 of 54 respondents agreed'));
+  assert.ok(html.includes('54 of 60 participants responded'));
+  const draft = structuredClone(report);
+  draft.commonGroundProposal.status = 'working_draft';
+  delete draft.commonGroundProposal.endorsement;
+  const draftHtml = renderToStaticMarkup(<FinalReportPage report={draft} preview />);
+  assert.ok(draftHtml.includes('Common-ground draft'));
+  assert.ok(!draftHtml.includes('Participant-verified common ground'));
+} else {
+  assert.ok(!html.includes('story-proposal-section'));
+}
 assert.equal((html.match(/id="report-statement-/g) || []).length, report.evidence.statements.length)
 assert.ok(html.includes('story-section story-all-statements'))
 assert.ok(!html.includes('<details class="story-all-statements"'))
@@ -41,7 +59,12 @@ if (language === 'en') {
     assert.ok(html.includes('Pilot new library services while preserving access to staff'))
     assert.ok(html.includes('96 unanswered'))
   }
-  assert.ok(html.includes('Key findings') && html.includes('Next steps'))
+  assert.ok(html.includes('Key findings'))
+  if (isTraffic) {
+    // Saved common-ground directions replace the report's proposed next steps.
+    assert.ok(html.includes('Directions in the package'))
+    assert.ok(!html.includes('Next steps'))
+  } else assert.ok(html.includes('Next steps'))
   assert.ok(!html.includes('Three findings') && !html.includes('a more even division'))
   assert.ok(!/[\u3400-\u9fff]/u.test(html), 'English report must not contain Chinese copy')
 } else {
@@ -58,6 +81,7 @@ assert.equal((html.match(/class="opinion-theme-label opinion-group-color"/g) || 
 // Missing AI output must still leave a complete, readable report.
 delete report.narrative
 html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
+if (isTraffic) assert.ok(html.includes(report.commonGroundProposal.groupStatement));
 assert.equal((html.match(/id="report-statement-/g) || []).length, report.evidence.statements.length)
 assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods'))
 assert.ok(!html.includes('story-overlap-section'))

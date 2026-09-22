@@ -31,6 +31,24 @@ def traffic_session():
                  for g, profile in enumerate(profiles) for i in range(20 if index < 8 else 3)}
         session.statements.append(Statement(id=f"traffic-s{index}", text=text, round=1,
                                             approved=True, votes=votes))
+    # Separate fictional reactions to the common-ground package, not inferred
+    # endorsements from statement votes. Six of the 60 people did not react.
+    session.common_ground_history = [{
+        "id": "traffic-common-ground", "mode": "policy", "status": "endorsed",
+        "groupStatement": "Keep step-free shop access, morning deliveries and better buses at the centre of any changes. A Saturday trial has majority support; permanent and weekday restrictions remain unresolved.",
+        "recommendations": [{"id": "traffic-r1", "text": "Develop a six-week Saturday trial for further review."}],
+        "essentialConditions": [{"id": "traffic-c1", "text": "Protect step-free access and morning deliveries, and improve bus frequency before changing road access."}],
+        "unresolvedQuestions": [{"id": "traffic-u1", "text": "What evidence on shop revenue and access would justify a permanent change?"}],
+        "participantVotes": {
+            f"traffic-person-{g}-{i}": {"vote": "agree" if i < 16 else "disagree",
+                                       **({"reason": "The trial still needs a clearer plan for delivery access."}
+                                          if g == 0 and i == 16 else {})}
+            for g in range(3) for i in range(18)
+        },
+        "endorsement": {"agree": 48, "disagree": 6, "total": 54,
+                        "respondentCount": 54, "rosterSize": 60,
+                        "remainingConcerns": [{"reason": "The trial still needs a clearer plan for delivery access."}]},
+    }]
     return session
 
 
@@ -38,7 +56,7 @@ def traffic_narrative():
     """Reviewed mock prose, not a call to a model."""
     return {
         "headline": "A Saturday trial has support; permanent restrictions remain open",
-        "standfirst": "A fictional discussion with 60 synthetic voters. The summary and group descriptions are handwritten mock responses, not live AI output.",
+        "standfirst": "A fictional discussion with 60 synthetic voters. Summary, common ground, reactions and group descriptions are mock data, not live AI output.",
         "overviewEvidenceStatementIds": ["traffic-s1", "traffic-s2"],
         "takeaways": [
             {"title": "Access needs are shared across the debate", "explanation": "All 60 respondents support step-free shop access, morning deliveries and better bus frequency before road-access changes.", "evidenceStatementIds": ["traffic-s0", "traffic-s4", "traffic-s5"]},

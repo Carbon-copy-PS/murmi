@@ -22,6 +22,9 @@ Change these versions when changing their respective generation contracts.
 
 The current format contains:
 
+- The saved AI common-ground package directly after the opening, when the session
+  has one. It retains recorded endorsement/reaction counts and unresolved concerns;
+  report findings do not replace this deliberation outcome.
 - An overview and up to four distinct findings. Shared principles and useful paired
   comparisons belong in findings, not separate sections.
 - An opinion map with visible themes and spread dots. Individual dots are not selectable;
@@ -99,6 +102,12 @@ synthetic voters and nine statements. Three contrasting voting patterns share ac
 priorities but differ on a Saturday trial, permanence and weekday restrictions.
 It also tests neutral responses and a proposal with only 15% coverage. Like the
 library fixture, its prose is handwritten; it does not validate live AI generation.
+The traffic fixture includes a fictional endorsed common-ground package with 48
+supporting and six opposing reactions out of 60 people. These are separate synthetic
+package reactions, not endorsements inferred from statement votes. Rendering tests
+cover the endorsed section's placement, draft labelling and retention without a
+report narrative. The library fixtures intentionally cover sessions without a saved
+common-ground package.
 
 ```sh
 .venv/bin/python -m backend.tools.preview_report --language en --scenario traffic --port 8782
