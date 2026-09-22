@@ -1,7 +1,8 @@
 # Report release review — 2026-09-22
 
-Status: local candidate and production model access validated; release approval
-is still pending. Nothing has been pushed, deployed or republished.
+Status: approved and deployed on 2026-09-22. Active production revision:
+`c8b83d21d78d42e49de1b3919b659badc0a46789`. Existing reports were not regenerated
+or republished. A separate, clearly labelled synthetic report verifies the release.
 
 ## Candidate
 
@@ -82,3 +83,51 @@ After review and explicit approval of the candidate commit:
 
 The exact server baseline, backup locations and rollback ref must be recorded from
 the real server before activation; they are deliberately not guessed here.
+
+## Deployment verification — completed
+
+The user approved deployment after the local and server checks. The exact reviewed
+candidate was pushed on `codex/report-generation-consistency`. GitHub `main` has a
+different, squashed history from the deployed checkout; it was not rewritten or
+merged into this release. The server's configured remote could not fetch the new
+branch, so a verified Git bundle transferred the same commit and its prerequisites.
+
+The release was built separately at `/home/ubuntu/releases/report-c8b83d2`.
+An initial check found `opencc-js` absent from the server's old node_modules.
+Installing the existing lockfile into the staging directory resolved it without
+changing dependencies. The final server checks passed 118 backend tests (the three
+disposable-database tests were skipped there) and all 50 JavaScript tests, all report
+render checks, and the frontend build. All 121 backend tests had already passed
+locally with PostgreSQL and no skips. The existing bundle-size warning remains.
+
+No established backend connections were present immediately before activation.
+The prior code ref, frontend, process configuration, service environment and a
+verified custom-format database dump were preserved under the protected directory
+`/home/ubuntu/backups/report-c8b83d2`. The rollback ref is
+`rollback/pre-report-c8b83d2`, pointing to `587c8f8232844a38f804293a6f2f9df65ed812ae`.
+The server now runs detached at the reviewed commit. Prior hashed frontend assets
+were retained, and `hear-backend` restarted once (restart count 9 → 10). Its PM2
+configuration was saved; no bootstrap deployment or dependency upgrade was run.
+
+A clearly labelled synthetic library discussion exercised live WebSockets, 12
+fictional voters, six statements and 72 votes. Astra generated policy common ground
+with `cg-evidence-v2`; Luna generated two group descriptions; Astra generated the
+report. Host publication succeeded and HTTPS returned the identical report. Its
+common ground correctly remains an unapproved draft. The published report and all
+72 ballots were verified in PostgreSQL. Test artifact:
+https://murmi.org/r/OaaRoZUcvffE (session `R50AED2155`).
+
+Excluding only that new synthetic session, all seven database table fingerprints
+and counts matched the baseline: 94 sessions, 507 participants, 599 statements,
+821 transcript entries, 5,053 votes, 24 common-ground runs and 19 report snapshots.
+The existing Hualien report's full saved JSON fingerprint also matched, at version 5.
+Its new presentation and response colours were checked on desktop and mobile,
+with no horizontal overflow. The new synthetic report renders the standalone
+common-ground card before analysis, all six statements and response coverage at
+the bottom, with no browser-console errors.
+
+Protected server evidence: `baseline.json`, `activation.json` and
+`verification.json` in the backup directory; validation and synthetic-run logs
+under `/home/ubuntu/releases/report-c8b83d2-*`. These contain no copied production
+records in the repository. New model generation applies to future drafts; existing
+reports retain their saved narrative and proposal contents.
