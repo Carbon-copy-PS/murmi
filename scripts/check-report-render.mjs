@@ -21,11 +21,17 @@ const isTraffic = report.evidence.statements.some(s => s.id === 'traffic-s8')
 report.narrative[language].principles = [extra]
 report.narrative[language].actionAreas = [extra]
 let html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
+const restoredProfiles = structuredClone(report);
+delete restoredProfiles.opinionLandscape.themes.generatedAt;
+restoredProfiles.opinionLandscape.themes.status = 'ready';
+const restoredHtml = renderToStaticMarkup(<FinalReportPage report={restoredProfiles} preview />);
+assert.ok(!restoredHtml.includes('There is not yet enough evidence for a clear shared theme.'));
+assert.ok(!restoredHtml.includes('投票不足，尚無明確主題。'));
 if (isTraffic) {
   const proposalIndex = html.indexOf('story-proposal-section');
   assert.ok(proposalIndex > html.indexOf('story-opening'));
   assert.ok(proposalIndex < html.indexOf('story-opinion-section'));
-  assert.ok(html.includes('AI common ground'));
+  assert.ok(html.includes('Common ground'));
   assert.ok(html.includes('Approved as final'));
   assert.ok(html.indexOf('story-analysis-heading') > proposalIndex);
   assert.ok(html.indexOf('story-analysis-heading') < html.indexOf('story-opinion-section'));
@@ -38,6 +44,11 @@ if (isTraffic) {
   const draftHtml = renderToStaticMarkup(<FinalReportPage report={draft} preview />);
   assert.ok(draftHtml.includes('Draft · not yet approved'));
   assert.ok(!draftHtml.includes('Approved as final'));
+  draft.commonGroundProposal.votes = {};
+  const noReactionsHtml = renderToStaticMarkup(<FinalReportPage report={draft} preview />);
+  assert.ok(noReactionsHtml.includes('Draft · not yet approved'));
+  assert.ok(!noReactionsHtml.includes('story-proposal-unvalidated'));
+  assert.ok(!noReactionsHtml.includes('story-proposal-metrics'));
 } else {
   assert.ok(!html.includes('story-proposal-section'));
 }

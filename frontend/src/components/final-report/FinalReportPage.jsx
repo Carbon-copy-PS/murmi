@@ -25,12 +25,9 @@ function dateTime(value, language) {
 
 function EvidenceBar({ result, copy, language }) {
   return (
-    <div className="story-evidence" aria-label={`${percent(result.supportRate, language)} ${copy.support}`}>
-      <div className="story-evidence-track">
-        <span style={{ width: widthPercent(result.supportRate) }} />
-      </div>
+    <div className="story-evidence">
+      <ResponseDistribution result={result} copy={copy} language={language} />
       <div className="story-evidence-meta">
-        <strong>{percent(result.supportRate, language)} {copy.support}</strong>
         <span>{percent(result.coverageRate, language)} {copy.coverage}</span>
       </div>
     </div>
@@ -194,7 +191,7 @@ function AllStatementsTable({ results, voterCount, copy, language }) {
       <ol className="story-complete-statements">
         {items.map(({ result, number }) => <li key={result.id} id={`report-statement-${result.id}`} value={number}>
           <p><span className="story-statement-number">{number}.</span> {result.text}</p>
-          <ResponseDistribution result={result} copy={copy} language={language} aggregate showCounts />
+          <ResponseDistribution result={result} copy={copy} language={language} showCounts />
           <small>{result.responded}/{voterCount} {labels.answered} · {Math.max(0, voterCount - result.responded)} {labels.missing}</small>
         </li>)}
       </ol>
@@ -572,9 +569,7 @@ function CommonGroundProposal({ proposal, meta, copy, language }) {
               </div>
             )}
           </div>
-        ) : (
-          <p className="story-proposal-unvalidated">{copy.proposalUnvalidated}</p>
-        )}
+        ) : null}
         <div className="story-proposal-package">
           <CommonGroundItems
             title={copy.proposalRecommendations}

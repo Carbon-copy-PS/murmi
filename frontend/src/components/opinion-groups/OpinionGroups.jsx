@@ -62,7 +62,7 @@ export default function OpinionGroups({ landscape, points, language = 'en', onRe
     </div>
     <GroupDifferences groups={groups} copy={copy} language={language} />
     <div className="opinion-theme-status">
-      <span>{themes?.retained ? (themes.status === 'unavailable' ? copy.themesRetainedUnavailable : copy.themesRetained) : themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
+      <span>{themes?.retained ? (themes.status === 'unavailable' ? copy.themesRetainedUnavailable : copy.themesRetained) : themes?.status === 'pending' ? copy.themesPending : themes?.status === 'unavailable' ? copy.themesUnavailable : themes?.status === 'ready' || themes?.generatedAt ? copy.themesNote : copy.themeEmergingNote}
         {themes?.generatedAt && <> · {copy.updated} {new Intl.DateTimeFormat(language, {hour:'2-digit',minute:'2-digit'}).format(new Date(themes.generatedAt * 1000))}</>}
       </span>
       {onRefreshThemes && <button type="button" onClick={onRefreshThemes}>{copy.refreshThemes}</button>}
