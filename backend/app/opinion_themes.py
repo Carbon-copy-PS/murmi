@@ -8,6 +8,8 @@ import hashlib
 import json
 import time
 
+from .model_routing import MODEL_ROUTING_VERSION
+
 THEME_VERSION = "opinion-themes-v3"
 
 
@@ -113,6 +115,8 @@ class OpinionThemeService:
                 self._failed(key)
                 return {"status": "unavailable"}
             result = {**validate_themes(raw, evidence), "status": "ready", "generatedAt": time.time()}
+            if isinstance(raw.get("generation"), dict):
+                result["generation"] = deepcopy(raw["generation"])
             self.cache[key] = result
             self.cache.move_to_end(key)
             while len(self.cache) > 64:
@@ -214,7 +218,7 @@ class OpinionThemeService:
             return result
         source_hash = result.get("sourceHash")
         language = session.language or "en"
-        key = hashlib.sha256(json.dumps([THEME_VERSION, source_hash, language, session.topic], ensure_ascii=False).encode()).hexdigest()
+        key = hashlib.sha256(json.dumps([THEME_VERSION, MODEL_ROUTING_VERSION, source_hash, language, session.topic], ensure_ascii=False).encode()).hexdigest()
         meta = {"version": THEME_VERSION, "sourceHash": source_hash, "language": language}
         result["themes"] = {**meta, "status": "emerging"}
         for group in result["groups"]:

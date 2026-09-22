@@ -54,21 +54,29 @@ def main():
     parser.add_argument('--port', type=int, default=8780)
     parser.add_argument('--write-only', action='store_true', help='Generate the fixture without starting a server')
     parser.add_argument('--output', help='Defaults to a separate preview file for each language')
+    parser.add_argument('--snapshot', type=Path, help='Display an existing local draft without generating or publishing it')
     args = parser.parse_args()
-    if args.scenario == 'traffic' and args.language != 'en':
+    if not args.snapshot and args.scenario == 'traffic' and args.language != 'en':
         parser.error('--scenario traffic requires --language en')
-    report = asyncio.run(build_fixture(args.language, args.scenario))
+    if args.snapshot:
+        report = json.loads(args.snapshot.read_text())
+        if not isinstance(report, dict) or report.get('status') != 'draft_ready':
+            parser.error('--snapshot requires a local draft_ready report')
+    else:
+        report = asyncio.run(build_fixture(args.language, args.scenario))
+    language = report.get('sourceLanguage') or args.language
     default_output = "outputs/local-report-preview-en.json" if args.language == "en" else "outputs/local-report-preview.json"
     if args.scenario == 'traffic':
         default_output = 'outputs/local-report-preview-traffic.json'
-    dest = Path(args.output or default_output)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
+    dest = Path(args.output or args.snapshot or default_output)
+    if not args.snapshot or args.output:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     if args.write_only:
-        print(f'Wrote synthetic draft: {dest}', flush=True)
+        print(f'Local draft ready: {dest}', flush=True)
         return
     # The local display adapter enables the report view without changing the draft snapshot.
-    body = json.dumps({"topic": report['meta']['topic'], "language": args.language, "participantCount": report["meta"]["participantCount"],
+    body = json.dumps({"topic": report['meta']['topic'], "language": language, "participantCount": report["meta"]["participantCount"],
         "reportStatus": "published", "report": report}, ensure_ascii=False).encode()
     dist = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
     if not (dist / 'index.html').exists():

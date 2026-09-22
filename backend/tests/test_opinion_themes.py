@@ -209,7 +209,10 @@ class OpinionThemeTests(unittest.IsolatedAsyncioTestCase):
         client.with_options.return_value.chat.completions.create = create
         service._client = client
         evidence = theme_evidence(self.landscape)
-        self.assertEqual(await service.generate_opinion_themes(evidence, 'zh'), {'groups': [], 'shared': None})
+        result = await service.generate_opinion_themes(evidence, 'zh')
+        self.assertEqual(result['groups'], [])
+        self.assertIsNone(result['shared'])
+        self.assertEqual(result['generation']['requestedModel'], 'gpt-5.6-luna')
         args = create.call_args.kwargs
         self.assertEqual(args['response_format']['type'], 'json_schema')
         self.assertIn('Traditional Chinese', args['messages'][0]['content'])

@@ -51,6 +51,23 @@ contains them. It retains complete statements and coverage if AI output is absen
 
 ## Sources of consistency
 
+`backend/app/model_routing.py` centrally versions model selection and request settings.
+The `mixed-deliberation-v1` configuration uses GPT-5.6 Luna for statement extraction
+and group descriptions, and GPT-6 Astra for both common-ground modes and report prose.
+All four roles use low reasoning effort and an 8,000-token completion cap. The pinned
+OpenAI SDK sends reasoning effort and `store: false` through `extra_body`; SDK wire
+tests verify those become top-level API fields. Client deadlines are 20 seconds for
+extraction/themes, 60 for common ground and 40 for report prose, within existing outer
+deadlines. API retries are disabled; failures do not silently switch to a cheaper model.
+The separate discussion-recommendation and audio-transcription paths are unchanged.
+
+New common-ground, theme and report outputs record their requested/returned model
+and routing version. Theme-cache keys include the routing version. Saved proposals
+and approval records are preserved; generating a report does not regenerate or
+approve common ground. Prompt and presentation contracts are unchanged by this
+model-only configuration change. These settings require the same local review and
+release approval as other code changes.
+
 The report captures one frozen vote snapshot before asynchronous analysis. Counts,
 response denominators, group geometry, and paired support come from code, not prose.
 The narrative receives aggregate evidence, including computed paired support;
@@ -88,6 +105,20 @@ normalization, and rendering. It does not import production sessions, contact an
 provider, connect to a database, or publish anything. The output JSON remains a draft;
 the local display adapter only enables the report view in the existing public-page
 component. `--write-only` writes the fixture without starting a server.
+
+To exercise the actual SDK and mixed routing with billable synthetic calls, use a
+Git-ignored key file and a fresh output directory (existing results are preserved):
+
+```sh
+.venv/bin/python -m backend.tools.smoke_mixed_models --key-file .env.model-experiments
+.venv/bin/python -m backend.tools.preview_report --snapshot outputs/mixed-model-smoke/traffic-report.json --port 8785
+```
+
+This checks three discussions (English and Chinese), both common-ground modes and
+all extraction entry points. New common-ground drafts stay separate from the saved
+proposal. `--snapshot` displays an existing draft without modifying it or calling a
+provider. Inspect its desktop and mobile rendering and review its factual claims;
+passing structure checks is not proof that every generated interpretation is sound.
 
 An English public-library discussion exercises majority support, opposition, neutral
 responses, mixed votes, and low coverage. It includes 120 synthetic voters and seven

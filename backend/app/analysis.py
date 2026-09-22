@@ -10,6 +10,7 @@ from typing import Optional
 from openai import OpenAI
 
 from .languages import LANGUAGE_LABELS
+from .model_routing import model_request, model_client_options, generation_metadata
 from .report_contract import REPORT_FORMAT_VERSION, REPORT_NARRATIVE_VERSION
 
 SYSTEM_PROMPT = """You are a discussion analyst. You extract substantive claims from a room transcript that participants could agree or disagree with.
@@ -582,8 +583,8 @@ class AnalysisService:
                     "contributions": contributions, "existingCards": existing_statements}
         try:
             response = await asyncio.get_running_loop().run_in_executor(None, partial(
-                self.client.with_options(timeout=20, max_retries=0).chat.completions.create,
-                model="gpt-4o-mini", temperature=0.1, max_tokens=2000,
+                self.client.with_options(**model_client_options("extraction")).chat.completions.create,
+                **model_request("extraction"),
                 response_format={"type": "json_object"},
                 messages=[{"role": "system", "content": ARGUMENT_SYSTEM_PROMPT + _language_rule(language)},
                           {"role": "user", "content": json.dumps(evidence, ensure_ascii=False)}],
@@ -718,9 +719,8 @@ Return JSON matching the schema. All counts will be displayed separately by the 
 """ + _language_rule(language)
         try:
             response = await asyncio.get_running_loop().run_in_executor(None, partial(
-                self.client.with_options(timeout=20, max_retries=0).chat.completions.create,
-                model="gpt-4o-mini", temperature=0.2,
-                max_tokens=min(3600, max(1800, 600 + 400 * len(evidence["groups"]))),
+                self.client.with_options(**model_client_options("themes")).chat.completions.create,
+                **model_request("themes"),
                 response_format={"type": "json_schema", "json_schema": {
                     "name": "opinion_themes", "strict": True, "schema": schema}},
                 messages=[{"role": "system", "content": prompt},
@@ -729,7 +729,10 @@ Return JSON matching the schema. All counts will be displayed separately by the 
             choice = response.choices[0]
             if choice.finish_reason != "stop" or getattr(choice.message, "refusal", None):
                 return None
-            return json.loads(choice.message.content)
+            data = json.loads(choice.message.content)
+            if not isinstance(data, dict):
+                return None
+            return {**data, "generation": generation_metadata("themes", response)}
         except Exception:
             return None
 
@@ -1487,16 +1490,14 @@ Return JSON matching the schema. All counts will be displayed separately by the 
         else:
             user_message = self._generic_user_message(analysis, topic, mode)
         prompt = build_common_ground_system_prompt(mode, language, custom_instructions)
-        temperature = {"generic": 0.45, "policy": 0.5}.get(mode, 0.45)
 
         try:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
                 partial(
-                    self.client.chat.completions.create,
-                    model="gpt-4o-mini",
-                    temperature=temperature,
+                    self.client.with_options(**model_client_options("common-ground")).chat.completions.create,
+                    **model_request("common-ground"),
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": prompt},
@@ -1504,8 +1505,12 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                     ],
                 ),
             )
-            data = json.loads(response.choices[0].message.content)
-            return self._normalize_common_ground(data, mode, analysis)
+            choice = response.choices[0]
+            if choice.finish_reason != "stop" or getattr(choice.message, "refusal", None):
+                return None
+            data = json.loads(choice.message.content)
+            normalized = self._normalize_common_ground(data, mode, analysis)
+            return {**normalized, "generation": generation_metadata("common-ground", response)} if normalized else None
         except (json.JSONDecodeError, KeyError, IndexError) as e:
             print(f"Common ground parse error: {e}")
             return None
@@ -1529,9 +1534,8 @@ Return JSON matching the schema. All counts will be displayed separately by the 
             response = await loop.run_in_executor(
                 None,
                 partial(
-                    self.client.chat.completions.create,
-                    model="gpt-4o-mini",
-                    temperature=0,
+                    self.client.with_options(**model_client_options("report")).chat.completions.create,
+                    **model_request("report"),
                     response_format={"type": "json_object"},
                     messages=[
                         {
@@ -1556,7 +1560,8 @@ Return JSON matching the schema. All counts will be displayed separately by the 
             if choice.finish_reason != "stop" or getattr(choice.message, "refusal", None):
                 return None
             data = json.loads(choice.message.content)
-            return self._normalize_report_narrative(data, evidence)
+            normalized = self._normalize_report_narrative(data, evidence)
+            return {**normalized, "generation": generation_metadata("report", response)} if normalized else None
         except (json.JSONDecodeError, KeyError, IndexError) as exc:
             print(f"Report narrative parse error: {exc}")
             return None
@@ -1606,9 +1611,8 @@ Return JSON matching the schema. All counts will be displayed separately by the 
             response = await loop.run_in_executor(
                 None,
                 partial(
-                    self.client.chat.completions.create,
-                    model="gpt-4o-mini",
-                    temperature=0.3,
+                    self.client.with_options(**model_client_options("extraction")).chat.completions.create,
+                    **model_request("extraction"),
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT + _language_rule(language)},
@@ -1616,7 +1620,10 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                     ],
                 ),
             )
-            content = response.choices[0].message.content
+            choice = response.choices[0]
+            if choice.finish_reason != "stop" or getattr(choice.message, "refusal", None):
+                return []
+            content = choice.message.content
             data = json.loads(content)
             statements = data.get("statements", [])
             return [s for s in statements if isinstance(s, str) and s.strip()]
@@ -1663,9 +1670,8 @@ Return JSON matching the schema. All counts will be displayed separately by the 
             response = await loop.run_in_executor(
                 None,
                 partial(
-                    self.client.chat.completions.create,
-                    model="gpt-4o-mini",
-                    temperature=0.2,
+                    self.client.with_options(**model_client_options("extraction")).chat.completions.create,
+                    **model_request("extraction"),
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": TURN_SYSTEM_PROMPT + _language_rule(language)},
@@ -1673,7 +1679,10 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                     ],
                 ),
             )
-            content = response.choices[0].message.content
+            choice = response.choices[0]
+            if choice.finish_reason != "stop" or getattr(choice.message, "refusal", None):
+                return []
+            content = choice.message.content
             data = json.loads(content)
             statements = data.get("statements", [])
             return [s.strip() for s in statements if isinstance(s, str) and s.strip()][:1]

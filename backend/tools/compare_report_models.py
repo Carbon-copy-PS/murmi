@@ -60,7 +60,7 @@ def digest(value):
 
 def source_hashes():
     root = Path(__file__).resolve().parents[1]
-    names = ("analysis.py", "reporting.py", "report_contract.py", "opinion_themes.py", "policy_evidence.py")
+    names = ("analysis.py", "reporting.py", "report_contract.py", "opinion_themes.py", "policy_evidence.py", "model_routing.py")
     return {name: hashlib.sha256((root / "app" / name).read_bytes()).hexdigest() for name in names}
 
 
@@ -174,10 +174,14 @@ def candidate_request(case, model, max_tokens=8000):
     if model not in MODELS:
         raise ValueError("Unknown candidate; verify API compatibility before adding a model.")
     request = deepcopy(case["request"])
+    request.update(request.pop("extra_body", {}))
     request.update(model=model, store=False)
     request.pop("max_tokens", None)
     request["max_completion_tokens"] = max_tokens
-    if model != "gpt-4o-mini":
+    if model == "gpt-4o-mini":
+        request.pop("reasoning_effort", None)
+        request["temperature"] = {"extraction": .1, "common-ground": .5, "themes": .2, "report": 0}[case["stage"]]
+    else:
         request.pop("temperature", None)
         request["reasoning_effort"] = "low"
     return request
@@ -342,6 +346,10 @@ async def run(dest, *, scenario_ids, stage_ids, arms, models, repeats, max_calls
                             result["flags"] = audit_raw(case, raw)
                             _, normalized = await invoke(case["stage"], case["args"], response_stub(message["content"]))
                             result["normalized"] = normalized
+                            if isinstance(normalized, dict) and "generation" in normalized:
+                                normalized["generation"] = {"routingVersion": VERSION, "requestedModel": model,
+                                    "model": data.get("model") or model,
+                                    "reasoningEffort": request.get("reasoning_effort")}
                             if case["stage"] == "themes" and isinstance(normalized, dict):
                                 if len(raw.get("groups") or []) != len(normalized["groups"]):
                                     result["flags"].append("Some group descriptions were rejected by the app; inspect raw output.")
