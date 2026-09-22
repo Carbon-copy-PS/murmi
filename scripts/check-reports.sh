@@ -8,6 +8,8 @@ export OPENAI_API_KEY='' POSTGRES_HOST='' POSTGRES_PASSWORD='' GOOGLE_APPLICATIO
 "$REPORT_PYTHON" -m unittest discover -s backend/tests -t .
 node --test backend/app/report-opinion-analysis.test.mjs
 node --test data-analysis/polis-inspired-analysis.test.mjs
+node --test data-analysis/clustering-scenarios.test.mjs
+node scripts/check-clustering-scenarios.mjs
 node --test frontend/src/utils/transcript-text.test.mjs frontend/src/components/opinion-groups/group-differences.test.mjs frontend/src/components/final-report/statement-patterns.test.mjs
 "$REPORT_PYTHON" -m backend.tools.preview_report --write-only
 node scripts/check-report-render.mjs

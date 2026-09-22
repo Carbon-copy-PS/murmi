@@ -30,12 +30,7 @@ assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods')
 const profilesIndex = html.indexOf('opinion-group-cards')
 const comparisonIndex = html.indexOf('data-testid="group-differences"')
 assert.ok(profilesIndex >= 0)
-if (isTraffic) {
-  // Tiny coverage-split groups fail the comparison's minimum response gate.
-  assert.equal(comparisonIndex, -1)
-} else {
-  assert.ok(comparisonIndex > profilesIndex)
-}
+assert.ok(comparisonIndex > profilesIndex)
 if (language === 'en') {
   for (const label of ['Majority support', 'Majority opposition', 'Neutral most common', 'No clear majority']) assert.ok(html.includes(label))
   if (isTraffic) {

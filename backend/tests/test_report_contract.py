@@ -125,6 +125,7 @@ class EnglishFixtureTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(narrative["limitations"]), 1)
         themes = report["opinionLandscape"]["themes"]
         self.assertEqual(themes["status"], "ready")
+        self.assertEqual(sorted(g["size"] for g in report["opinionLandscape"]["groups"]), [20, 20, 20])
         self.assertEqual(len(themes["groups"]), len(report["opinionLandscape"]["groups"]))
         self.assertEqual({g["title"] for g in themes["groups"]}, {
             "Extend the pedestrian zone", "A Saturday trial with limits",

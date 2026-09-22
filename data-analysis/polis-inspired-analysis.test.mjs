@@ -125,11 +125,10 @@ test("reports deterministic eligibility sensitivity at 7, 10, and 12 votes", () 
     sensitivity.map((item) => [item.minimumVotes, item.eligibleParticipantCount]),
     [[7, 30], [10, 20], [12, 10]],
   );
-  // The response-depth tiers intentionally create extra geometric strata at
-  // lower thresholds; the diagnostic must expose, rather than hide, that K is
-  // sensitive to eligibility.
-  assert.deepEqual(sensitivity.map((item) => item.selectedK), [5, 4, 2]);
-  assert.deepEqual(result.diagnostics.observedSelectedKRange, { minimum: 2, maximum: 5 });
+  // Different response depths must not create extra opinion groups when the
+  // observed answers still describe the same two opposing patterns.
+  assert.deepEqual(sensitivity.map((item) => item.selectedK), [2, 2, 2]);
+  assert.deepEqual(result.diagnostics.observedSelectedKRange, { minimum: 2, maximum: 2 });
 });
 
 test("accepts the converter's normalized session shape", () => {

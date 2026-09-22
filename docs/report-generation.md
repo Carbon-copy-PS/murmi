@@ -107,15 +107,30 @@ library fixture, its prose is handwritten; it does not validate live AI generati
 Open `http://127.0.0.1:8782/r/local-preview`. This fixture is also included in the
 automated numerical and rendering checks, with its own output file.
 
-Review finding from this fixture: the current clustering splits the three ballot
-patterns into six groups, separating respondents to the low-coverage events question
-from nonrespondents. The mock profile descriptions therefore repeat. The automated
-checks verify complete profiles and correct counts, not that six is a meaningful
-group count. A control with all 60 people supporting the events question produces
-three groups of 20. With partial responses, the three groups of only three people
-also cause the comparison section to be omitted by its minimum-response gate.
-Investigate this coverage sensitivity before treating the grouping as
-release-ready; do not merge groups or rewrite the evidence just to hide the result.
+This fixture exposed a coverage artefact in analysis v4: three ballot patterns became
+six groups because answering a unanimous question changed projection scaling.
+Analysis v5 calculates sparse-response scaling using only statements with observed
+variance. It also rejects a candidate partition unless every pair of groups differs
+on at least one sufficiently answered statement. The traffic fixture now has three
+groups of 20, and the comparison section renders again.
+
+The preliminary separation rule requires at least two responses and 50% coverage
+in each group on a common statement, with at least 0.20 total variation between the
+observed agree/neutral/disagree distributions. Missing answers are excluded. This is
+an application heuristic, not a significance test; it preserves two-person minority
+patterns as provisional. Existing stricter publication guardrails remain in place.
+If no candidate passes, voters retain their map positions in one unseparated group.
+That means insufficient evidence of separate groups, not consensus. All original
+votes and disagreements remain in the statement results. The method may miss subtle
+or very small patterns, and it does not establish population-level opinion groups.
+
+`data-analysis/clustering-scenarios.mjs` supplies eleven synthetic scenarios, including
+uneven coverage on varying questions, neutral responses, a two-person minority,
+one outlier, disjoint question coverage, and noisy three-group votes. Checks reconcile
+all counts, assert intended partitions, verify input-order invariance, and exercise
+multiple seeds. Run `node scripts/check-clustering-scenarios.mjs` for a local JSON
+summary and visual comparison. An optional path to a previous analysis module adds
+before/after results; no production data or services are used.
 
 `REPORT_PYTHON` can select another Python executable. The check script clears service
 credentials before tests. Database persistence tests require a disposable PostgreSQL

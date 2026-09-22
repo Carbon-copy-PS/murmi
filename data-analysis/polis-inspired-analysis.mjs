@@ -3,8 +3,8 @@
  *
  * The implementation follows the broad shape of the public Pol.is method:
  * ternary votes, column-mean imputation, a two-dimensional PCA projection,
- * the sqrt(C / Cp) sparse-response correction, deterministic k-means, and
- * silhouette-based selection of K. It is intentionally described as
+ * a sparse-response correction over varying statements, deterministic k-means,
+ * and evidence-gated silhouette selection of K. It is intentionally described as
  * "Pol.is-inspired": this is an offline implementation, not output produced by
  * the hosted Pol.is math service.
  *
@@ -36,6 +36,10 @@ export const DEFAULT_POLIS_ANALYSIS_OPTIONS = Object.freeze({
 
 const EPSILON = 1e-12;
 const SIGNIFICANCE_90_Z = 1.6448536269514722;
+// Preliminary separation, not statistical significance or publication approval.
+export const GROUP_SEPARATION_RULE = Object.freeze({
+  minimumResponses: 2, minimumCoverage: 0.5, minimumDistributionGap: 0.2,
+});
 const UINT32_MAX_PLUS_ONE = 4294967296;
 
 function assert(condition, message) {
@@ -497,9 +501,12 @@ function computePcaProjection(matrix, maximumIterations, dimensions = 2) {
     totalVariance > EPSILON ? value / totalVariance : 0
   ));
 
+  // A unanimous/unanswered column contributes no variance. Answering it must not
+  // change the scale of otherwise identical opinions (e.g. 8 vs 9 responses).
+  const informativeColumns = covariance.flatMap((row, column) => row[column] > EPSILON ? [column] : []);
   const coordinates = matrix.map((row) => {
-    const observed = row.reduce((count, value) => count + (value === null ? 0 : 1), 0);
-    const correction = Math.sqrt(statementCount / Math.max(observed, 1));
+    const observed = informativeColumns.filter(column => row[column] !== null).length;
+    const correction = Math.sqrt(informativeColumns.length / Math.max(observed, 1));
     return components.map((component) => {
       let projection = 0;
       for (let column = 0; column < statementCount; column += 1) {
@@ -514,6 +521,7 @@ function computePcaProjection(matrix, maximumIterations, dimensions = 2) {
   return {
     columnMeans,
     columnObserved,
+    informativeStatementCount: informativeColumns.length,
     components,
     eigenvalues,
     totalVariance,
@@ -719,7 +727,36 @@ function silhouetteScore(points, assignments, k) {
   return total / points.length;
 }
 
-function selectClustering(points, options, contextSeed) {
+function groupSeparation(matrix, assignments, k) {
+  const sizes = new Array(k).fill(0);
+  const counts = Array.from({ length: k }, () =>
+    Array.from({ length: matrix[0]?.length ?? 0 }, () => [0, 0, 0]));
+  matrix.forEach((row, index) => {
+    const group = assignments[index];
+    sizes[group] += 1;
+    row.forEach((value, column) => {
+      if (value !== null) counts[group][column][value + 1] += 1;
+    });
+  });
+  const unsupportedPairs = [];
+  for (let left = 0; left < k; left++) for (let right = left + 1; right < k; right++) {
+    const supported = counts[left].some((a, column) => {
+      const b = counts[right][column];
+      const na = sum(a), nb = sum(b);
+      if (na < GROUP_SEPARATION_RULE.minimumResponses || nb < GROUP_SEPARATION_RULE.minimumResponses
+        || na / sizes[left] < GROUP_SEPARATION_RULE.minimumCoverage
+        || nb / sizes[right] < GROUP_SEPARATION_RULE.minimumCoverage) return false;
+      // Total variation of observed ternary responses includes neutral opinions;
+      // missing ballots never become a fourth opinion or a zero-support group.
+      const gap = sum(a.map((count, i) => Math.abs(count / na - b[i] / nb))) / 2;
+      return gap + EPSILON >= GROUP_SEPARATION_RULE.minimumDistributionGap;
+    });
+    if (!supported) unsupportedPairs.push([left, right]);
+  }
+  return { supported: unsupportedPairs.length === 0, unsupportedPairs };
+}
+
+function selectClustering(points, options, contextSeed, matrix) {
   const maximumK = Math.min(
     options.maximumK,
     points.length - 1,
@@ -730,22 +767,32 @@ function selectClustering(points, options, contextSeed) {
     const clustering = deterministicKmeans(points, k, options, mixSeed(contextSeed, "kmeans", k));
     if (!clustering) continue;
     const silhouette = silhouetteScore(points, clustering.assignments, k);
+    const separation = groupSeparation(matrix, clustering.assignments, k);
     candidates.push({
       k,
       silhouette,
       inertia: clustering.inertia,
       iterations: clustering.iterations,
       groupSizes: clustering.sizes,
+      separation,
       clustering,
     });
   }
   if (!candidates.length) return { selected: null, candidates: [] };
-  const selected = [...candidates].sort((left, right) => {
+  let selected = candidates.filter(candidate => candidate.separation.supported).sort((left, right) => {
     const scoreDifference = (right.silhouette ?? -Infinity) - (left.silhouette ?? -Infinity);
     if (Math.abs(scoreDifference) > EPSILON) return scoreDifference;
     if (left.k !== right.k) return left.k - right.k;
     return left.inertia - right.inertia;
   })[0];
+  if (!selected) {
+    // Preserve positions and all voters, but do not invent separate camps when
+    // no candidate has an adequately answered opinion difference for every pair.
+    const clustering = deterministicKmeans(points, 1, options, mixSeed(contextSeed, "unseparated"));
+    selected = { k: 1, silhouette: null, inertia: clustering.inertia,
+      iterations: clustering.iterations, groupSizes: clustering.sizes, clustering,
+      separation: { supported: true, unsupportedPairs: [] }, reason: "no-supported-separation" };
+  }
   return {
     selected,
     candidates: candidates.map(({ clustering, ...candidate }) => candidate),
@@ -819,7 +866,7 @@ function bootstrapStability(matrix, eligibleIndexes, reference, options) {
     const sampledMatrix = selectColumns(matrix, columns);
     const pca = computePcaProjection(sampledMatrix, options.pcaMaximumIterations);
     const points = eligibleIndexes.map((index) => pca.coordinates[index]);
-    const selection = selectClustering(points, options, mixSeed(replicateSeed, "bootstrap-clustering"));
+    const selection = selectClustering(points, options, mixSeed(replicateSeed, "bootstrap-clustering"), eligibleIndexes.map(index => sampledMatrix[index]));
     if (!selection.selected) continue;
     const ari = adjustedRandIndex(
       reference.clustering.assignments,
@@ -1247,7 +1294,7 @@ function buildGroupAnalysis(normalized, eligibleIndexes, clustering, pca, option
   };
 }
 
-function sensitivitySummary(pca, observedCounts, options) {
+function sensitivitySummary(pca, observedCounts, options, matrix) {
   return options.sensitivityThresholds.map((threshold) => {
     const eligibleIndexes = observedCounts
       .map((count, index) => ({ count, index }))
@@ -1258,7 +1305,7 @@ function sensitivitySummary(pca, observedCounts, options) {
       ? mixSeed(options.seed, "primary-clustering")
       : mixSeed(options.seed, "sensitivity", threshold);
     const selection = points.length > options.minimumK
-      ? selectClustering(points, options, contextSeed)
+      ? selectClustering(points, options, contextSeed, eligibleIndexes.map(index => matrix[index]))
       : { selected: null, candidates: [] };
     return {
       minimumVotes: threshold,
@@ -1331,7 +1378,7 @@ export function analyzePolisInspiredSession(source, options = {}) {
     .filter((participant) => participant.count >= analysisOptions.minimumVotes)
     .map((participant) => participant.index);
   const pca = computePcaProjection(normalized.matrix, analysisOptions.pcaMaximumIterations);
-  const sensitivity = sensitivitySummary(pca, observedCounts, analysisOptions);
+  const sensitivity = sensitivitySummary(pca, observedCounts, analysisOptions, normalized.matrix);
   const selectedSensitivity = sensitivity.find(
     (summary) => summary.minimumVotes === analysisOptions.minimumVotes,
   );
@@ -1368,6 +1415,7 @@ export function analyzePolisInspiredSession(source, options = {}) {
     eligiblePoints,
     analysisOptions,
     mixSeed(analysisOptions.seed, "primary-clustering"),
+    eligibleIndexes.map(index => normalized.matrix[index]),
   );
   if (!clusteringSelection.selected) {
     return {
@@ -1432,7 +1480,7 @@ export function analyzePolisInspiredSession(source, options = {}) {
       method: "Pol.is-inspired static analysis; not official Pol.is output",
       voteEncoding: "+1 agree, 0 observed neutral/pass, -1 disagree; null means missing/unseen",
       missingVoteHandling: "Per-statement observed mean for PCA fitting; missing cells remain absent during sparse participant projection.",
-      participantProjectionScaling: "sqrt(statement count / participant observed-vote count)",
+      participantProjectionScaling: "sqrt(varying-statement count / participant observed votes on varying statements)",
       participantCount: normalized.participantCount,
       eligibleParticipantCount: eligibleIndexes.length,
       excludedParticipantCount: normalized.participantCount - eligibleIndexes.length,
@@ -1450,6 +1498,7 @@ export function analyzePolisInspiredSession(source, options = {}) {
         explainedVarianceRatio: pca.explainedVarianceRatio,
         explainedVarianceRatioTotal: pca.explainedVarianceRatioTotal,
         totalVariance: pca.totalVariance,
+        informativeStatementCount: pca.informativeStatementCount,
         iterations: pca.iterations,
         statements: normalized.statements.map((statement, index) => ({
           statementIndex: statement.index,
@@ -1470,6 +1519,8 @@ export function analyzePolisInspiredSession(source, options = {}) {
         restarts: analysisOptions.kmeansRestarts,
         seed: analysisOptions.seed,
         candidates: clusteringSelection.candidates,
+        separationRule: GROUP_SEPARATION_RULE,
+        selectionReason: selected.reason || "best-silhouette-with-supported-separation",
       },
       eligibilitySensitivity: sensitivity,
       observedSelectedKRange: observedKRange,
@@ -1494,7 +1545,7 @@ export function checkProjectionSensitivity(source, options, reference) {
   const eligible = observedCountsByParticipant(normalized.matrix)
     .flatMap((count, index) => count >= settings.minimumVotes ? [index] : []);
   const points = eligible.map((index) => pca.coordinates[index]);
-  const compared = selectClustering(points, settings, mixSeed(settings.seed, "primary-clustering")).selected;
+  const compared = selectClustering(points, settings, mixSeed(settings.seed, "primary-clustering"), eligible.map(index => normalized.matrix[index])).selected;
   const assignments = (reference.assignments || []);
   const ari = compared && assignments.length === eligible.length
     ? adjustedRandIndex(assignments.map((item) => item.groupId), compared.clustering.assignments)
