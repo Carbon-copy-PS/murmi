@@ -526,11 +526,19 @@ function CommonGroundProposal({ proposal, meta, copy, language }) {
 
   return (
     <StorySection
-      kicker={endorsed ? copy.proposalVerifiedKicker : copy.proposalDraftKicker}
+      kicker={(
+        <span className="story-proposal-status">
+          {endorsed && <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+            <path d="m4 10 4 4 8-8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>}
+          {endorsed ? copy.proposalApprovedStatus : copy.proposalDraftStatus}
+        </span>
+      )}
       title={copy.proposalSectionTitle}
       className={`story-proposal-section ${endorsed ? 'is-endorsed' : 'is-draft'}`}
     >
       <div className="story-proposal-body">
+        <blockquote>{proposal.groupStatement}</blockquote>
         {total > 0 ? (
           <div className="story-proposal-metrics">
             <div className="story-proposal-metric">
@@ -567,7 +575,6 @@ function CommonGroundProposal({ proposal, meta, copy, language }) {
         ) : (
           <p className="story-proposal-unvalidated">{copy.proposalUnvalidated}</p>
         )}
-        <blockquote>{proposal.groupStatement}</blockquote>
         <div className="story-proposal-package">
           <CommonGroundItems
             title={copy.proposalRecommendations}
@@ -763,6 +770,12 @@ export default function FinalReportPage({ report, preview = false }) {
         copy={copy}
         language={language}
       />
+
+      {proposal?.groupStatement && (
+        <header className="story-analysis-heading">
+          <h2>{copy.analysisSectionTitle}</h2>
+        </header>
+      )}
 
       {report.opinionLandscape && (
         <StorySection

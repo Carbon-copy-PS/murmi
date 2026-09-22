@@ -26,7 +26,9 @@ if (isTraffic) {
   assert.ok(proposalIndex > html.indexOf('story-opening'));
   assert.ok(proposalIndex < html.indexOf('story-opinion-section'));
   assert.ok(html.includes('AI common ground'));
-  assert.ok(html.includes('Participant-verified common ground'));
+  assert.ok(html.includes('Approved as final'));
+  assert.ok(html.indexOf('story-analysis-heading') > proposalIndex);
+  assert.ok(html.indexOf('story-analysis-heading') < html.indexOf('story-opinion-section'));
   assert.ok(html.includes(report.commonGroundProposal.groupStatement));
   assert.ok(html.includes('48 of 54 respondents agreed'));
   assert.ok(html.includes('54 of 60 participants responded'));
@@ -34,8 +36,8 @@ if (isTraffic) {
   draft.commonGroundProposal.status = 'working_draft';
   delete draft.commonGroundProposal.endorsement;
   const draftHtml = renderToStaticMarkup(<FinalReportPage report={draft} preview />);
-  assert.ok(draftHtml.includes('Common-ground draft'));
-  assert.ok(!draftHtml.includes('Participant-verified common ground'));
+  assert.ok(draftHtml.includes('Draft · not yet approved'));
+  assert.ok(!draftHtml.includes('Approved as final'));
 } else {
   assert.ok(!html.includes('story-proposal-section'));
 }

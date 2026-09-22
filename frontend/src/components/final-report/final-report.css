@@ -2089,3 +2089,77 @@
   --ds-accent: #8db9ef;
   --ds-accent-soft: #34475d;
 }
+
+/* The deliberation outcome is one card; interpretation follows outside it. */
+.story-report .story-proposal-section {
+  --proposal-status: #286044;
+  background: var(--ds-surface-3);
+  border: 0;
+  border-radius: 1.5rem;
+  box-shadow: none;
+}
+.story-report .story-proposal-section.is-endorsed {
+  background: color-mix(in srgb, var(--proposal-status) 6%, var(--ds-surface-3));
+}
+.story-proposal-section .story-kicker {
+  margin-bottom: 1rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.story-proposal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .45rem .75rem;
+  border-radius: 999px;
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
+  font-size: .85rem;
+  font-weight: 650;
+}
+.is-endorsed .story-proposal-status {
+  color: var(--proposal-status);
+  background: color-mix(in srgb, var(--proposal-status) 9%, var(--ds-surface));
+}
+.story-proposal-status svg { flex-shrink: 0; }
+.story-report .story-proposal-section blockquote {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  max-width: 58rem;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  line-height: 1.55;
+}
+.story-report .story-proposal-metric { background: var(--ds-surface); }
+.story-report .story-proposal-package {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+.story-report .story-proposal-list {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.story-report .story-proposal-concerns {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--ds-surface);
+}
+.story-analysis-heading {
+  padding: 2.5rem clamp(1.6rem, 4vw, 3rem) 0;
+}
+.story-analysis-heading h2 {
+  margin: 0;
+  color: var(--ds-text-muted);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+[data-theme="dark"] .story-report .story-proposal-section { --proposal-status: #9cc6aa; }
+@media (max-width: 760px) {
+  .story-report .story-proposal-package { grid-template-columns: 1fr; }
+  .story-analysis-heading { padding-top: 2rem; }
+}

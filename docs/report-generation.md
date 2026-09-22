@@ -24,7 +24,11 @@ The current format contains:
 
 - The saved AI common-ground package directly after the opening, when the session
   has one. It retains recorded endorsement/reaction counts and unresolved concerns;
-  report findings do not replace this deliberation outcome.
+  report findings do not replace this deliberation outcome. A standalone card uses
+  “Approved as final” only for a saved endorsed version with endorsement data;
+  other versions say “Draft · not yet approved”. Approval is not unanimity: reaction
+  and participation counts stay visible. A separate discussion-analysis heading
+  introduces the map and findings below the card.
 - An overview and up to four distinct findings. Shared principles and useful paired
   comparisons belong in findings, not separate sections.
 - An opinion map with visible themes and spread dots. Individual dots are not selectable;
