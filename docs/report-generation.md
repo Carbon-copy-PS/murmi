@@ -145,6 +145,104 @@ The offline fixture tests structure and evidence plumbing, not live model qualit
 
 ## Local validation
 
+### Common-ground readability experiments
+
+`backend.tools.compare_common_ground_readability` compares Luna and Astra using an
+explicit aggregate evidence file and a matching local draft. It checks the opinion
+source hash, freezes requests, retains raw responses and citations, and reuses the
+normal common-ground normalizer. It neither publishes nor changes model routing.
+Production evidence belongs only in private, Git-ignored `outputs/` directories.
+
+Prepare with `--output`, `--evidence` and `--report`; optionally supply a previous
+synthetic experiment `--synthetic-bundle` to include the English traffic scenario.
+Run with the same `--output` and an explicit `--key-file`; `--arms plain-language`
+selects only the shorter prompt. Each arm runs twice per model, capped at 16 new
+calls. Serve the output directory on loopback for visual comparison.
+
+The experimental shorter system prompt asks for two or three summary sentences,
+three recommendations, and up to two items in each remaining list. Approval stays
+in interface status rather than the summary. Group letters and complete anonymous
+counts are identical across models. Host preferences are capped at 1,500 characters
+and subordinate to the system contract; long host instructions are not a reliable
+way to test a different output format. Change the experimental system prompt itself.
+
+Review negative/compound statements literally, compare shared directions with
+per-group coverage, and inspect all repeated runs. Valid citation IDs alone do not
+establish that a paraphrase follows the evidence. These experiments do not yet
+change production generation. Their earlier outputs remain frozen even as the
+application's versioned generation contracts evolve.
+
+To exercise the shared-profile flow through the configured live SDK calls, use
+`backend.tools.preview_common_ground_revision --output <fresh-private-directory>
+--key-file <local-key-file>`. It runs English, Chinese, no-vote and conflicting-support
+synthetic cases. `--mode generic` exercises the other production mode; `--scenarios`
+selects a subset for focused checks. Optional `--report` and `--evidence` inputs must be an explicit local
+draft and matching aggregate evidence. It saves requests, raw responses, normalized
+drafts and source hashes, without contacting the app database or publishing. Review
+actual wording against evidence; structural success is not semantic approval.
+
+### Comparing common-ground modes locally
+
+`backend.tools.compare_common_ground_modes --input <saved-input.json> --report
+<matching-draft.json> --output <fresh-private-directory> --key-file <local-key-file>`
+runs two samples of each current mode. Both receive the exact same complete aggregate
+evidence and canonical profiles through the application's shared evidence builder.
+The saved input has `report` and `evidence` keys. No individual ballots or transcripts
+are reconstructed or submitted. Original experiments with unequal input remain
+private historical artifacts, not the current comparison procedure.
+
+The four calls use the configured common-ground model and save exact requests,
+raw responses, normalized outputs and source hashes. A fresh output directory is
+required; calls are not retried. Serve its `index.html` on localhost for comparison.
+Normalizer acceptance does not establish factual accuracy. This tool does not change
+session mode, report snapshots or publication state.
+
+For a controlled framing comparison, use `backend.tools.compare_common_ground_framing`
+with the same four arguments. It runs four calls: two samples of shared-understanding
+framing and two of policy-direction framing. Both receive one identical evidence
+pack with all statement and group counts, fixed group descriptions and co-support.
+Only one system-prompt framing sentence differs; model options, output schema,
+citation rules and length limits are identical. The tool asserts request equality
+after removing that sentence and records the common evidence hash. These are
+experimental prompts, not the current application mode implementations. Review
+semantic fidelity separately from the shared structural checks.
+
+To compare the original modes without rewriting their instructions or structures,
+use `backend.tools.compare_original_common_ground` with the same input/report/output/
+key-file arguments and an explicit `--prompt-ref <git-commit>`. For the original
+mediation-summary policy prompt before local shortening, the reviewed reference is
+`0db8e39514f5f0221549a690a473b3f8d234d876`. The tool reads prompt string constants
+from Git without checking out or executing that revision, verifies unchanged language
+rules, and submits the same complete evidence text to both original prompts. It
+adds no shared writing rules, output schema or length constraints. Four calls
+produce two samples per mode with exact prompt/evidence hashes and raw responses.
+The original policy paragraph remains a 3–4 sentence mediation summary, followed
+by its recommendations, conditions, tradeoffs and unresolved questions. The current
+writing validator is disabled for this experiment; structural acceptance
+and semantic assessment remain separate. The original-prompt replay does not alter application generation.
+
+### Local review on 2026-09-22
+
+The mediation revision passed 140 backend tests (137 passed; three PostgreSQL tests
+skipped without a disposable database), 50 JavaScript tests, three report-render checks
+and the production frontend build. The existing large-chunk build warning remains.
+Desktop (1280px) and mobile (390px) previews were inspected, including generic lists
+in English and Chinese; the mobile page did not overflow horizontally.
+
+Fresh synthetic English traffic and Chinese public-service discussions exercised
+both modes with the configured SDK and shared-profile restoration. All four generated
+common-ground/report pairs completed. A further generic pass in each language checked
+that a proposal opposed by a group stays out of the shared-points list; the Chinese
+example correctly retained one shared point rather than padding the list to three.
+These calls validate the inspected examples, not every future model interpretation.
+Exact requests and responses remain in private ignored outputs, not this repository.
+
+No model routing or session default changed. No production report was rewritten.
+The PostgreSQL workflow checks and approval of the exact release remain outstanding
+before deployment. This local review does not authorize publication.
+
+### Report checks
+
 Prerequisites: Python 3.11+ (CI uses 3.12), Node 20+, and installed dependencies.
 From the repository root:
 

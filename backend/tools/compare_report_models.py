@@ -265,7 +265,8 @@ def reaudit(dest):
     render_review(dest, bundle)
 
 
-async def run(dest, *, scenario_ids, stage_ids, arms, models, repeats, max_calls, key_file, concurrency=3):
+async def run(dest, *, scenario_ids, stage_ids, arms, models, repeats, max_calls, key_file, concurrency=3, renderer=None):
+    render = renderer or render_review
     bundle = json.loads((dest / "bundle.json").read_text())
     saved_hash = bundle.pop("bundleHash")
     if digest(bundle) != saved_hash:
@@ -293,7 +294,7 @@ async def run(dest, *, scenario_ids, stage_ids, arms, models, repeats, max_calls
     if len(jobs) > max_calls:
         raise ValueError(f"{len(jobs)} new calls exceed --max-calls {max_calls}; select a smaller round.")
     if not jobs:
-        render_review(dest, bundle)
+        render(dest, bundle)
         print("No new calls; existing results retained.")
         return
     key = dotenv_values(key_file).get("OPENAI_API_KEY")
@@ -358,7 +359,7 @@ async def run(dest, *, scenario_ids, stage_ids, arms, models, repeats, max_calls
                     result.update(status="error", errorType=type(exc).__name__, seconds=round(time.monotonic() - start, 2))
                 finally:
                     write_json(path, result)
-                    render_review(dest, bundle)
+                    render(dest, bundle)
                     print(f"{case['id']} | {model} | {result['status']} | {result.get('seconds', 0)}s", flush=True)
         await asyncio.gather(*(one(*job) for job in jobs))
     print("Round finished. Generated outputs require evidence review; nothing was approved or published.")
@@ -378,6 +379,8 @@ def readable_output(value):
               "groupAnalysis": "Group analysis"}
     out = []
     title = value.get("headline") or value.get("title")
+    if title and value.get("group"):
+        title = f'{value["group"]} · {title}'
     if title:
         out.append(f'<h4>{esc(title)}</h4>')
     for key in ("groupStatement", "standfirst", "text", "description", "explanation"):
