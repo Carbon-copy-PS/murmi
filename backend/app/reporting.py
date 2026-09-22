@@ -27,6 +27,7 @@ def freeze_report_source(session):
     frozen = copy(session)
     frozen.statements = deepcopy(session.statements)
     frozen.common_ground_history = deepcopy(session.common_ground_history)
+    frozen.report_snapshot = deepcopy(session.report_snapshot)
     frozen.known_participants = dict(session.known_participants)
     frozen.participants = dict.fromkeys(session.participants)
     return frozen

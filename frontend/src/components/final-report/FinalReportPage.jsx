@@ -570,7 +570,11 @@ function CommonGroundProposal({ proposal, meta, copy, language }) {
             )}
           </div>
         ) : null}
-        <div className="story-proposal-package">
+        <div className={`story-proposal-package ${proposal.mode === 'generic' ? 'is-generic' : ''}`}>
+          <CommonGroundItems title={copy.proposalSharedPoints} items={proposal.commonGround} />
+          <CommonGroundItems title={copy.proposalDivides} items={proposal.divides} />
+          <CommonGroundItems title={copy.proposalBridge} items={proposal.bridgingProposal ? [proposal.bridgingProposal] : []} />
+          <CommonGroundItems title={copy.proposalInsights} items={proposal.insights} />
           <CommonGroundItems
             title={copy.proposalRecommendations}
             items={proposal.recommendations}

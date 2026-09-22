@@ -52,6 +52,19 @@ if (isTraffic) {
 } else {
   assert.ok(!html.includes('story-proposal-section'));
 }
+// Generic packages retain their original point-focused structure in every locale.
+const generic = structuredClone(report);
+generic.commonGroundProposal = { mode: 'generic', status: 'working_draft',
+  groupStatement: 'A shared starting point with remaining questions.',
+  commonGround: ['Keep access affordable.'], divides: ['How should opening hours change?'],
+  bridgingProposal: 'Compare ways to extend access.', insights: ['Access is a shared concern.'], votes: {} };
+const genericHtml = renderToStaticMarkup(<FinalReportPage report={generic} preview />);
+for (const point of ['Keep access affordable.', 'How should opening hours change?', 'Compare ways to extend access.', 'Access is a shared concern.']) {
+  assert.ok(genericHtml.includes(point));
+}
+const genericCard = genericHtml.slice(genericHtml.indexOf('story-proposal-section'), genericHtml.indexOf('story-analysis-heading'));
+assert.ok(!genericCard.includes('story-proposal-metrics'));
+assert.ok(!genericCard.includes('<details'));
 assert.equal((html.match(/id="report-statement-/g) || []).length, report.evidence.statements.length)
 assert.ok(html.includes('story-section story-all-statements'))
 assert.ok(!html.includes('<details class="story-all-statements"'))

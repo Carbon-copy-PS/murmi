@@ -61,7 +61,7 @@
     "tensionsTimeout": "產生分歧點逾時，請再試一次。",
     "recommendationsFailed": "無法產生建議。",
     "recommendationsTimeout": "產生建議逾時，請再試一次。",
-    "cgNeedsVotes": "產生政策草稿前需要已核准且有投票的論點。",
+    "cgNeedsVotes": "產生共識前需要已核准且有投票的論點。",
     "cgEndorseFailed": "無法認可此版本。僅最新工作草稿可標記為最終。",
     "transcriptIncomplete": "最後一段逐字稿可能不完整，部分音訊尚未確認。",
     "transcriptSaveFailed": "部分逐字稿尚未儲存，系統正在重試。請保持此頁開啟，必要時複製逐字稿備份。"

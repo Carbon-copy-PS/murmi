@@ -2145,3 +2145,7 @@
   .story-report .story-proposal-package { grid-template-columns: 1fr; }
   .story-analysis-heading { padding-top: 2rem; }
 }
+
+@media (min-width: 761px) {
+  .story-report .story-proposal-package.is-generic { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

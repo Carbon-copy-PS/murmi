@@ -61,7 +61,7 @@
     "tensionsTimeout": "Timed out generating tensions. Please try again.",
     "recommendationsFailed": "Could not generate recommendations.",
     "recommendationsTimeout": "Timed out generating recommendations. Please try again.",
-    "cgNeedsVotes": "Need approved arguments with votes before generating a policy draft.",
+    "cgNeedsVotes": "Need approved statements with votes before generating common ground.",
     "cgEndorseFailed": "Could not endorse this version. Only the latest working draft can be marked Final.",
     "transcriptIncomplete": "The final transcript may be incomplete. Some audio was not confirmed.",
     "transcriptSaveFailed": "Some transcript text is not saved yet. Retrying; keep this page open and copy the transcript if needed."

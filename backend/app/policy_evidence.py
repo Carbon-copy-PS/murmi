@@ -142,7 +142,7 @@ def build_policy_evidence(session, landscape=None) -> dict:
             stances.append({"argumentId": statement["id"], "lean": lean,
                             "support": statement["agree"], "opposition": statement["disagree"],
                             "neutral": statement["neutral"], "missing": statement["missing"],
-                            "responded": responded})
+                            "responded": responded, "dist": dict(statement["dist"])})
         groups.append({"group": group["letter"], "size": group["size"], "stances": stances})
     co_support = _co_support_pairs(approved, voters)
 
@@ -166,6 +166,7 @@ def build_policy_evidence(session, landscape=None) -> dict:
             "coveragePct": st["coveragePct"],
             "supportRate": st["supportRate"],
             "split": st["split"],
+            "dist": dict(st["dist"]),
         }
         for st in stats
     ]
@@ -208,6 +209,7 @@ def build_policy_evidence(session, landscape=None) -> dict:
             continue
         co_support_aliased.append({**pair, "argumentIds": ids})
 
+    from .opinion_themes import capture_group_profiles
     return {
         "voterCount": len(voters),
         "rosterSize": roster_size,
@@ -215,6 +217,7 @@ def build_policy_evidence(session, landscape=None) -> dict:
         "voteType": session.vote_type or "binary",
         "arguments": arguments,
         "opinionGroups": opinion_groups,
+        "groupProfiles": capture_group_profiles(landscape or {}, session.language, session.topic),
         "opinionAnalysisStatus": (landscape or {}).get("status", "unavailable"),
         "opinionSourceHash": (landscape or {}).get("sourceHash"),
         "opinionCaveat": "Provisional groups are early patterns for discussion, not reliable or fixed camps. Retain response and missing-answer counts in every interpretation.",
@@ -225,13 +228,13 @@ def build_policy_evidence(session, landscape=None) -> dict:
     }
 
 
-def build_anonymous_policy_feedback(history: list[dict]) -> list[dict]:
-    """Prior policy versions + anonymous feedback IDs (no names / participant ids)."""
+def build_anonymous_common_ground_feedback(history: list[dict]) -> list[dict]:
+    """Prior packages and anonymous reactions for either mode, without identity fields."""
     out = []
+    fb_n = 0
     for item in history:
         participant_votes = item.get("participantVotes") or {}
         fb_items = []
-        fb_n = 0
         for entry in participant_votes.values():
             fb_n += 1
             fb_id = f"fb{fb_n}"
@@ -250,6 +253,11 @@ def build_anonymous_policy_feedback(history: list[dict]) -> list[dict]:
         disagree = sum(1 for e in participant_votes.values() if e.get("vote") == "disagree")
         out.append({
             "versionId": item.get("id"),
+            "mode": item.get("mode") or item.get("depth"),
+            "commonGround": item.get("commonGround") or [],
+            "divides": item.get("divides") or [],
+            "bridgingProposal": item.get("bridgingProposal") or "",
+            "insights": item.get("insights") or [],
             "status": item.get("status") or "working_draft",
             "generatedAt": item.get("generatedAt"),
             "groupStatement": item.get("groupStatement"),
@@ -277,3 +285,58 @@ def valid_evidence_ids(evidence: dict, previous_feedback: list[dict]) -> set[str
             if isinstance(cond, dict) and cond.get("id"):
                 ids.add(cond["id"])
     return ids
+
+
+# Compatibility for callers that already collect policy-only history.
+build_anonymous_policy_feedback = build_anonymous_common_ground_feedback
+
+
+def common_ground_evidence_pack(analysis: dict, topic: str | None) -> dict:
+    """One complete aggregate input for both modes, without internal IDs or ballots.
+
+    Roster and active-voter denominators remain explicit. Legacy aggregate exports
+    may lack five-point distributions; retain their totals without inventing detail.
+    """
+    from copy import deepcopy
+    from .opinion_themes import common_ground_group_analysis
+
+    roster = analysis.get("rosterSize", 0)
+    voters = analysis.get("voterCount", 0)
+    aliases = {v: k for k, v in (analysis.get("argumentIdMap") or {}).items()}
+    profiles = [
+        {**profile, "evidenceStatementIds": [aliases[r] for r in profile["evidenceStatementIds"] if r in aliases]}
+        for profile in common_ground_group_analysis(analysis.get("groupProfiles"))
+    ]
+    statements = []
+    for argument in analysis.get("arguments") or []:
+        responded = argument.get("responded", 0)
+        row = {"id": argument.get("id"), "text": argument.get("text", ""),
+               "support": argument.get("support", 0), "neutral": argument.get("neutrality", 0),
+               "opposition": argument.get("opposition", 0), "responded": responded,
+               "unansweredAmongVoters": max(0, voters - responded),
+               "unansweredAmongRoster": max(0, roster - responded)}
+        if isinstance(argument.get("dist"), dict):
+            row["counts"] = deepcopy(argument["dist"])
+        statements.append(row)
+    # Remap historical citations to the same aliases as current arguments. No
+    # participant identity fields enter this projection.
+    previous = deepcopy(analysis.get("previousFeedback") or [])
+    for item in previous:
+        for field in ("recommendations", "essentialConditions", "tradeoffs", "unresolvedQuestions"):
+            for point in item.get(field) or []:
+                if isinstance(point, dict):
+                    point["evidenceIds"] = [aliases.get(ref, ref) for ref in point.get("evidenceIds") or []]
+    return {
+        "topic": topic,
+        "rosterSize": roster, "voterCount": voters,
+        "voteScale": analysis.get("voteType", "binary"),
+        "groupingStatus": analysis.get("opinionAnalysisStatus", "unavailable"),
+        "statements": statements,
+        "groups": deepcopy(analysis.get("opinionGroups") or []),
+        "canonicalGroupProfiles": profiles,
+        "coSupport": deepcopy(analysis.get("coSupport") or []),
+        "coSupportDenominator": "sharedRespondents excludes neutral and missing responses",
+        "groupDifferences": deepcopy(analysis.get("groupDifferences") or []),
+        "previousFeedback": previous,
+        "validArgumentIds": list(analysis.get("validArgumentIds") or []),
+    }

@@ -29,6 +29,8 @@ The current format contains:
   other versions say “Draft · not yet approved”. Approval is not unanimity: reaction
   and participation counts stay visible. A separate discussion-analysis heading
   introduces the map and findings below the card.
+  When there are no package reactions, the status badge is sufficient: do not add
+  a repeated validation warning or show empty agreement/participation metrics.
 - An overview and up to four distinct findings. Shared principles and useful paired
   comparisons belong in findings, not separate sections.
 - An opinion map with visible themes and spread dots. Individual dots are not selectable;
@@ -50,12 +52,54 @@ warm stone for neutral, and clay red for disagreement, with darker endpoints for
 strong responses. Bars and their legend markers share report-scoped colour tokens,
 including group comparisons and the response-coverage chart. Standalone percentage
 indicators keep the site accent; missing responses remain separate from neutral.
+Evidence beneath findings and unresolved questions uses the same response distribution
+as the statement list, retaining five-point detail when recorded. Coverage is shown
+separately below the response legend.
 
 New policy common-ground drafts carry `evidenceVersion: cg-evidence-v2`. Required
 recommendations and conditions without a supplied valid citation are discarded;
 if no valid recommendation remains, generation fails. The normalizer never assigns
 an unrelated replacement citation. Existing saved drafts and endorsements are not
 rewritten. Valid IDs still require a human check that they support the actual claim.
+
+New generations use `cg-prompt-v3` and `common-ground-mediation-v1`. Both modes
+retain their original 3–4 sentence mediation summary. Policy keeps recommendations
+(normally 3–6), conditions, tradeoffs and unresolved questions (normally 2–4 each).
+Sparse evidence can justify fewer items. Revision limits expand to preserve earlier
+items rather than discard conditions to meet a quota. Summaries can describe group
+contrasts; approval status stays in the interface. Validation rejects malformed or
+excessive text, unknown/missing policy citations and exact repeated policy items,
+without silently truncating meaningful content. Saved packages are never rewritten.
+
+Generic keeps its shared points, divisions, bridging suggestion and insights. Shared
+points are direct propositions; divisions are specific unresolved questions, without
+vote counts, percentages or support-level commentary. All four sections appear in
+the report as plain lists. The report's evidence sections retain the quantitative
+detail. Proposed actions must remain distinguishable from recorded agreement.
+
+Both modes use the same complete server-built aggregate evidence: every approved
+statement, five-point counts where recorded, explicit voter/roster missing counts,
+every group's tallies, canonical profiles, co-support and anonymous prior reactions.
+The model-facing input is mode-neutral; only the system instructions/output structure
+and the relevant mode's prior history differ. Client-supplied analysis is ignored.
+Counts and prior history are captured before asynchronous analysis. No transcript,
+participant identifiers or individual ballots are added to these common-ground calls.
+
+`shared-group-profiles-v1` stores the validated `opinion-themes-v4` descriptions once
+with the grouping source hash, group IDs/letters/sizes, language, topic and model
+routing version. It contains aggregate prose and references, never dots or voter
+identifiers. Common-ground generation receives those profiles and the complete
+group tallies, including mixed and missing responses; the normalizer attaches the
+canonical profiles instead of accepting independently generated group descriptions.
+When profiles are unavailable, common ground does not invent replacement profiles.
+
+A report first reuses matching profiles from its saved common-ground package, then
+from an earlier report, and otherwise generates fresh profiles. A common-ground
+request can likewise reuse matching profiles from an earlier report. Checks reject
+changed votes, group letters/sizes, language, topic, versions, or altered profile
+content. Live retained/stale themes are never saved as exact current evidence.
+Reports preserve historical approved packages when newer grouping data differs;
+they do not relabel or rewrite the earlier package to match a new map.
 
 Previously saved reports remain readable. New-format rendering suppresses obsolete
 principle, action-area, and overlap sections even if an unexpected provider response
@@ -76,8 +120,9 @@ The separate discussion-recommendation and audio-transcription paths are unchang
 New common-ground, theme and report outputs record their requested/returned model
 and routing version. Theme-cache keys include the routing version. Saved proposals
 and approval records are preserved; generating a report does not regenerate or
-approve common ground. Prompt and presentation contracts are unchanged by this
-model-only configuration change. These settings require the same local review and
+approve common ground. The model-routing version remains unchanged by the mediation
+common-ground and shared-profile changes; report prose uses `report-narrative-v3`.
+These settings require the same local review and
 release approval as other code changes.
 
 The report captures one frozen vote snapshot before asynchronous analysis. Counts,

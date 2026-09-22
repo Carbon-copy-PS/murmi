@@ -61,7 +61,7 @@
     "tensionsTimeout": "Délai dépassé lors de la génération des tensions. Veuillez réessayer.",
     "recommendationsFailed": "Impossible de générer les recommandations.",
     "recommendationsTimeout": "Délai dépassé lors de la génération des recommandations. Veuillez réessayer.",
-    "cgNeedsVotes": "Des arguments approuvés avec des votes sont requis avant de générer un brouillon politique.",
+    "cgNeedsVotes": "Des propositions approuvées ayant reçu des votes sont nécessaires pour générer les points communs.",
     "cgEndorseFailed": "Impossible d’approuver cette version. Seul le dernier brouillon de travail peut être marqué Final.",
     "transcriptIncomplete": "La fin de la transcription est peut-être incomplète. Une partie de l’audio n’a pas été confirmée.",
     "transcriptSaveFailed": "Une partie de la transcription n’est pas encore enregistrée. Nouvelle tentative en cours ; gardez cette page ouverte et copiez la transcription si nécessaire."

@@ -10,7 +10,73 @@ import time
 
 from .model_routing import MODEL_ROUTING_VERSION
 
-THEME_VERSION = "opinion-themes-v3"
+THEME_VERSION = "opinion-themes-v4"
+PROFILE_VERSION = "shared-group-profiles-v1"
+
+
+def capture_group_profiles(landscape, language, topic):
+    """Persist only exact, validated aggregate prose; never dots or voter IDs."""
+    themes = landscape.get("themes") or {}
+    source = landscape.get("sourceHash")
+    if not source or themes.get("sourceHash") != source or themes.get("version") != THEME_VERSION:
+        return None
+    if themes.get("status") != "ready" or themes.get("retained"):
+        return None
+    if themes.get("language") != (language or "en"):
+        return None
+    valid = validate_themes(themes, theme_evidence(landscape, topic))
+    if not valid["groups"]:
+        return None
+    snapshot = {"version": PROFILE_VERSION, "themeVersion": THEME_VERSION,
+                "routingVersion": MODEL_ROUTING_VERSION, "sourceHash": source,
+                "language": language or "en", "topic": topic,
+                "groups": [{"id": g["id"], "letter": g["letter"], "size": g["size"]}
+                           for g in landscape.get("groups", [])],
+                "themes": valid}
+    if isinstance(themes.get("generation"), dict):
+        snapshot["generation"] = deepcopy(themes["generation"])
+    snapshot["id"] = hashlib.sha256(json.dumps(snapshot, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    return snapshot
+
+
+def restore_group_profiles(landscape, snapshot, language, topic):
+    """Return an enriched copy only when saved profiles match this exact analysis."""
+    if not isinstance(snapshot, dict):
+        return None
+    required = {"version": PROFILE_VERSION, "themeVersion": THEME_VERSION,
+                "routingVersion": MODEL_ROUTING_VERSION, "sourceHash": landscape.get("sourceHash"),
+                "language": language or "en", "topic": topic,
+                "groups": [{"id": g["id"], "letter": g["letter"], "size": g["size"]}
+                           for g in landscape.get("groups", [])]}
+    if not required["sourceHash"] or any(snapshot.get(k) != v for k, v in required.items()):
+        return None
+    content = {k: v for k, v in snapshot.items() if k != "id"}
+    if snapshot.get("id") != hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest():
+        return None
+    parsed = validate_themes(snapshot.get("themes"), theme_evidence(landscape, topic))
+    if not parsed["groups"] or parsed != snapshot.get("themes"):
+        return None
+    result = deepcopy(landscape)
+    result["themes"] = {**deepcopy(parsed), "status": "ready", "version": THEME_VERSION,
+                        "sourceHash": required["sourceHash"], "language": language or "en",
+                        "profileSetId": snapshot["id"]}
+    if snapshot.get("generation"):
+        result["themes"]["generation"] = deepcopy(snapshot["generation"])
+    by_id = {t["groupId"]: t for t in parsed["groups"]}
+    for group in result.get("groups", []):
+        group.pop("theme", None)
+        if group["id"] in by_id:
+            group["theme"] = {**deepcopy(by_id[group["id"]]), "sourceHash": required["sourceHash"]}
+    return result
+
+
+def common_ground_group_analysis(snapshot):
+    if not snapshot:
+        return []
+    letters = {g["id"]: g["letter"] for g in snapshot["groups"]}
+    return [{"group": letters[t["groupId"]], "title": t["title"],
+             "description": t["description"], "evidenceStatementIds": list(t["evidenceStatementIds"])}
+            for t in snapshot["themes"]["groups"]]
 
 
 def theme_evidence(landscape, topic=None):

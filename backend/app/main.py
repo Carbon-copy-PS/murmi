@@ -7,6 +7,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -24,7 +25,7 @@ from .argument_queue import ArgumentQueue
 from .realtime_transcription import RealtimeTranscriptionSession
 from .transcript_writer import TranscriptWriter
 from .opinion_analysis import get_opinion_analysis
-from .opinion_themes import OpinionThemeService
+from .opinion_themes import OpinionThemeService, capture_group_profiles, restore_group_profiles
 from .db import Database
 from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
@@ -507,8 +508,17 @@ async def run_report_generation(session_id: str):
         snapshot["opinionLandscape"] = await build_opinion_landscape(
             report_source
         )
-        snapshot["opinionLandscape"] = await opinion_themes.enrich(
+        restored = restore_group_profiles(
+            snapshot["opinionLandscape"], (snapshot.get("commonGroundProposal") or {}).get("groupProfiles"),
+            report_source.language, report_source.topic)
+        if restored is None:
+            restored = restore_group_profiles(
+                snapshot["opinionLandscape"], (report_source.report_snapshot or {}).get("groupProfiles"),
+                report_source.language, report_source.topic)
+        snapshot["opinionLandscape"] = restored if restored is not None else await opinion_themes.enrich(
             report_source, snapshot["opinionLandscape"], wait=True)
+        snapshot["groupProfiles"] = capture_group_profiles(
+            snapshot["opinionLandscape"], report_source.language, report_source.topic)
         try:
             narrative = await asyncio.wait_for(
                 analysis.generate_report_narrative(
@@ -554,9 +564,19 @@ async def run_common_ground(
     language: str | None,
     mode: str = "generic",
     participant_id: str | None = None,
+    grouping_snapshot: dict | None = None,
+    saved_profiles: dict | None = None,
 ):
     result = None
     try:
+        # The grouping and tallies were captured together before this task.
+        # Never fetch current live votes after waiting for a model response.
+        landscape = grouping_snapshot or {}
+        context = SimpleNamespace(id=session_id, language=language, topic=topic)
+        enriched = restore_group_profiles(landscape, saved_profiles, language, topic)
+        if enriched is None:
+            enriched = await opinion_themes.enrich(context, landscape, wait=True)
+        payload = {**payload, "groupProfiles": capture_group_profiles(enriched, language, topic)}
         result = await asyncio.wait_for(
             analysis.generate_common_ground(
                 payload,
@@ -1165,36 +1185,31 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                     session.common_ground_mode if session else DEFAULT_COMMON_GROUND_MODE
                 )
                 mode = normalize_common_ground_mode(raw_mode)
-                client_analysis = data.get("analysis") if isinstance(data.get("analysis"), dict) else {}
-
-                if mode == "policy":
-                    if not session:
-                        continue
-                    from .policy_evidence import build_policy_evidence
-                    policy_source = freeze_report_source(session)
-                    opinion = await get_opinion_analysis(policy_source)
-                    payload = build_policy_evidence(policy_source, opinion["landscape"])
-                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
-                        session_id, mode="policy"
-                    )
-                    if not payload.get("arguments"):
-                        await sessions.broadcast(session_id, {
-                            "type": "common_ground_error",
-                            "message": "Need approved arguments with votes before generating a policy draft.",
-                            "code": "cgNeedsVotes",
-                        })
-                        continue
-                else:
-                    payload = dict(client_analysis)
-                    payload["previousFeedback"] = sessions.collect_common_ground_feedback(
-                        session_id, mode="generic"
-                    )
-
-                topic = session.topic if session else None
-                language = session_statement_language(session_id) if session else None
+                if not session:
+                    continue
+                source = freeze_report_source(session)
+                language = session_statement_language(session_id)
+                # Freeze votes, prior reactions and grouping together. Both modes
+                # use authoritative server evidence; ignore client-supplied analysis.
+                opinion = await get_opinion_analysis(source)
+                from .policy_evidence import build_policy_evidence, build_anonymous_common_ground_feedback
+                payload = build_policy_evidence(source, opinion["landscape"])
+                payload["previousFeedback"] = build_anonymous_common_ground_feedback([
+                    item for item in source.common_ground_history
+                    if normalize_common_ground_mode(item.get("mode") or item.get("depth")) == mode
+                ])
+                if not payload.get("arguments") or not payload.get("voterCount"):
+                    await sessions.broadcast(session_id, {
+                        "type": "common_ground_error",
+                        "message": "Need approved statements with votes before generating common ground.",
+                        "code": "cgNeedsVotes",
+                    })
+                    continue
                 await sessions.broadcast(session_id, {"type": "common_ground_pending", "mode": mode})
                 asyncio.create_task(
-                    run_common_ground(session_id, payload, topic, language, mode, participant_id)
+                    run_common_ground(session_id, payload, source.topic, language, mode, participant_id,
+                        grouping_snapshot=opinion["landscape"],
+                        saved_profiles=(source.report_snapshot or {}).get("groupProfiles"))
                 )
 
             elif msg_type == "endorse_common_ground":

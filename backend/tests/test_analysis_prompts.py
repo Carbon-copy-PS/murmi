@@ -63,7 +63,7 @@ class HostInstructionPromptTests(unittest.TestCase):
     def test_default_instructions_are_facilitation_only(self):
         self.assertIn("remaining concerns", DEFAULT_COMMON_GROUND_INSTRUCTIONS.lower())
         self.assertNotIn("Respond ONLY with JSON", DEFAULT_COMMON_GROUND_INSTRUCTIONS)
-        self.assertEqual(CG_PROMPT_VERSION, "cg-prompt-v1")
+        self.assertEqual(CG_PROMPT_VERSION, "cg-prompt-v3")
 
 
 if __name__ == "__main__":

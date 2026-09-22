@@ -1094,35 +1094,10 @@ class SessionManager:
         if not session:
             return []
         target = normalize_common_ground_mode(mode) if mode else None
-        if target == "policy":
-            from .policy_evidence import build_anonymous_policy_feedback
-            history = [
-                item for item in session.common_ground_history
-                if normalize_common_ground_mode(item.get("mode") or item.get("depth")) == "policy"
-            ]
-            return build_anonymous_policy_feedback(history)
-
-        feedback_history = []
-        for item in session.common_ground_history:
-            item_mode = normalize_common_ground_mode(item.get("mode") or item.get("depth"))
-            if target and item_mode != target:
-                continue
-            participant_votes = item.get("participantVotes") or {}
-            reactions = []
-            for entry in participant_votes.values():
-                reaction = {"vote": entry.get("vote"), "name": entry.get("name")}
-                if entry.get("reason"):
-                    reaction["reason"] = entry["reason"]
-                reactions.append(reaction)
-            feedback_history.append({
-                "id": item.get("id"),
-                "generatedAt": item.get("generatedAt"),
-                "mode": item_mode,
-                "groupStatement": item.get("groupStatement"),
-                "votes": self._cg_vote_tally(participant_votes),
-                "feedback": reactions,
-            })
-        return feedback_history
+        from .policy_evidence import build_anonymous_common_ground_feedback
+        history = [item for item in session.common_ground_history
+                   if not target or normalize_common_ground_mode(item.get("mode") or item.get("depth")) == target]
+        return build_anonymous_common_ground_feedback(history)
 
     def endorse_common_ground(self, session_id: str, cg_id: str, participant_id: str) -> Optional[dict]:
         """Mark a version as Final/endorsed and freeze the current reaction tally."""

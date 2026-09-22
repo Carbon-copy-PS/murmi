@@ -16,6 +16,7 @@ class ModelRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.raw = {"arguments": [{"text": "Keep access open.", "sourceIds": ["t1"]}],
                     "statements": ["Keep access open."], "groups": [], "shared": None,
                     "groupStatement": "Keep access open.",
+                    "commonGround": [], "divides": [], "insights": [], "bridgingProposal": "",
                     "recommendations": [{"text": "Keep access open.", "evidenceIds": ["a1"]}],
                     "headline": "Access has support", "standfirst": "Respondents support access.",
                     "overviewEvidenceStatementIds": ["s1"]}
@@ -67,3 +68,20 @@ class ModelRoutingTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.service.generate_report_narrative({"statements": []}, "en"))
         self.assertEqual(len(self.requests), 1)
         self.assertEqual(self.requests[0]["model"], MODELS["report"])
+
+    async def test_both_modes_send_identical_complete_evidence_with_distinct_schemas(self):
+        evidence = {**self.policy, 'arguments': [{'id': 'a1', 'text': 'Keep access open.',
+                    'support': 2, 'neutrality': 1, 'opposition': 1, 'responded': 4}],
+                    'voterCount': 5, 'rosterSize': 6, 'opinionGroups': [], 'coSupport': []}
+        self.raw.update(commonGround=['Keep access open.'], divides=['Which hours work?'],
+                        bridgingProposal='Compare opening hours.', insights=['Access is shared.'])
+        for mode in ('policy', 'generic'):
+            result = await self.service.generate_common_ground(evidence, topic='Library access', language='en', mode=mode)
+            self.assertIsNotNone(result)
+        policy, generic = self.requests
+        self.assertEqual(policy['messages'][1], generic['messages'][1])
+        self.assertNotEqual(policy['messages'][0], generic['messages'][0])
+        self.assertEqual(policy['model'], generic['model'])
+        pack = json.loads(generic['messages'][1]['content'])
+        self.assertEqual(pack['statements'][0]['unansweredAmongRoster'], 2)
+        self.assertEqual(pack['statements'][0]['neutral'], 1)

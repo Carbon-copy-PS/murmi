@@ -61,7 +61,7 @@
     "tensionsTimeout": "Zeitüberschreitung beim Erstellen der Spannungen. Bitte erneut versuchen.",
     "recommendationsFailed": "Empfehlungen konnten nicht erstellt werden.",
     "recommendationsTimeout": "Zeitüberschreitung beim Erstellen der Empfehlungen. Bitte erneut versuchen.",
-    "cgNeedsVotes": "Für einen Policy-Entwurf sind freigegebene Argumente mit Stimmen nötig.",
+    "cgNeedsVotes": "Für eine Zusammenfassung der Gemeinsamkeiten sind freigegebene Aussagen mit Stimmen nötig.",
     "cgEndorseFailed": "Version konnte nicht bestätigt werden. Nur der neueste Arbeitsentwurf kann final markiert werden.",
     "transcriptIncomplete": "Das Ende des Transkripts ist möglicherweise unvollständig. Ein Teil der Audiodaten wurde nicht bestätigt.",
     "transcriptSaveFailed": "Ein Teil des Transkripts ist noch nicht gespeichert. Der Vorgang wird wiederholt. Lassen Sie diese Seite geöffnet und kopieren Sie bei Bedarf das Transkript."
