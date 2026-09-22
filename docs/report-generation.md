@@ -45,6 +45,18 @@ The current format contains:
   plurality is not automatically uncertainty. Missing is never a neutral vote.
 - Expandable methodology and limitations.
 
+Response distributions use a muted diverging palette: sage green for agreement,
+warm stone for neutral, and clay red for disagreement, with darker endpoints for
+strong responses. Bars and their legend markers share report-scoped colour tokens,
+including group comparisons and the response-coverage chart. Standalone percentage
+indicators keep the site accent; missing responses remain separate from neutral.
+
+New policy common-ground drafts carry `evidenceVersion: cg-evidence-v2`. Required
+recommendations and conditions without a supplied valid citation are discarded;
+if no valid recommendation remains, generation fails. The normalizer never assigns
+an unrelated replacement citation. Existing saved drafts and endorsements are not
+rewritten. Valid IDs still require a human check that they support the actual claim.
+
 Previously saved reports remain readable. New-format rendering suppresses obsolete
 principle, action-area, and overlap sections even if an unexpected provider response
 contains them. It retains complete statements and coverage if AI output is absent.
@@ -180,6 +192,13 @@ before/after results; no production data or services are used.
 credentials before tests. Database persistence tests require a disposable PostgreSQL
 instance (`MURMI_TEST_POSTGRES_PORT`); otherwise they are explicitly skipped. CI runs
 these against its PostgreSQL service. Never point test variables at production.
+
+Use UTF-8 encoding when initializing a disposable database. The persistence suite
+also exercises host Generate → Preview → Publish through WebSocket/HTTP handlers,
+blocks participant publication and draft access, and reconnects to PostgreSQL to
+verify the published snapshot, saved endorsement and every ballot survive. Only
+model responses are substituted in this repeatable integration test; separate
+live-model smoke results test API compatibility and generation quality.
 
 The command runs all backend tests, both analysis test suites, frontend vote-pattern
 and group-contrast tests, a server-rendered report regression test, and the frontend

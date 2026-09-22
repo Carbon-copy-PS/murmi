@@ -7,6 +7,12 @@
   --story-muted: var(--ds-text-muted);
   --story-rule: var(--ds-border);
   --story-accent: #1f6b4f;
+  /* Response categories use a diverging scale, independent of percentage accents. */
+  --response-strong-agree: #486750;
+  --response-agree: #78947a;
+  --response-neutral: #b7afa1;
+  --response-disagree: #bd806c;
+  --response-strong-disagree: #925344;
   width: min(100%, 1040px);
   margin: 0 auto;
   color: var(--story-ink);
@@ -503,27 +509,27 @@
 
 .story-distribution-track .support,
 .story-distribution-meta i.support {
-  background: var(--story-accent);
+  background: var(--response-agree);
 }
 
 .story-distribution-track .strong-support,
 .story-distribution-meta i.strong-support {
-  background: #164f3c;
+  background: var(--response-strong-agree);
 }
 
 .story-distribution-track .neutral,
 .story-distribution-meta i.neutral {
-  background: #92958e;
+  background: var(--response-neutral);
 }
 
 .story-distribution-track .oppose,
 .story-distribution-meta i.oppose {
-  background: #a85f45;
+  background: var(--response-disagree);
 }
 
 .story-distribution-track .strong-oppose,
 .story-distribution-meta i.strong-oppose {
-  background: #743b2d;
+  background: var(--response-strong-disagree);
 }
 
 .story-distribution-meta {
@@ -628,15 +634,15 @@
 }
 
 .story-coverage-trend i > span.support {
-  background: var(--story-accent);
+  background: var(--response-agree);
 }
 
 .story-coverage-trend i > span.neutral {
-  background: #92958e;
+  background: var(--response-neutral);
 }
 
 .story-coverage-trend i > span.oppose {
-  background: #a85f45;
+  background: var(--response-disagree);
 }
 
 .story-coverage-trend-head {
@@ -676,15 +682,15 @@
 }
 
 .story-coverage-trend-legend i.support {
-  background: var(--story-accent);
+  background: var(--response-agree);
 }
 
 .story-coverage-trend-legend i.neutral {
-  background: #92958e;
+  background: var(--response-neutral);
 }
 
 .story-coverage-trend-legend i.oppose {
-  background: #a85f45;
+  background: var(--response-disagree);
 }
 
 .story-coverage-axis {
@@ -1808,9 +1814,7 @@
   border-radius: 999px;
 }
 
-.story-evidence-track span,
-.story-distribution-track .support,
-.story-distribution-track .strong-support {
+.story-evidence-track span {
   background: var(--ds-accent);
 }
 
@@ -2088,6 +2092,11 @@
 [data-theme="dark"] .story-report {
   --ds-accent: #8db9ef;
   --ds-accent-soft: #34475d;
+  --response-strong-agree: #66856d;
+  --response-agree: #9caf96;
+  --response-neutral: #aaa397;
+  --response-disagree: #ce9a86;
+  --response-strong-disagree: #aa705f;
 }
 
 /* The deliberation outcome is one card; interpretation follows outside it. */

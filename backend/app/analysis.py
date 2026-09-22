@@ -203,6 +203,7 @@ COMMON_GROUND_MODES = frozenset(COMMON_GROUND_PROMPTS)
 DEFAULT_COMMON_GROUND_MODE = "policy"
 
 CG_PROMPT_VERSION = "cg-prompt-v1"
+CG_EVIDENCE_VERSION = "cg-evidence-v2"
 COMMON_GROUND_INSTRUCTIONS_MAX = 1500
 HOST_INSTRUCTIONS_START = "<<<HOST_INSTRUCTIONS>>>"
 HOST_INSTRUCTIONS_END = "<<<END_HOST_INSTRUCTIONS>>>"
@@ -768,25 +769,22 @@ Return JSON matching the schema. All counts will be displayed separately by the 
         valid_ids: set[str],
         require_evidence: bool,
         id_prefix: str,
-        fallback_ids: list[str] | None = None,
     ) -> Optional[list]:
         """Normalize list of {id, text, evidenceIds, ...} or legacy strings.
 
-        Unknown evidence IDs are dropped (not fatal). When evidence is required and
-        none remain, attach the first available argument fallback so a mostly-valid
-        draft is not discarded for a single bad citation.
+        Unknown evidence IDs are dropped. Items requiring evidence are rejected
+        when no supplied valid citation remains; never invent a replacement link.
         """
         if not isinstance(values, list):
             return []
-        fallback = [eid for eid in (fallback_ids or []) if eid in valid_ids]
         out = []
         for idx, raw in enumerate(values, start=1):
             if isinstance(raw, str):
                 text = raw.strip()
                 if not text:
                     continue
-                evidence = list(fallback[:1]) if require_evidence and fallback else []
-                if require_evidence and not evidence:
+                evidence = []
+                if require_evidence:
                     continue
                 out.append({"id": f"{id_prefix}{idx}", "text": text, "evidenceIds": evidence})
                 continue
@@ -806,10 +804,7 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                 if eid not in evidence:
                     evidence.append(eid)
             if require_evidence and not evidence:
-                if fallback:
-                    evidence = [fallback[0]]
-                else:
-                    continue
+                continue
             item = {"id": item_id, "text": text, "evidenceIds": evidence}
             if "preserved" in raw:
                 item["preserved"] = bool(raw.get("preserved"))
@@ -857,13 +852,11 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                         if isinstance(item, dict) and item.get("id"):
                             valid_ids.add(str(item["id"]))
 
-            fallback_ids = list(analysis.get("validArgumentIds") or [])
             recommendations = self._normalize_cited_items(
                 data.get("recommendations"),
                 valid_ids=valid_ids,
                 require_evidence=True,
                 id_prefix="r",
-                fallback_ids=fallback_ids,
             )
             if recommendations is None or not recommendations:
                 print("Policy CG normalize failed: no usable recommendations")
@@ -873,7 +866,6 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                 valid_ids=valid_ids,
                 require_evidence=True,
                 id_prefix="c",
-                fallback_ids=fallback_ids,
             )
             if conditions is None:
                 print("Policy CG normalize failed: essentialConditions invalid")
@@ -883,7 +875,6 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                 valid_ids=valid_ids,
                 require_evidence=False,
                 id_prefix="t",
-                fallback_ids=fallback_ids,
             )
             if tradeoffs is None:
                 print("Policy CG normalize failed: tradeoffs invalid")
@@ -893,7 +884,6 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                 valid_ids=valid_ids,
                 require_evidence=False,
                 id_prefix="u",
-                fallback_ids=fallback_ids,
             )
             if unresolved is None:
                 print("Policy CG normalize failed: unresolvedQuestions invalid")
@@ -926,6 +916,7 @@ Return JSON matching the schema. All counts will be displayed separately by the 
                 "groupAnalysis": group_analysis,
                 "groupStatement": statement,
                 "recommendations": self._remap_evidence_ids(recommendations, id_map),
+                "evidenceVersion": CG_EVIDENCE_VERSION,
                 "essentialConditions": self._remap_evidence_ids(conditions, id_map),
                 "tradeoffs": self._remap_evidence_ids(tradeoffs, id_map),
                 "unresolvedQuestions": self._remap_evidence_ids(unresolved, id_map),

@@ -52,13 +52,12 @@ class ModelExperimentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(requests[-1]["reasoning_effort"], "low")
         self.assertEqual(self.case, original)
 
-    async def test_flags_original_invalid_citation_even_if_app_repairs_it(self):
+    async def test_flags_original_invalid_citation_and_app_rejects_it(self):
         self.raw["recommendations"][0]["evidenceIds"] = ["invented"]
         flags = audit_raw(self.case, self.raw)
         _, normalized = await invoke("common-ground", self.args, response_stub(json.dumps(self.raw)))
         self.assertTrue(any("Invalid" in flag for flag in flags))
-        self.assertEqual(normalized["status"], "working_draft")
-        self.assertTrue(normalized["recommendations"][0]["evidenceIds"])
+        self.assertIsNone(normalized)
 
     async def test_call_limit_prevents_any_network_request(self):
         with patch("backend.tools.compare_report_models.httpx.AsyncClient") as client:

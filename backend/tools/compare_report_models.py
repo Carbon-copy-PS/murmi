@@ -203,7 +203,7 @@ def audit_raw(case, raw):
         for field in ("recommendations", "essentialConditions"):
             for item in raw.get(field, []) or []:
                 if not isinstance(item, dict) or not item.get("evidenceIds"):
-                    flags.append(f"{field}: missing original citations; production may supply a fallback.")
+                    flags.append(f"{field}: missing required original citations.")
         ref_keys = {"evidenceIds"}
     elif stage == "extraction":
         allowed = {t["id"] for t in args["contributions"]}

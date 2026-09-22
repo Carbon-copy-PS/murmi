@@ -94,13 +94,13 @@
 .opinion-difference-heading strong { color: var(--group-ink); }
 .opinion-difference-heading > span { font-weight: 650; }
 .opinion-difference-bar { display: flex; height: 10px; overflow: hidden; border-radius: 999px; margin: .8rem 0; }
-.opinion-difference-bar .is-support { background: var(--ds-accent); }
-.opinion-difference-bar .is-neutral { background: #a4a4ab; }
-.opinion-difference-bar .is-oppose { background: #b86258; }
+.opinion-difference-bar .is-support { background: var(--response-agree, var(--ds-accent)); }
+.opinion-difference-bar .is-neutral { background: var(--response-neutral, #a4a4ab); }
+.opinion-difference-bar .is-oppose { background: var(--response-disagree, #b86258); }
 .opinion-difference-counts { display: flex; flex-wrap: wrap; gap: .25rem .7rem; font-size: .78rem; }
 .opinion-difference-group small { display: block; margin-top: .35rem; font-size: .75rem; color: var(--ds-text-muted); }
 
 .opinion-difference-counts > *::before { content: ''; display: inline-block; width: .45rem; height: .45rem; border-radius: 50%; margin-right: .3rem; }
-.opinion-difference-counts .is-support::before { background: var(--ds-accent); }
-.opinion-difference-counts .is-neutral::before { background: #a4a4ab; }
-.opinion-difference-counts .is-oppose::before { background: #b86258; }
+.opinion-difference-counts .is-support::before { background: var(--response-agree, var(--ds-accent)); }
+.opinion-difference-counts .is-neutral::before { background: var(--response-neutral, #a4a4ab); }
+.opinion-difference-counts .is-oppose::before { background: var(--response-disagree, #b86258); }
