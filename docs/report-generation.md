@@ -170,3 +170,94 @@ local previews as well; server-rendered checks are not visual browser tests.
 No raw participant records, session exports, transcripts, credentials, or real report
 payloads belong in committed fixtures. Generated preview artifacts belong in ignored
 `outputs/`.
+
+## Comparing models before choosing one
+
+`backend/tools/compare_report_models.py` captures the current production request
+builders and replays actual responses through the same normalizers. It does not
+change model defaults, create sessions, call the database, endorse text or publish.
+All twelve discussions in `model_experiment_fixtures.py` are fictional. They cover
+majority support, polarization, a two-person minority, neutral versus missing votes,
+disjoint coverage, no votes, an existing approved package, a rejected prior version,
+incompatible support, quoted instructions, and Taiwan Chinese with an English turn.
+These are selected short transcript excerpts, not a test of long audio transcription.
+
+The comparison separates four stages: a bounded transcript-to-statement extraction
+window, policy common ground, group descriptions, and the report narrative. Fixed
+approved statements and ballots are identical across models. A model's newly
+extracted statements never inherit those ballots. Reports receive the same saved
+common-ground package; newly generated common ground remains a separate draft.
+
+Today common-ground and report prompts receive structured evidence, not the raw
+transcript. A separately labelled `transcript-context` arm appends the same transcript
+and evidence-use instructions for every candidate. Compare models within each arm,
+then compare arms for each model. This avoids attributing better evidence to a better
+model. The experimental arm does not change the production pipeline or allow
+transcript-only suggestions to count as votes.
+
+Prepare the frozen input bundle without making API calls:
+
+```sh
+.venv/bin/python -m backend.tools.compare_report_models prepare
+```
+
+Put a non-production key in `.env.model-experiments`, as `OPENAI_API_KEY=...`.
+That file is Git-ignored. Never paste keys into chat or put them in shell arguments.
+The runner reads this file explicitly; it does not look for production credentials.
+
+Start with three scenarios and the current production inputs (36 calls):
+
+```sh
+.venv/bin/python -m backend.tools.compare_report_models run
+```
+
+Add transcript context for the same three scenarios (18 additional calls):
+
+```sh
+.venv/bin/python -m backend.tools.compare_report_models run --arms transcript-context
+```
+
+Choose individual scenarios/stages to extend the comparison, for example:
+
+```sh
+.venv/bin/python -m backend.tools.compare_report_models run --scenarios no-votes revision quoted-instructions --stages common-ground --arms production transcript-context
+```
+
+`--scenarios` with no values selects all twelve cases. `--repeats 2` adds a second
+sample; previously attempted calls are retained. Inputs are hashed and frozen;
+editing the bundle or changing production prompts requires a new output directory.
+New bundles also hash the generation and validation source files to detect code drift.
+The runner refuses a round exceeding `--max-calls` (default 60), uses three concurrent
+requests, and does not retry automatically. A started record survives interruption:
+an interrupted request may already have incurred usage, so resuming does not repeat
+it. Authentication or rate-limit failures stop queued requests. Already in-flight
+requests may finish.
+
+Candidates are `gpt-4o-mini`, `gpt-5.6-luna`, and `gpt-6-astra`. Each receives identical
+messages and output contracts. The experiment keeps the existing temperature for
+the baseline; reasoning candidates omit temperature and use `reasoning_effort=low`.
+All calls have an 8,000-completion-token ceiling, including reasoning tokens. This is
+an explicitly recorded model/configuration comparison, not identical sampling
+semantics. A truncated result counts as incomplete. Requests use Chat Completions
+without tools, with `store=false`; no SDK or production API migration is required.
+Compatibility was checked against the official [Astra migration guide](https://developers.openai.com/api/docs/guides/latest-model/gpt-6-astra.md#migration-quickstart)
+and [Luna model reference](https://developers.openai.com/api/docs/models/gpt-5.6-luna).
+
+Open `outputs/model-experiments/index.html` or serve that directory on localhost.
+The comparison records exact inputs, input hashes, model settings, provider model
+IDs, token usage, latency, raw outputs, normalized outputs, and structural flags.
+It explicitly shows unrun, failed and incomplete cells. Latency is a local sample,
+affected by caching and service conditions, and is not a controlled speed benchmark.
+The page estimates Standard short-context USD costs from recorded usage (including
+cache reads and writes), using official rates checked on 2026-09-22. These estimates
+are not billing records; calls without returned usage can still incur charges.
+Run the `audit` subcommand to recompute structural flags and estimates consistently
+from saved responses without making new API calls.
+
+Review the scenario-specific facts and the rubric before selecting a model. Valid
+JSON or accepted citations do not establish correctness. In particular, today's
+policy normalizer can supply a fallback citation when the original is absent or
+invalid; the experiment flags the original error even if normalization repairs it.
+Review raw and normalized outputs together. New proposals cannot inherit approval
+or reactions from prior text. One sample is exploratory evidence, not a reliable
+quality ranking; repeat important successes and failures before choosing a default.
