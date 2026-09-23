@@ -1,5 +1,8 @@
 # Report release review — 2026-09-22
 
+Superseded by the [2026-09-23 deployment](report-release-2026-09-23.md) at
+`b7336fbf70b774b932623bc31aff94247d5dd89e`. The following is the earlier release record.
+
 Status: approved and deployed on 2026-09-22. Active production revision:
 `c8b83d21d78d42e49de1b3919b659badc0a46789`. Existing reports were not regenerated
 or republished. A separate, clearly labelled synthetic report verifies the release.
