@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from backend.app.analysis import AnalysisService
+from backend.app.model_routing import MODELS
 
 
 async def evaluate(sample):
@@ -28,7 +29,7 @@ async def evaluate(sample):
     new = await service.extract_arguments(sample['contributions'], sample['context'],
         sample['existingCards'], topic=sample['topic'], language=sample['language'])
     return {**sample, 'baselineCards': old, 'contextualCards': new,
-            'baselineCount': len(old), 'contextualCount': len(new) if new is not None else None}
+            'baselineCount': len(old), 'contextualCount': len(new['arguments']) if new is not None else None}
 
 
 async def run(manifest, output):
@@ -41,7 +42,7 @@ async def run(manifest, output):
             return result
     results = await asyncio.gather(*(one(sample) for sample in samples))
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    Path(output).write_text(json.dumps({'model':'gpt-4o-mini', 'realProvider':True,
+    Path(output).write_text(json.dumps({'model':MODELS['extraction'], 'realProvider':True,
         'baseline':'one request per supplied newText fragment',
         'candidate':'one request per complete supplied window', 'results':results}, ensure_ascii=False, indent=2))
 

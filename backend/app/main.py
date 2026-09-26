@@ -654,7 +654,13 @@ async def process_argument_window(session_id: str, snapshots: list[dict]) -> boo
     if not session:
         return True
     order = {entry.get("id"): index for index, entry in enumerate(session.transcript)}
-    snapshots = sorted(snapshots, key=lambda entry: order.get(entry.get("id"), len(order)))
+    # Revisit unfinished ideas only when another batch arrives, never on an idle
+    # timer. Keep the carry-over bounded to the last 12 transcript entries.
+    captured = {entry["id"]: dict(entry) for entry in snapshots}
+    for entry in session.transcript[-12:]:
+        if entry.get("argumentDeferred") and entry.get("id") not in captured:
+            captured[entry["id"]] = dict(entry)
+    snapshots = sorted(captured.values(), key=lambda entry: order.get(entry.get("id"), len(order)))
     contributions = [{"id": entry["id"], "speaker": entry.get("speaker", "Speaker"),
                       "text": entry.get("text", ""), "newText": pending_turn_text(entry)}
                      for entry in snapshots if entry.get("transcriptionStatus") != "missing"]
@@ -662,20 +668,20 @@ async def process_argument_window(session_id: str, snapshots: list[dict]) -> boo
     if not contributions:
         return True
     ids = {entry["id"] for entry in contributions}
-    first = next((i for i, entry in enumerate(session.transcript) if entry.get("id") in ids), len(session.transcript))
+    last = max((i for i, entry in enumerate(session.transcript) if entry.get("id") in ids), default=-1)
     context = [{"speaker": entry.get("speaker", "Speaker"), "text": entry.get("text", "")}
-               for entry in session.transcript[max(0, first - 8):first]
-               if entry.get("transcriptionStatus") != "missing"]
-    arguments = await analysis.extract_arguments(
+               for entry in session.transcript[:last + 1]
+               if entry.get("id") not in ids and entry.get("transcriptionStatus") != "missing"][-8:]
+    selection = await analysis.extract_arguments(
         contributions, context, [s.text for s in session.statements],
         topic=session.topic, language=session_statement_language(session_id))
-    if arguments is None:
+    if selection is None:
         return False
     if sessions.get(session_id) is not session:
         return True
     sources = {entry["id"]: entry for entry in contributions}
     added = []
-    for argument in arguments:
+    for argument in selection["arguments"]:
         cited = [sources[key] for key in argument["sourceIds"]]
         speakers = list(dict.fromkeys(entry["speaker"] for entry in cited))
         source_text = "\n".join((f"{entry['speaker']}: " if len(speakers) > 1 else "") + entry["text"] for entry in cited)
@@ -686,13 +692,16 @@ async def process_argument_window(session_id: str, snapshots: list[dict]) -> boo
         auto_approve_if_no_host(session_id, added)
         await _safe_db(db.save_statements(session, added))
         await sessions.broadcast_statements(session_id)
-    # Mark only the captured text, even when more speech arrived during the call.
-    # An empty selection is a successful decision, not a request to invent a card.
+    # A deferred source retains its previous analyzed prefix so it remains
+    # eligible evidence. Selected cards already join the duplicate check next time.
+    deferred = set(selection["deferredSourceIds"])
     for snapshot in snapshots:
         entry = next((e for e in session.transcript if e.get("id") == snapshot.get("id")), None)
         if entry:
-            entry["analyzedText"] = snapshot.get("text", "")
-            entry["argumentAnalyzed"] = entry.get("text") == entry["analyzedText"]
+            entry["argumentDeferred"] = snapshot["id"] in deferred
+            if not entry["argumentDeferred"]:
+                entry["analyzedText"] = snapshot.get("text", "")
+            entry["argumentAnalyzed"] = not entry["argumentDeferred"] and entry.get("text") == entry.get("analyzedText", "")
             await persist_transcript_entry(session, entry)
     return True
 

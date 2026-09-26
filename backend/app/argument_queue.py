@@ -16,8 +16,8 @@ class _Window:
 
 
 class ArgumentQueue:
-    def __init__(self, process, *, idle_seconds=8, minimum_seconds=15,
-                 maximum_seconds=30, retry_seconds=30):
+    def __init__(self, process, *, idle_seconds=4, minimum_seconds=3,
+                 maximum_seconds=10, retry_seconds=30):
         self.process = process
         self.idle_seconds = idle_seconds
         self.minimum_seconds = minimum_seconds

@@ -91,7 +91,7 @@ async def smoke(dest, key_file):
             assert [s.votes for s in source.statements] == original_votes
             write_json(dest / f"{case['id']}-report.json", snapshot)
             summary = {"scenario": case["id"], "language": source.language,
-                       "routingVersion": MODEL_ROUTING_VERSION, "extractedStatements": len(extracted),
+                       "routingVersion": MODEL_ROUTING_VERSION, "extractedStatements": len(extracted["arguments"]),
                        "groupDescriptions": len(theme_result.get("groups", [])),
                        "commonGround": common["generation"], "report": narrative["generation"],
                        "themes": theme_result["generation"], "savedApprovalPreserved": True}

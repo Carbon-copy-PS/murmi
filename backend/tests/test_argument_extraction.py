@@ -94,6 +94,7 @@ class ArgumentSelectionTests(unittest.IsolatedAsyncioTestCase):
     def service(self, arguments, finish='stop'):
         service = AnalysisService()
         service._mock = False
+        arguments.setdefault('deferredSourceIds', [])
         captures = []
         def create(**kwargs):
             captures.append(kwargs)
@@ -106,15 +107,14 @@ class ArgumentSelectionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_context_and_new_text_are_distinct_and_invalid_sources_are_rejected(self):
         service, calls = self.service({'arguments':[
-            {'text':'unsupported','sourceIds':['unknown']},
             {'text':'Existing view','sourceIds':['a']},
             {'text':'A new condition','sourceIds':['b','a','b']},
             {'text':'A separate objection','sourceIds':['b']},
             {'text':'Extra card','sourceIds':['a']}]})
         contributions = [{'id':'a','text':'Full argument','newText':'argument'}, {'id':'b','text':'A condition','newText':'A condition'}]
         result = await service.extract_arguments(contributions,[{'text':'What about buses?'}],['Existing view'],topic='Transport',language='en')
-        self.assertEqual(len(result),2)
-        self.assertEqual(result[0]['sourceIds'],['a','b'])
+        self.assertEqual(len(result['arguments']),3)
+        self.assertEqual(result['arguments'][0]['sourceIds'],['a','b'])
         evidence=json.loads(calls[0]['messages'][1]['content'])
         self.assertEqual(evidence['contributions'],contributions)
         self.assertEqual(evidence['recentContext'],[{'text':'What about buses?'}])
@@ -122,7 +122,7 @@ class ArgumentSelectionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_empty_selection_is_success_but_truncated_response_can_retry(self):
         service,_=self.service({'arguments':[]})
-        self.assertEqual(await service.extract_arguments([{'id':'a'}],[],[]),[])
+        self.assertEqual(await service.extract_arguments([{'id':'a'}],[],[]),{'arguments':[], 'deferredSourceIds':[]})
         service,_=self.service({'arguments':[]},finish='length')
         self.assertIsNone(await service.extract_arguments([{'id':'a'}],[],[]))
 
@@ -138,7 +138,7 @@ class ArgumentIntegrationTests(unittest.IsolatedAsyncioTestCase):
         before=deepcopy(session.transcript)
         async def extract(*args, **kwargs):
             entry['text'] += ' Fares must also stay affordable.'
-            return [{'text':'Bus services should cover shift workers.','sourceIds':['a']}]
+            return {'arguments':[{'text':'Bus services should cover shift workers.','sourceIds':['a']}], 'deferredSourceIds':[]}
         mock=AsyncMock(side_effect=extract)
         with patch.object(main,'sessions',manager), patch.object(main.analysis,'extract_arguments',mock), patch.object(main,'persist_transcript_entry',AsyncMock()), patch.object(main.db,'save_statements',AsyncMock()):
             self.assertTrue(await main.process_argument_window(session.id,[dict(entry)]))
@@ -152,7 +152,7 @@ class ArgumentIntegrationTests(unittest.IsolatedAsyncioTestCase):
     async def test_no_argument_keeps_transcript_and_does_not_create_a_card(self):
         manager = SessionManager(); session = manager._new_session('EMPTYARGS');manager.sessions[session.id]=session
         entry={'id':'a','speaker':'Mei','text':'Let us move to the next slide.','analyzedText':''};session.transcript=[entry]
-        with patch.object(main,'sessions',manager),patch.object(main.analysis,'extract_arguments',AsyncMock(return_value=[])),patch.object(main,'persist_transcript_entry',AsyncMock()):
+        with patch.object(main,'sessions',manager),patch.object(main.analysis,'extract_arguments',AsyncMock(return_value={'arguments':[], 'deferredSourceIds':[]})),patch.object(main,'persist_transcript_entry',AsyncMock()):
             self.assertTrue(await main.process_argument_window(session.id,[dict(entry)]))
         self.assertEqual(entry['text'],'Let us move to the next slide.')
         self.assertEqual(entry['analyzedText'],entry['text'])
@@ -165,3 +165,95 @@ class ArgumentIntegrationTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(await main.process_argument_window(session.id,[dict(entry)]))
         self.assertEqual(entry['analyzedText'],'')
         self.assertEqual(session.statements,[])
+
+
+class DeferredArgumentTests(unittest.IsolatedAsyncioTestCase):
+    async def test_unfinished_idea_is_carried_and_both_sources_are_cited(self):
+        manager = SessionManager()
+        session = manager._new_session('CARRY')
+        manager.sessions[session.id] = session
+        first = {'id':'a', 'speaker':'Mei', 'text':'I would support more housing, but only if',
+                 'analyzedText':''}
+        session.transcript = [first]
+        selector = AsyncMock(side_effect=[
+            {'arguments':[], 'deferredSourceIds':['a']},
+            {'arguments':[{'text':'Support more housing only if current tenants can stay.',
+                           'sourceIds':['a','b']}], 'deferredSourceIds':[]}])
+        with patch.object(main,'sessions',manager), patch.object(main.analysis,'extract_arguments',selector), patch.object(main,'persist_transcript_entry',AsyncMock()), patch.object(main.db,'save_statements',AsyncMock()):
+            self.assertTrue(await main.process_argument_window(session.id,[dict(first)]))
+            self.assertEqual(first['analyzedText'],'')
+            self.assertTrue(first['argumentDeferred'])
+            second = {'id':'b','speaker':'Mei','text':'current tenants can stay.', 'analyzedText':''}
+            session.transcript.append(second)
+            self.assertTrue(await main.process_argument_window(session.id,[dict(second)]))
+        self.assertEqual([e['id'] for e in selector.await_args.args[0]], ['a','b'])
+        self.assertEqual(len(session.statements),1)
+        self.assertIn(first['text'],session.statements[0].source_text)
+        self.assertIn(second['text'],session.statements[0].source_text)
+        self.assertFalse(first['argumentDeferred'])
+        self.assertEqual(main.pending_turn_text(first),'')
+
+    async def test_deferred_sources_do_not_trigger_idle_requests(self):
+        process = AsyncMock(return_value=True)
+        queue = ArgumentQueue(process,idle_seconds=0,minimum_seconds=0)
+        entry = {'id':'a','text':'If we could...', 'argumentDeferred':True}
+        try:
+            queue.schedule('S',entry)
+            await queue.windows['S'].task
+            await asyncio.sleep(.02)
+            self.assertEqual(process.await_count,1)
+            self.assertNotIn('S',queue.windows)
+        finally:
+            await queue.close()
+
+    async def test_carry_is_bounded_and_does_not_overwrite_current_snapshot(self):
+        manager = SessionManager()
+        session = manager._new_session('BOUND')
+        manager.sessions[session.id] = session
+        session.transcript = [{'id':str(i),'speaker':'S','text':f'Unfinished thought {i}',
+                               'analyzedText':'','argumentDeferred':True} for i in range(30)]
+        current = dict(session.transcript[-1], text='Updated thought with a condition')
+        selector = AsyncMock(return_value={'arguments':[], 'deferredSourceIds':[]})
+        with patch.object(main,'sessions',manager),patch.object(main.analysis,'extract_arguments',selector),patch.object(main,'persist_transcript_entry',AsyncMock()):
+            await main.process_argument_window(session.id,[current])
+        sent = selector.await_args.args[0]
+        self.assertEqual(len(sent),12)
+        self.assertEqual(sent[-1]['text'],current['text'])
+        self.assertEqual(session.transcript[0]['analyzedText'],'')
+
+    async def test_invalid_sources_or_deferred_contract_retry_without_consuming(self):
+        for payload in (
+            {'arguments':[{'text':'Unsupported','sourceIds':['unknown']}], 'deferredSourceIds':[]},
+            {'arguments':[], 'deferredSourceIds':['unknown']},
+            {'arguments':[], 'deferredSourceIds':'a'},
+        ):
+            service,_ = ArgumentSelectionTests().service(payload)
+            self.assertIsNone(await service.extract_arguments([{'id':'a'}],[],[]))
+
+    async def test_overflow_sources_are_preserved(self):
+        service,_ = ArgumentSelectionTests().service({
+            'arguments':[{'text':f'Independent position {i}', 'sourceIds':[str(i)]} for i in range(8)]})
+        selection = await service.extract_arguments([{'id':str(i)} for i in range(8)],[],[])
+        self.assertEqual(len(selection['arguments']),6)
+        self.assertEqual(selection['deferredSourceIds'],['6','7'])
+
+    async def test_deferred_idea_keeps_intervening_context_and_newer_speech(self):
+        manager = SessionManager()
+        session = manager._new_session('CONTEXT')
+        manager.sessions[session.id] = session
+        first = {'id':'a','speaker':'Sam','text':'I would agree, only if',
+                 'analyzedText':'','argumentDeferred':True}
+        middle = {'id':'b','speaker':'Host','text':'We are discussing the playground.',
+                  'analyzedText':'We are discussing the playground.'}
+        latest = {'id':'c','speaker':'Sam','text':'it stays.', 'analyzedText':''}
+        session.transcript = [first,middle,latest]
+        async def select(*args, **kwargs):
+            latest['text'] += ' And tenants must be protected.'
+            return {'arguments':[], 'deferredSourceIds':['a','c']}
+        selector = AsyncMock(side_effect=select)
+        with patch.object(main,'sessions',manager),patch.object(main.analysis,'extract_arguments',selector),patch.object(main,'persist_transcript_entry',AsyncMock()):
+            await main.process_argument_window(session.id,[dict(latest)])
+        self.assertEqual(selector.await_args.args[1],[{'speaker':'Host','text':middle['text']}])
+        self.assertEqual([e['id'] for e in selector.await_args.args[0]],['a','c'])
+        self.assertEqual(latest['analyzedText'],'')
+        self.assertIn('tenants must be protected',main.pending_turn_text(latest))

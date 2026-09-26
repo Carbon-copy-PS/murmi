@@ -1,0 +1,87 @@
+[
+  {
+    "id": "four-independent-positions",
+    "kind": "synthetic",
+    "language": "en",
+    "topic": "Town services",
+    "context": [],
+    "existingCards": [],
+    "contributions": [
+      {
+        "id": "0",
+        "speaker": "Speaker 0",
+        "text": "Keep the library open on Sundays so people who work weekdays can visit.",
+        "newText": "Keep the library open on Sundays so people who work weekdays can visit."
+      },
+      {
+        "id": "1",
+        "speaker": "Speaker 1",
+        "text": "I oppose saving identifiable CCTV recordings for more than seven days.",
+        "newText": "I oppose saving identifiable CCTV recordings for more than seven days."
+      },
+      {
+        "id": "2",
+        "speaker": "Speaker 2",
+        "text": "Make school meals free for every child so no one is singled out for needing help.",
+        "newText": "Make school meals free for every child so no one is singled out for needing help."
+      },
+      {
+        "id": "3",
+        "speaker": "Speaker 3",
+        "text": "Preserve telephone booking at the clinic for residents who cannot use an app.",
+        "newText": "Preserve telephone booking at the clinic for residents who cannot use an app."
+      }
+    ],
+    "review": "Four independent qualified positions, with no invented agreement."
+  },
+  {
+    "id": "unfinished-across-pause",
+    "kind": "synthetic",
+    "language": "en",
+    "topic": "Housing",
+    "events": [
+      {
+        "at": 0,
+        "id": "a",
+        "speaker": "Sam",
+        "text": "I could support building more housing near the station, but only if"
+      },
+      {
+        "at": 20,
+        "id": "b",
+        "speaker": "Sam",
+        "text": "current tenants can stay and the playground is protected."
+      }
+    ],
+    "review": "Do not publish unconditional support. Carry the unfinished premise and cite both sources."
+  },
+  {
+    "id": "chinese-multiple-views",
+    "kind": "synthetic",
+    "language": "zh",
+    "topic": "地方公共服務",
+    "context": [],
+    "existingCards": [],
+    "contributions": [
+      {
+        "id": "0",
+        "speaker": "發言者0",
+        "text": "我支持增加夜間公車，但票價不能漲，否則低薪工作者還是搭不起。",
+        "newText": "我支持增加夜間公車，但票價不能漲，否則低薪工作者還是搭不起。"
+      },
+      {
+        "id": "1",
+        "speaker": "發言者1",
+        "text": "醫院應保留電話掛號，因為不少長輩不會用手機。",
+        "newText": "醫院應保留電話掛號，因為不少長輩不會用手機。"
+      },
+      {
+        "id": "2",
+        "speaker": "發言者2",
+        "text": "我反對學校用人臉辨識點名，學生不應為了上課交出生物資料。",
+        "newText": "我反對學校用人臉辨識點名，學生不應為了上課交出生物資料。"
+      }
+    ],
+    "review": "Three independent positions. Preserve the fare condition and privacy objection."
+  }
+]

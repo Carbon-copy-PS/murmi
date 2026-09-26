@@ -13,7 +13,7 @@ class ModelRoutingTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.requests = []
         self.finish_reason, self.refusal, self.status = "stop", None, 200
-        self.raw = {"arguments": [{"text": "Keep access open.", "sourceIds": ["t1"]}],
+        self.raw = {"deferredSourceIds": [], "arguments": [{"text": "Keep access open.", "sourceIds": ["t1"]}],
                     "statements": ["Keep access open."], "groups": [], "shared": None,
                     "groupStatement": "Keep access open.",
                     "commonGround": [], "divides": [], "insights": [], "bridgingProposal": "",
@@ -38,7 +38,8 @@ class ModelRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_actual_sdk_serializes_selected_models_and_reasoning_settings(self):
         s = self.service
-        await s.extract_arguments([{"id": "t1", "text": "Keep access open.", "newText": "Keep access open."}], [], [])
+        extracted = await s.extract_arguments([{"id": "t1", "text": "Keep access open.", "newText": "Keep access open."}], [], [])
+        self.assertEqual(len(extracted["arguments"]), 1)
         await s.extract_statements([{"text": "Keep access open."}], [])
         await s.extract_turn_statement({"text": "Keep access open."}, [])
         themes = await s.generate_opinion_themes({"groups": [{"groupId": 0, "statements": []}], "shared": []}, "en")
