@@ -1,4 +1,5 @@
 import { getReportCopy } from './report-copy'
+import { ReportSourceLinks, ReportTranscript } from './ReportTranscript'
 import { statementPattern, statementPatternCopy, statementPatternOrder } from './statement-patterns'
 import OpinionGroups from '../opinion-groups/OpinionGroups'
 import { getOpinionCopy } from '../opinion-groups/copy'
@@ -649,7 +650,7 @@ function StorySection({ kicker, title, lead, children, className = '' }) {
 export default function FinalReportPage({ report, preview = false }) {
   if (!report) return null
   const language = report.sourceLanguage || 'en'
-  const conciseReport = report.presentationVersion === 'concise-report-v1'
+  const conciseReport = ['concise-report-v1', 'concise-report-v2'].includes(report.presentationVersion)
   const legacyCopy = getReportCopy(language)
   const groupCopy = getOpinionCopy(language)
   const exclusive = report.opinionLandscape?.membershipKind === 'exclusive'
@@ -752,6 +753,7 @@ export default function FinalReportPage({ report, preview = false }) {
         <h1>{narrative?.headline || copy.openingTitle}</h1>
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
         <ReportStats meta={meta} copy={copy} />
+        <ReportSourceLinks report={report} />
         {sufficiency.status === 'limited' && (
           <aside className="story-data-warning" role="note">
             <strong>{copy.limitedDataTitle}</strong>
@@ -973,6 +975,8 @@ export default function FinalReportPage({ report, preview = false }) {
         copy={copy}
         language={language}
       />
+
+      <ReportTranscript report={report} />
 
       <details className="story-methods">
         <summary>{copy.methodsTitle}</summary>

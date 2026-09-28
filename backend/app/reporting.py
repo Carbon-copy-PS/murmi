@@ -26,6 +26,7 @@ def freeze_report_source(session):
     """
     frozen = copy(session)
     frozen.statements = deepcopy(session.statements)
+    frozen.transcript = deepcopy(session.transcript)
     frozen.common_ground_history = deepcopy(session.common_ground_history)
     frozen.report_snapshot = deepcopy(session.report_snapshot)
     frozen.known_participants = dict(session.known_participants)
@@ -72,11 +73,32 @@ def _data_sufficiency(
     }
 
 
-def _source_hash(session, statements: list) -> str:
+def report_transcript(session) -> list[dict]:
+    """Snapshot readable captions without provider metadata or participant IDs."""
+    entries = []
+    for entry in getattr(session, "transcript", []):
+        text = entry.get("text") or ""
+        missing = entry.get("transcriptionStatus") == "missing"
+        if not text.strip() and not missing:
+            continue
+        timestamp = entry.get("timestamp")
+        if not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):
+            timestamp = None
+        entries.append({
+            "text": text,
+            "speaker": entry.get("speaker") or "",
+            "timestamp": timestamp,
+            "transcriptionStatus": "missing" if missing else "complete",
+        })
+    return entries
+
+
+def _source_hash(session, statements: list, transcript: list) -> str:
     source = {
         "sessionId": session.id,
         "topic": session.topic,
         "language": getattr(session, "language", None),
+        "transcript": transcript,
         "statements": [
             {
                 "id": statement.id,
@@ -470,6 +492,7 @@ def build_report_snapshot(session, version: int) -> dict:
         if len(key_statement_ids) == 8:
             break
     now = time.time()
+    transcript = report_transcript(session)
 
     return {
         "schemaVersion": 2,
@@ -478,10 +501,11 @@ def build_report_snapshot(session, version: int) -> dict:
         "analysisVersion": ANALYSIS_VERSION,
         "version": version,
         "status": "draft_ready",
-        "sourceHash": _source_hash(session, statements),
+        "sourceHash": _source_hash(session, statements, transcript),
         "sourceLanguage": getattr(session, "language", None) or "en",
         "generatedAt": now,
         "publishedAt": None,
+        "transcript": transcript,
         "meta": {
             "sessionId": session.id,
             "topic": session.topic,

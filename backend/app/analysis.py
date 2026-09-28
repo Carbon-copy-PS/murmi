@@ -1092,7 +1092,7 @@ Return JSON matching the schema. All counts will be displayed separately by the 
     ) -> Optional[dict]:
         if not isinstance(data, dict):
             return None
-        concise = evidence.get("presentationVersion") == REPORT_FORMAT_VERSION
+        concise = evidence.get("presentationVersion") in ("concise-report-v1", REPORT_FORMAT_VERSION)
         list_fields = (
             "overviewEvidenceStatementIds", "keyStatementIds", "takeaways", "principles",
             "actionAreas", "overlapPairs", "dimensions", "tendencies", "openQuestions",

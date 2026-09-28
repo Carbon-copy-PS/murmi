@@ -33,6 +33,7 @@ class ReportPersistenceTests(unittest.TestCase):
         source.id, source.public_id = 'REPORTTEST', 'synthetic-report-test'
         host_client, guest_client = list(source.known_participants)[:2]
         source.host_client_ids = {host_client}
+        source.transcript = [{"id": "synthetic-caption", "text": "Recorded discussion: 保留原文。", "speaker": "Synthetic recorder", "timestamp": 1700000000, "itemId": "private-provider-id"}]
         original_votes = {s.id: deepcopy(s.votes) for s in source.statements}
         original_approval = deepcopy(source.common_ground_history[0]['endorsement'])
 
@@ -64,6 +65,8 @@ class ReportPersistenceTests(unittest.TestCase):
                 manager.sessions[source.id] = source
                 await database.save_session(source)
                 await database.save_common_ground(source)
+                for entry in source.transcript:
+                    await database.save_transcript_entry(source, entry)
                 for statement in source.statements:
                     for participant, vote in statement.votes.items():
                         await database.save_vote(source, statement, participant, vote)
@@ -82,6 +85,9 @@ class ReportPersistenceTests(unittest.TestCase):
                     host.send_json({'type': 'finalize_report'})
                     preview = receive_until(host, lambda m: m.get('reportStatus') == 'draft_ready')
                     self.assertEqual(preview['report']['status'], 'draft_ready')
+                    transcript = deepcopy(preview['report']['transcript'])
+                    self.assertEqual(transcript[0]['text'], source.transcript[0]['text'])
+                    self.assertNotIn('itemId', transcript[0])
                     self.assertFalse(source.voting_open)
                     self.assertEqual(source.common_ground_history[0]['endorsement'], original_approval)
                     proposal = deepcopy(preview['report']['commonGroundProposal'])
@@ -89,6 +95,7 @@ class ReportPersistenceTests(unittest.TestCase):
                     public = client.get('/api/public/results/synthetic-report-test')
                     self.assertEqual(public.status_code, 200)
                     self.assertNotIn('report', public.json())
+                    self.assertNotIn('transcript', public.json())
 
                     # Non-hosts cannot see the draft or publish it.
                     with client.websocket_connect('/ws/REPORTTEST') as guest:
@@ -107,6 +114,9 @@ class ReportPersistenceTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 200)
                     self.assertEqual(response.json()['report'], published)
                     self.assertEqual(published['commonGroundProposal'], proposal)
+                    self.assertEqual(published['transcript'], transcript)
+                    source.transcript[0]['text'] = 'Later edits must not change a published transcript'
+                    self.assertEqual(client.get('/api/public/results/synthetic-report-test').json()['report']['transcript'], transcript)
                     self.assertEqual({s.id: s.votes for s in source.statements}, original_votes)
                     common_ground.assert_not_called()
 
@@ -121,6 +131,7 @@ class ReportPersistenceTests(unittest.TestCase):
                 restored = client.portal.call(reload)
                 self.assertEqual(restored.report_status, 'published')
                 self.assertEqual(restored.report_snapshot, published)
+                self.assertEqual(restored.report_snapshot['transcript'], transcript)
                 self.assertEqual(restored.common_ground_history[0]['endorsement'], original_approval)
                 self.assertEqual({s.id: s.votes for s in restored.statements}, original_votes)
                 self.assertEqual(client.get('/api/public/results/synthetic-report-test').json()['report'], published)

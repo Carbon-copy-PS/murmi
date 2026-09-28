@@ -20,6 +20,11 @@ def synthetic_session(language="zh"):
     if language == "en":
         session.topic = "Local mock discussion: the future of our public library"
         session.language = "en"
+    session.transcript = [
+        {"text": "What would make our library easier to use?" if language == "en" else "怎樣讓公共服務更方便使用？", "speaker": "Facilitator" if language == "en" else "主持人", "timestamp": 1700000000},
+        {"text": "Keep the staffed desk while we test online booking.\nPeople should have a choice." if language == "en" else "試辦線上預約時，應保留實體服務窗口。\n讓大家有選擇。", "speaker": "Room audio" if language == "en" else "現場錄音", "timestamp": 1700000030},
+        {"text": "", "speaker": "Room audio" if language == "en" else "現場錄音", "timestamp": 1700000040, "transcriptionStatus": "missing"},
+    ]
     patterns = [
         ("提供清楚的服務使用說明", ['agree'] * 20),
         ("先進行小規模試辦，再決定是否擴大", ['agree'] * 17 + ['disagree'] * 3),

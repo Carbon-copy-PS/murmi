@@ -45,6 +45,14 @@ The current format contains:
 - Every statement, visible below next steps, with support, neutral, disagreement, and
   unanswered counts. More than half of respondents is a majority; a neutral
   plurality is not automatically uncertainty. Missing is never a neutral vote.
+- An original-session link and an expandable transcript with timestamps, recorder
+  labels, explicit missing-audio markers, and a text download. New `concise-report-v2`
+  snapshots freeze the transcript at generation time and publish it with the report.
+  Only readable text, recorder labels, timestamps and transcription status are
+  retained; provider metadata and participant/client identifiers are excluded.
+  Transcript text is not added to report-narrative or common-ground model inputs.
+  Existing reports keep their saved content and show a transcript-unavailable message
+  until a host generates and publishes a new version through the normal workflow.
 - Expandable methodology and limitations.
 
 Response distributions use a muted diverging palette: sage green for agreement,

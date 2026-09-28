@@ -9,6 +9,7 @@ const source = `
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import FinalReportPage from './src/components/final-report/FinalReportPage.jsx'
+import { originalSessionPath, reportTranscriptText } from './src/components/final-report/ReportTranscript.jsx'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
 globalThis.window = { matchMedia: () => ({ matches: false }) }
@@ -104,6 +105,43 @@ assert.equal(dotTags.length, report.opinionLandscape.groups.reduce((n, group) =>
 assert.ok(dotTags.every(tag => !tag.includes('role="button"') && !tag.includes('tabindex') && tag.includes('aria-hidden="true"')))
 assert.ok(!html.includes('Participant 1') && !html.includes('Select a dot'))
 assert.equal((html.match(/class="opinion-theme-label opinion-group-color"/g) || []).length, report.opinionLandscape.groups.length)
+// Reports carry a readable, escaped transcript and a correctly encoded room link.
+assert.ok(html.includes('data-testid="report-original-session"'))
+assert.ok(html.includes('href="/?code=' + encodeURIComponent(report.meta.sessionId) + '"'))
+assert.ok(html.includes('href="#report-transcript"'))
+assert.ok(html.includes('data-testid="report-transcript"'))
+assert.ok(html.indexOf('data-testid="report-transcript"') < html.indexOf('story-methods'))
+const withTranscript = structuredClone(report);
+withTranscript.meta.sessionId = 'ROOM&next=https://example.invalid';
+withTranscript.transcript = [
+  { text: '<img src=x onerror=alert(1)> & actual words', speaker: '<b>Room</b>', timestamp: 1700000000 },
+  { text: '', speaker: 'Room', timestamp: 1700000030, transcriptionStatus: 'missing' },
+  { text: 'No timestamp', timestamp: null },
+];
+const transcriptHtml = renderToStaticMarkup(<FinalReportPage report={withTranscript} preview />);
+assert.ok(transcriptHtml.includes('&lt;img src=x onerror=alert(1)&gt;'));
+assert.ok(!transcriptHtml.includes('<img src=x'));
+assert.ok(transcriptHtml.includes('&lt;b&gt;Room&lt;/b&gt;'));
+assert.match(transcriptHtml, /datetime="2023-11-14T22:13:20\.000Z"/i);
+assert.ok(transcriptHtml.includes('class="is-missing"'));
+assert.ok(transcriptHtml.includes('Download transcript (.txt)') || transcriptHtml.includes('下載逐字稿'));
+assert.equal(originalSessionPath('ROOM&next=x'), '/?code=ROOM%26next%3Dx');
+assert.equal(originalSessionPath(null), null);
+const downloaded = reportTranscriptText(withTranscript, 'https://murmi.example');
+assert.ok(downloaded.includes('https://murmi.example/?code=ROOM%26next%3Dhttps%3A%2F%2Fexample.invalid'));
+assert.ok(downloaded.includes('[2023-11-14T22:13:20.000Z] <b>Room</b>'));
+assert.ok(downloaded.includes('<img src=x onerror=alert(1)> & actual words'));
+assert.ok(!downloaded.includes('1970-01-01'));
+const legacy = structuredClone(report);
+legacy.presentationVersion = 'concise-report-v1';
+delete legacy.transcript;
+const legacyHtml = renderToStaticMarkup(<FinalReportPage report={legacy} preview />);
+assert.ok(legacyHtml.includes('No transcript was included') || legacyHtml.includes('未包含逐字稿'));
+assert.ok(!legacyHtml.includes('SHOULD_NOT_RENDER'));
+legacy.transcript = [];
+const emptyHtml = renderToStaticMarkup(<FinalReportPage report={legacy} preview />);
+assert.ok(emptyHtml.includes('No transcript was recorded') || emptyHtml.includes('沒有記錄逐字稿'));
+assert.ok(!emptyHtml.includes('Download transcript (.txt)') && !emptyHtml.includes('下載逐字稿'));
 // Missing AI output must still leave a complete, readable report.
 delete report.narrative
 html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
