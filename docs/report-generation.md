@@ -100,13 +100,24 @@ and the relevant mode's prior history differ. Client-supplied analysis is ignore
 Counts and prior history are captured before asynchronous analysis. No transcript,
 participant identifiers or individual ballots are added to these common-ground calls.
 
-`shared-group-profiles-v1` stores the validated `opinion-themes-v4` descriptions once
+`shared-group-profiles-v1` stores the validated `opinion-themes-v5` descriptions once
 with the grouping source hash, group IDs/letters/sizes, language, topic and model
 routing version. It contains aggregate prose and references, never dots or voter
 identifiers. Common-ground generation receives those profiles and the complete
 group tallies, including mixed and missing responses; the normalizer attaches the
 canonical profiles instead of accepting independently generated group descriptions.
 When profiles are unavailable, common ground does not invent replacement profiles.
+
+Theme descriptions allow up to 480 characters for one or two complete sentences.
+The prompt asks the model to rewrite overlong text, and validation rejects unfinished
+endings and ellipses rather than truncating or completing model prose. This catches
+visible fragments, not every grammatical or semantic error; evidence review remains
+required. Model requests use each group's three highest-ranked eligible statements
+and their outside-group counts, and validate citations against that selected input.
+The full evidence set remains available in the results and when validating
+saved profiles.
+The version change prevents reuse of older profiles in newly generated
+reports, while existing saved reports and common-ground packages remain intact.
 
 A report first reuses matching profiles from its saved common-ground package, then
 from an earlier report, and otherwise generates fresh profiles. A common-ground

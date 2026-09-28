@@ -10,8 +10,9 @@ import time
 
 from .model_routing import MODEL_ROUTING_VERSION
 
-THEME_VERSION = "opinion-themes-v4"
+THEME_VERSION = "opinion-themes-v5"
 PROFILE_VERSION = "shared-group-profiles-v1"
+MAX_THEME_DESCRIPTION_CHARS = 480
 
 
 def capture_group_profiles(landscape, language, topic):
@@ -129,7 +130,12 @@ def validate_themes(data, evidence):
         title, text, refs = item.get("title"), item.get("description"), item.get("evidenceStatementIds")
         if not isinstance(title, str) or not isinstance(text, str) or not isinstance(refs, list):
             return None
-        if not 1 <= len(title.strip()) <= 48 or not 1 <= len(text.strip()) <= 180:
+        if not 1 <= len(title.strip()) <= 48 or not 1 <= len(text.strip()) <= MAX_THEME_DESCRIPTION_CHARS:
+            return None
+        # Do not save an unfinished model response as an apparently complete
+        # profile. Reject it intact rather than cutting or completing its words.
+        ending = text.strip().rstrip('\"\'”’»」』)）]')
+        if not ending.endswith((".", "!", "?", "。", "！", "？")) or ending.endswith("..."):
             return None
         if not all(isinstance(ref, str) and ref in allowed for ref in refs):
             return None
@@ -181,6 +187,9 @@ class OpinionThemeService:
                 self._failed(key)
                 return {"status": "unavailable"}
             result = {**validate_themes(raw, evidence), "status": "ready", "generatedAt": time.time()}
+            if not result["groups"] and not result["shared"]:
+                self._failed(key)
+                return {"status": "unavailable"}
             if isinstance(raw.get("generation"), dict):
                 result["generation"] = deepcopy(raw["generation"])
             self.cache[key] = result

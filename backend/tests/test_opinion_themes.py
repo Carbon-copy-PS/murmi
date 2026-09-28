@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
-from backend.app.opinion_themes import OpinionThemeService, theme_evidence, validate_themes
+from backend.app.opinion_themes import MAX_THEME_DESCRIPTION_CHARS, OpinionThemeService, theme_evidence, validate_themes
 from backend.app.reporting import build_opinion_landscape
 from backend.app.session import Session, Statement
 
@@ -182,6 +182,51 @@ class OpinionThemeTests(unittest.IsolatedAsyncioTestCase):
         evidence['groups'][1]['statements'] = []
         self.assertFalse(validate_themes(raw, evidence)['groups'])
 
+    def test_complete_longer_descriptions_are_preserved_without_truncation(self):
+        evidence = theme_evidence(self.landscape)
+        raw = grounded_output(evidence)
+        text = ('These respondents support improving bus services before reducing parking and keeping existing parking until alternatives improve. '
+                'They also support affordable travel passes, a preference shared with respondents outside this group.')
+        self.assertGreater(len(text), 180)
+        raw['groups'][0]['description'] = text
+        parsed = validate_themes(raw, evidence)
+        self.assertEqual(parsed['groups'][0]['description'], text)
+        raw['groups'][0]['description'] = 'A' * MAX_THEME_DESCRIPTION_CHARS + '.'
+        self.assertNotIn(raw['groups'][0]['groupId'], [g['groupId'] for g in validate_themes(raw, evidence)['groups']])
+
+    def test_unfinished_descriptions_are_rejected_for_groups_and_shared_themes(self):
+        evidence = theme_evidence(self.landscape)
+        for text in ('They support better buses, while other respondents', 'They support better buses...', '支持改善公車服務，但', '支持改善公車服務……'):
+            with self.subTest(text=text):
+                raw = grounded_output(evidence)
+                raw['groups'][0]['description'] = text
+                raw['shared']['description'] = text
+                parsed = validate_themes(raw, evidence)
+                self.assertNotIn(raw['groups'][0]['groupId'], [g['groupId'] for g in parsed['groups']])
+                self.assertIsNone(parsed['shared'])
+                self.assertEqual(raw['groups'][0]['description'], text)
+
+    def test_complete_sentence_endings_and_quotes_are_supported(self):
+        evidence = theme_evidence(self.landscape)
+        for text in ('They support better buses.', '支持改善公車服務。', '是否保留停車位？', 'They support “affordable travel.”', '他們支持「保留停車位。」'):
+            with self.subTest(text=text):
+                raw = grounded_output(evidence)
+                raw['groups'][0]['description'] = text
+                self.assertEqual(validate_themes(raw, evidence)['groups'][0]['description'], text)
+
+    async def test_unfinished_generation_is_unavailable_and_not_cached(self):
+        raw = grounded_output(theme_evidence(self.landscape))
+        for group in raw['groups']:
+            group['description'] = 'An unfinished description of'
+        raw['shared'] = None
+        self.service.generator = AsyncMock(return_value=raw)
+        result = await self.service.enrich(self.session, self.landscape, wait=True)
+        self.assertEqual(result['themes']['status'], 'unavailable')
+        self.assertTrue(all('theme' not in group for group in result['groups']))
+        self.assertFalse(self.service.cache)
+        self.assertEqual((await self.service.enrich(self.session, self.landscape, wait=True))['themes']['status'], 'unavailable')
+        self.service.generator.assert_awaited_once()
+
     async def test_report_waits_for_its_snapshot_and_saves_matching_themes(self):
         from backend.app import main
         from backend.app.session import SessionManager
@@ -215,10 +260,32 @@ class OpinionThemeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['generation']['requestedModel'], 'gpt-5.6-luna')
         args = create.call_args.kwargs
         self.assertEqual(args['response_format']['type'], 'json_schema')
+        schema = args['response_format']['json_schema']['schema']
+        pattern = schema['properties']['groups']['items']['properties']['description']['pattern']
+        self.assertRegex('A complete description. ' * 10, pattern)
+        self.assertNotRegex('A' * (MAX_THEME_DESCRIPTION_CHARS + 1), pattern)
+        self.assertIn('never stop mid-sentence', args['messages'][0]['content'])
         self.assertIn('Traditional Chinese', args['messages'][0]['content'])
         self.assertNotIn('density', args['messages'][1]['content'])
         message.refusal = 'Refused'
         self.assertIsNone(await service.generate_opinion_themes(evidence, 'en'))
+
+    async def test_generation_uses_and_validates_only_the_three_selected_statements(self):
+        from backend.app.analysis import AnalysisService
+        service = AnalysisService.__new__(AnalysisService)
+        service._mock = False
+        evidence = {'groups': [{'groupId': 0, 'size': 8, 'statements': [{'id': f's{i}', 'text': f'Proposal {i}'} for i in range(6)]}], 'shared': []}
+        original = deepcopy(evidence)
+        raw = {'groups': [{'groupId': 0, 'title': 'A synthetic title', 'description': 'A complete synthetic description.', 'evidenceStatementIds': ['s0', 's4']}], 'shared': None}
+        create = Mock(return_value=SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(raw), refusal=None), finish_reason='stop')]))
+        client = Mock()
+        client.with_options.return_value.chat.completions.create = create
+        service._client = client
+        result = await service.generate_opinion_themes(evidence, 'en')
+        supplied = json.loads(create.call_args.kwargs['messages'][1]['content'])
+        self.assertEqual([s['id'] for s in supplied['groups'][0]['statements']], ['s0', 's1', 's2'])
+        self.assertEqual(result['groups'], [])
+        self.assertEqual(evidence, original)
 
     async def test_manual_refresh_is_throttled_and_keeps_original_report_value(self):
         saved = await self.service.enrich(self.session, self.landscape, wait=True)

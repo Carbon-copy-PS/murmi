@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from backend.app import main
 from backend.app.analysis import AnalysisService
 from backend.app.opinion_themes import (
-    OpinionThemeService, capture_group_profiles, restore_group_profiles,
+    THEME_VERSION, OpinionThemeService, capture_group_profiles, restore_group_profiles,
 )
 from backend.app.policy_evidence import build_policy_evidence
 from backend.app.session import SessionManager
@@ -86,6 +86,29 @@ class SharedGroupProfileTests(unittest.IsolatedAsyncioTestCase):
         report = self.session.report_snapshot
         self.assertEqual(report['groupProfiles']['id'], self.saved['id'])
         self.assertEqual(report['commonGroundProposal']['groupStatement'], before[0]['groupStatement'])
+        self.assertEqual(self.session.common_ground_history, before)
+
+    async def test_report_regenerates_old_profiles_without_rewriting_saved_package(self):
+        manager = SessionManager()
+        manager.sessions[self.session.id] = self.session
+        old = deepcopy(self.saved)
+        old['themeVersion'] = 'opinion-themes-v4'
+        old['themes']['groups'][0]['description'] = 'An old unfinished description that stops at'
+        self.session.common_ground_history = [{'id': 'saved', 'status': 'endorsed',
+            'groupStatement': 'The saved agreed text.', 'groupProfiles': old}]
+        before = deepcopy(self.session.common_ground_history)
+        fresh_generator = AsyncMock(side_effect=grounded_output)
+        fresh_service = OpinionThemeService(fresh_generator)
+        self.addAsyncCleanup(fresh_service.close)
+        with (patch.object(main, 'sessions', manager),
+              patch.object(main, 'opinion_themes', fresh_service),
+              patch.object(main.analysis, 'generate_report_narrative', new_callable=AsyncMock, return_value=None),
+              patch.object(main.db, 'save_report_snapshot', new_callable=AsyncMock),
+              patch.object(main, 'broadcast_report_state', new_callable=AsyncMock)):
+            await main.run_report_generation(self.session.id)
+        fresh_generator.assert_awaited_once()
+        self.assertEqual(self.session.report_snapshot['groupProfiles']['themeVersion'], THEME_VERSION)
+        self.assertTrue(self.session.report_snapshot['groupProfiles']['themes']['groups'][0]['description'].endswith('.'))
         self.assertEqual(self.session.common_ground_history, before)
 
     async def test_common_ground_keeps_captured_votes_while_profiles_are_generated(self):
