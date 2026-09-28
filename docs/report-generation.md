@@ -55,6 +55,13 @@ The current format contains:
   until a host generates and publishes a new version through the normal workflow.
 - Expandable methodology and limitations.
 
+The opening limited-data banner is omitted when `few-voters` is the only saved
+data-sufficiency reason. Participant counts remain visible and methodology states
+that results describe the session's voters, not a population estimate. Sparse
+statement/response evidence and unknown warning reasons still show the banner.
+This is a presentation rule; saved evidence thresholds and analytical guardrails
+are unchanged, including for older reports.
+
 Response distributions use a muted diverging palette: sage green for agreement,
 warm stone for neutral, and clay red for disagreement, with darker endpoints for
 strong responses. Bars and their legend markers share report-scoped colour tokens,

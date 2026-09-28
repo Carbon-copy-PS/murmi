@@ -15,6 +15,11 @@ provider metadata and participant identifiers are excluded. Transcript text is
 not added to the AI narrative input. Publication controls explain that publishing
 also shares the saved transcript.
 
+The opening limited-data banner is hidden when voter count is its only trigger.
+The scope caveat remains inside methodology, with voter and response counts still
+visible. Warnings for too few statements, low response coverage or unknown reasons
+remain. Saved sufficiency metadata and analysis thresholds are unchanged.
+
 The presentation contract advances to `concise-report-v2`. Existing v1 reports
 remain readable and show that their saved report has no transcript. They require
 normal regeneration and publication to include one. No database migration or
@@ -30,6 +35,9 @@ dependency change is needed.
   unchanged when the live source changes. Other checks cover metadata filtering,
   missing timestamps, missing-audio markers, escaping, encoded source links,
   text-export contents and legacy reports.
+  Render checks also verify that voter-count-only notices are omitted for both
+  saved and legacy reports, that scope remains in methodology, and that sparse
+  evidence and unknown warning reasons still display the notice.
 - The local Sovereign AI display preview combines the existing saved narrative
   with the captured source transcript through the new sanitization function.
   It displays 49 entries. It is a local display review, not a regenerated report
@@ -40,6 +48,8 @@ dependency change is needed.
   overflow. No browser errors were observed. The browser's download event timed
   out after clicking the text-export control, so actual file delivery remains
   unverified in the in-app browser; the export contents are covered by tests.
+  After the banner revision, the full suite and build passed again and both
+  viewport widths were rechecked with no opening warning or horizontal overflow.
 
 ## Approved-release procedure
 

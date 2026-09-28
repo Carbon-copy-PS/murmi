@@ -72,6 +72,24 @@ assert.ok(!html.includes('<details class="story-all-statements"'))
 assert.ok(!html.includes('SHOULD_NOT_RENDER'))
 assert.ok(!html.includes('story-overlap-section'))
 assert.ok(html.indexOf('story-coverage-section') > html.indexOf('story-methods'))
+// Small discussions retain their scope caveat in methodology without a blanket
+// opening warning. Sparse responses/statements and unknown reasons still warn.
+const smallDiscussion = structuredClone(report);
+smallDiscussion.meta.voterCount = 10;
+smallDiscussion.analysis.responseCoverage.averageRate = 0.9;
+smallDiscussion.evidence.dataSufficiency = { status: 'limited', reasons: ['few-voters'] };
+const smallDiscussionHtml = renderToStaticMarkup(<FinalReportPage report={smallDiscussion} preview />);
+assert.ok(!smallDiscussionHtml.includes('story-data-warning'));
+assert.ok(smallDiscussionHtml.includes('data-testid="report-scope-note"'));
+assert.ok(smallDiscussionHtml.indexOf('data-testid="report-scope-note"') > smallDiscussionHtml.indexOf('story-methods'));
+for (const reasons of [['few-statements'], ['low-response-coverage'], ['few-voters', 'low-response-coverage'], ['unknown'], []]) {
+  smallDiscussion.evidence.dataSufficiency = { status: 'limited', reasons };
+  assert.ok(renderToStaticMarkup(<FinalReportPage report={smallDiscussion} preview />).includes('story-data-warning'));
+}
+delete smallDiscussion.evidence.dataSufficiency;
+assert.ok(!renderToStaticMarkup(<FinalReportPage report={smallDiscussion} preview />).includes('story-data-warning'));
+smallDiscussion.analysis.responseCoverage.averageRate = 0.4;
+assert.ok(renderToStaticMarkup(<FinalReportPage report={smallDiscussion} preview />).includes('story-data-warning'));
 const profilesIndex = html.indexOf('opinion-group-cards')
 const comparisonIndex = html.indexOf('data-testid="group-differences"')
 assert.ok(profilesIndex >= 0)

@@ -693,6 +693,9 @@ export default function FinalReportPage({ report, preview = false }) {
     responses: results.reduce((total, result) => total + (result.responded || 0), 0),
   }
   const sufficiency = dataSufficiency(report, meta, coverageSummary, results.length)
+  const limitedByVoterCountOnly = sufficiency.reasons?.length === 1
+    && sufficiency.reasons[0] === 'few-voters'
+  const participantScope = copy.defaultLimitations({})[0]
   const openQuestions = (report.story?.openQuestionStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
@@ -754,7 +757,7 @@ export default function FinalReportPage({ report, preview = false }) {
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
         <ReportStats meta={meta} copy={copy} />
         <ReportSourceLinks report={report} />
-        {sufficiency.status === 'limited' && (
+        {sufficiency.status === 'limited' && !limitedByVoterCountOnly && (
           <aside className="story-data-warning" role="note">
             <strong>{copy.limitedDataTitle}</strong>
             <p>{copy.limitedDataNotice({
@@ -982,6 +985,7 @@ export default function FinalReportPage({ report, preview = false }) {
         <summary>{copy.methodsTitle}</summary>
         <div>
           <p>{copy.methodsIntro}</p>
+          <p data-testid="report-scope-note">{participantScope.explanation}</p>
           {report.opinionLandscape?.available && <p>{copy.opinionMethod}</p>}
           {narrative && <p>{copy.narrativeMethod}</p>}
           <ol className="story-method-steps">
