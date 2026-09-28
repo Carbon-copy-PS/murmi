@@ -29,11 +29,11 @@ export function ReportSourceLinks({ report }) {
   const path = originalSessionPath(report.meta?.sessionId)
   return (
     <nav className="story-source-links" aria-label={copy.sources}>
-      {path && <a href={path} target="_blank" rel="noopener noreferrer" data-testid="report-original-session">{copy.original} <span aria-hidden="true">↗</span></a>}
       <a href="#report-transcript" onClick={(event) => {
         const transcript = event.currentTarget.closest('article')?.querySelector('#report-transcript')
         if (transcript) transcript.open = true
       }}>{copy.transcript} <span aria-hidden="true">↓</span></a>
+      {path && <a className="story-original-session" href={path} target="_blank" rel="noopener noreferrer" data-testid="report-original-session">{copy.original} <span aria-hidden="true">↗</span></a>}
     </nav>
   )
 }

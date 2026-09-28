@@ -14,6 +14,8 @@ readable text, recorder label, timestamp and transcription status are retained;
 provider metadata and participant identifiers are excluded. Transcript text is
 not added to the AI narrative input. Publication controls explain that publishing
 also shares the saved transcript.
+The source links place Discussion transcript on the left and Original session
+on the right, including at mobile widths.
 
 The opening limited-data banner is hidden when voter count is its only trigger.
 The scope caveat remains inside methodology, with voter and response counts still
