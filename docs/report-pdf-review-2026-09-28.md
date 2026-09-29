@@ -1,4 +1,29 @@
-# PDF download local review
+# PDF download release review
+
+## Deployment result
+
+Approved by the user and deployed on 2026-09-28 at
+`5662b82b2370b5cd5e04e0cd762e18864bbfec0f`, pushed to `codex/report-transcript`.
+Previous production revision: `87ef008c3d11f8a3df3d83177db4471a82b3bac4`.
+
+The candidate was built separately on the production host. Server validation passed
+168 backend tests (three PostgreSQL tests skipped there and passed locally), 50
+JavaScript tests, three report-render checks and the frontend build. The candidate
+runtime adds ReportLab, Pillow, charset-normalizer and test-only pypdf; existing
+package versions were preserved. Both licensed PDF fonts are deployed.
+
+Activation retained previous hashed assets for open tabs and backed up the database,
+frontend, runtime and service configuration under
+`/home/ubuntu/backups/report-pdf-5662b82`. No recording or recent discussion activity
+was present. The backend is healthy; all saved-table fingerprints and the published
+Sovereign AI report hash matched before and after activation. No snapshot was
+regenerated or republished.
+
+The live report exposes Download PDF. A browser download from murmi.org produced a
+12-page PDF containing every statement and the full saved transcript, correct source
+links, a simplified opening and the final reader guide. All pages were rendered and
+inspected. Desktop and 390px mobile checks passed with no horizontal overflow or
+browser console errors. The published report remains version 2.
 
 ## Simplified opening
 
