@@ -38,15 +38,21 @@ The current format contains:
   Visible group profiles precede
   the strongest adequately answered group comparisons. Profiles describe actual
   support, reservations, or opposition; they do not label people's identities.
-- Response coverage, retained as a full section at the very bottom, after statements
-  and methodology, to separate participation context from findings.
+- Participation and methodology at the very end in “About this report”, after the
+  transcript. Plain-language guidance explains who voted, response denominators,
+  missing answers, exploratory groups and the role of AI. Detailed calculations
+  and the response-coverage charts remain available in an expandable subsection.
 - Unresolved questions that explain what still needs clarification.
 - Up to three concrete next steps, combining action areas and implications.
 - Every statement, visible below next steps, with support, neutral, disagreement, and
   unanswered counts. More than half of respondents is a majority; a neutral
   plurality is not automatically uncertainty. Missing is never a neutral vote.
-- An original-session link and an expandable transcript with timestamps, recorder
-  labels, explicit missing-audio markers, and a text download. New `concise-report-v2`
+- An original-session link and an expandable continuous transcript with readable
+  paragraphs, explicit missing-audio markers, and a text download. Recording chunk
+  numbers, entry counts, repeated timestamps and recorder labels are not shown in
+  the reading view or downloads. Paragraph breaks use sentence ends for readability;
+  words are never rewritten or summarized. Original timestamps and recorder labels
+  remain in the saved data. New `concise-report-v2`
   snapshots freeze the transcript at generation time and publish it with the report.
   Only readable text, recorder labels, timestamps and transcription status are
   retained; provider metadata and participant/client identifiers are excluded.
@@ -139,6 +145,41 @@ principle, action-area, and overlap sections even if an unexpected provider resp
 contains them. It retains complete statements and coverage if AI output is absent.
 
 ## Sources of consistency
+
+### PDF downloads
+
+Published and stale reports expose `GET /api/public/results/{public_id}/report.pdf`
+and a **Download PDF** link in the public report toolbar. This exports the same
+saved snapshot, including its complete transcript and original-session link.
+It never regenerates prose, consults the live transcript, publishes a draft, or
+alters a snapshot. Unpublished reports return 404. A stale export explains that
+voting reopened; legacy snapshots without a transcript state that explicitly.
+
+`backend/app/report_pdf.py` creates searchable A4 documents with a concise opening
+(title, takeaway, introduction and source links), PDF bookmarks, vector charts,
+complete statements, the continuous transcript,
+and a final plain-language “About this report” section. The first section follows
+the introduction on the same page when space permits. Omit the printed contents
+list, visible version labels and opening statistics; participation counts belong
+in the final reader guide on both web and PDF. Group comparisons use the same minimum-response rules as
+the web page. Text wraps and continues across pages; source text is escaped before
+ReportLab parses markup. `shared/report-reading-copy.json` keeps the web and PDF
+reading guidance aligned in all five languages. The PDF keeps technical notes brief;
+changed or unknown saved rules remain intact. Embedded OFL fonts in `backend/app/pdf_fonts`
+support the five report interface languages and mixed Chinese/Latin transcripts.
+No external font or document-rendering service is required.
+
+PDF layout runs in a worker thread, with one render at a time per process because
+ReportLab's shared font objects cannot subset simultaneous documents. HTTP
+responses are attachments with sanitized filenames and `Cache-Control: no-store`.
+The local preview server supports the same download path for its explicit draft.
+Install the pinned backend dependency before enabling this route in a release.
+
+PDF checks cover published-only access, frozen transcript contents, long entries,
+embedded fonts, source links, five locales, concurrent requests, and group-response
+guardrails. For layout review, download English and Chinese previews, render every
+page using `pdftoppm -png`, and check headers, footers, page breaks, charts and the
+full appendix. Keep real report exports under ignored `output/pdf/` or `outputs/`.
 
 `backend/app/model_routing.py` centrally versions model selection and request settings.
 The `mixed-deliberation-v1` configuration uses GPT-5.6 Luna for statement extraction
@@ -281,7 +322,7 @@ From the repository root:
 
 ```sh
 python3 -m venv .venv
-.venv/bin/python -m pip install -r backend/requirements.txt
+.venv/bin/python -m pip install -r backend/requirements-test.txt
 npm ci --prefix frontend
 scripts/check-reports.sh
 .venv/bin/python -m backend.tools.preview_report

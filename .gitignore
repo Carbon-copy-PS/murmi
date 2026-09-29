@@ -25,6 +25,7 @@ data-analysis/reports/*
 # Local review output and source exports are not publication artifacts.
 artifacts/
 outputs/
+output/pdf/
 data-analysis/screenshots/
 docs/polis-example/
 frontend/public/recovered-ramen-report.html

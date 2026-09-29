@@ -5,7 +5,7 @@ import base64
 import os
 import time
 import uuid
-from copy import copy
+from copy import copy, deepcopy
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from starlette.websockets import WebSocketState
 from pydantic import BaseModel
 from typing import Optional
@@ -1637,6 +1637,30 @@ async def _resolve_public_session(public_id: str) -> Optional[str]:
                 await _safe_db(db.update_public_id(session_id, pid))
             return session_id
     return None
+
+
+_report_pdf_slots = asyncio.Semaphore(1)
+
+
+@app.get("/api/public/results/{public_id}/report.pdf")
+async def public_report_pdf(public_id: str):
+    from .report_pdf import render_report_pdf, report_pdf_filename
+
+    session_id = await _resolve_public_session(public_id)
+    data = sessions.public_results(session_id) if session_id else None
+    if not data or not data.get("report"):
+        raise HTTPException(status_code=404, detail="Published report not found")
+    snapshot = deepcopy(data["report"])
+    from urllib.parse import quote
+    public_url = f"https://murmi.org/r/{quote(public_id, safe='')}"
+    # Layout and font subsetting must not block live discussion WebSockets.
+    async with _report_pdf_slots:
+        payload = await asyncio.to_thread(render_report_pdf, snapshot, public_url)
+    return Response(payload, media_type="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{report_pdf_filename(snapshot)}"',
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    })
 
 
 @app.get("/api/public/results/{public_id}")

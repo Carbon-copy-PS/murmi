@@ -4,6 +4,8 @@ import { statementPattern, statementPatternCopy, statementPatternOrder } from '.
 import OpinionGroups from '../opinion-groups/OpinionGroups'
 import { getOpinionCopy } from '../opinion-groups/copy'
 import './final-report.css'
+import ReportReadingGuide from './ReportReadingGuide'
+import { getReadingCopy } from './report-reading'
 
 function percent(value, language) {
   return new Intl.NumberFormat(language, {
@@ -613,16 +615,6 @@ function CommonGroundProposal({ proposal, meta, copy, language }) {
   )
 }
 
-function ReportStats({ meta, copy }) {
-  return (
-    <dl className="story-stats">
-      <div><dt>{meta.voterCount || 0}</dt><dd>{copy.voters}</dd></div>
-      <div><dt>{meta.statementCount || 0}</dt><dd>{copy.statements}</dd></div>
-      <div><dt>{meta.responseCount || 0}</dt><dd>{copy.responses}</dd></div>
-    </dl>
-  )
-}
-
 function dataSufficiency(report, meta, coverageSummary, resultCount) {
   if (report.evidence?.dataSufficiency) {
     return report.evidence.dataSufficiency
@@ -695,7 +687,6 @@ export default function FinalReportPage({ report, preview = false }) {
   const sufficiency = dataSufficiency(report, meta, coverageSummary, results.length)
   const limitedByVoterCountOnly = sufficiency.reasons?.length === 1
     && sufficiency.reasons[0] === 'few-voters'
-  const participantScope = copy.defaultLimitations({})[0]
   const openQuestions = (report.story?.openQuestionStatementIds || [])
     .map((id) => statements.get(id))
     .filter(Boolean)
@@ -755,7 +746,6 @@ export default function FinalReportPage({ report, preview = false }) {
       <section className="story-opening">
         <h1>{narrative?.headline || copy.openingTitle}</h1>
         <p className="story-opening-intro">{narrative?.standfirst || copy.intro(meta)}</p>
-        <ReportStats meta={meta} copy={copy} />
         <ReportSourceLinks report={report} />
         {sufficiency.status === 'limited' && !limitedByVoterCountOnly && (
           <aside className="story-data-warning" role="note">
@@ -981,60 +971,63 @@ export default function FinalReportPage({ report, preview = false }) {
 
       <ReportTranscript report={report} />
 
-      <details className="story-methods">
-        <summary>{copy.methodsTitle}</summary>
-        <div>
-          <p>{copy.methodsIntro}</p>
-          <p data-testid="report-scope-note">{participantScope.explanation}</p>
-          {report.opinionLandscape?.available && <p>{copy.opinionMethod}</p>}
-          {narrative && <p>{copy.narrativeMethod}</p>}
-          <ol className="story-method-steps">
-            {methodSteps.map((step, index) => (
-              <li key={step.title}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <div>
-                  <strong>{step.title}</strong>
-                  <p>{step.text}</p>
-                  <small><b>{copy.methodInterpretation}</b> {step.meaning}</small>
-                </div>
-              </li>
-            ))}
-          </ol>
-          <dl>
-            <dt>{copy.minimumEvidence}</dt>
-            <dd>{report.evidence?.minimumEvidenceResponses || 0} {copy.responses}</dd>
-            <dt>{copy.privacy}</dt>
-            <dd>{copy.privacyText}</dd>
-            <dt>{copy.generated}</dt>
-            <dd>{dateTime(report.generatedAt, language)}</dd>
-          </dl>
-        </div>
-      </details>
-
-      {results.length > 0 && (
-        <StorySection
-          kicker={copy.coverageKicker}
-          title={copy.coverageTitle}
-          lead={copy.coverageLead}
-          className="story-coverage-section"
-        >
-          <div className="story-overall-distribution">
-            <h3>{copy.overallResponsePattern}</h3>
-            <ResponseDistribution
-              result={voteDistribution}
-              copy={copy}
-              language={language}
-            />
+      <section className="story-methods">
+        <h2>{getReadingCopy(language).title}</h2>
+        <ReportReadingGuide report={report} />
+        <details className="story-calculation-details">
+          <summary>{getReadingCopy(language).detailsTitle}</summary>
+          <div>
+            <p>{copy.methodsIntro}</p>
+            {report.opinionLandscape?.available && <p>{copy.opinionMethod}</p>}
+            {narrative && <p>{copy.narrativeMethod}</p>}
+            <ol className="story-method-steps">
+              {methodSteps.map((step, index) => (
+                <li key={step.title}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <strong>{step.title}</strong>
+                    <p>{step.text}</p>
+                    <small><b>{copy.methodInterpretation}</b> {step.meaning}</small>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <dl>
+              <dt>{copy.minimumEvidence}</dt>
+              <dd>{report.evidence?.minimumEvidenceResponses || 0} {copy.responses}</dd>
+              <dt>{copy.privacy}</dt>
+              <dd>{copy.privacyText}</dd>
+              <dt>{copy.generated}</dt>
+              <dd>{dateTime(report.generatedAt, language)}</dd>
+            </dl>
           </div>
-          <CoverageOverview
-            results={results}
-            summary={coverageSummary}
-            voterCount={meta.voterCount || 0}
-            copy={copy}
-            language={language}
-          />
-        </StorySection>
-      )}
+
+          {results.length > 0 && (
+            <StorySection
+              kicker={copy.coverageKicker}
+              title={copy.coverageTitle}
+              lead={copy.coverageLead}
+              className="story-coverage-section"
+            >
+              <div className="story-overall-distribution">
+                <h3>{copy.overallResponsePattern}</h3>
+                <ResponseDistribution
+                  result={voteDistribution}
+                  copy={copy}
+                  language={language}
+                />
+              </div>
+              <CoverageOverview
+                results={results}
+                summary={coverageSummary}
+                voterCount={meta.voterCount || 0}
+                copy={copy}
+                language={language}
+              />
+            </StorySection>
+          )}
+        </details>
+      </section>
     </article>
   )
 }

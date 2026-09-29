@@ -9,6 +9,8 @@ const source = `
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import FinalReportPage from './src/components/final-report/FinalReportPage.jsx'
+import ReportPdfDownload from './src/components/final-report/ReportPdfDownload.jsx'
+import { transcriptParagraphs, getReadingCopy } from './src/components/final-report/report-reading.js'
 import { originalSessionPath, reportTranscriptText } from './src/components/final-report/ReportTranscript.jsx'
 import fs from 'node:fs'
 import assert from 'node:assert/strict'
@@ -18,10 +20,16 @@ const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 for (const group of report.opinionLandscape.groups || []) group.density = null
 const extra = { title: 'SHOULD_NOT_RENDER', explanation: 'Removed section', evidenceStatementIds: ['fixture-s0'] }
 const language = report.sourceLanguage
+const pdfLink = renderToStaticMarkup(<ReportPdfDownload publicId="room/?x=1&y=2" language={language} />)
+assert.ok(pdfLink.includes('href="/api/public/results/room%2F%3Fx%3D1%26y%3D2/report.pdf"'))
+assert.ok(pdfLink.includes('download=""'))
+assert.ok(pdfLink.includes(language === 'zh' ? '下載 PDF' : 'Download PDF'))
+assert.equal(renderToStaticMarkup(<ReportPdfDownload publicId={null} />), '')
 const isTraffic = report.evidence.statements.some(s => s.id === 'traffic-s8')
 report.narrative[language].principles = [extra]
 report.narrative[language].actionAreas = [extra]
 let html = renderToStaticMarkup(<FinalReportPage report={report} preview />)
+assert.ok(!html.includes('story-stats'))
 const restoredProfiles = structuredClone(report);
 delete restoredProfiles.opinionLandscape.themes.generatedAt;
 restoredProfiles.opinionLandscape.themes.status = 'ready';
@@ -139,17 +147,27 @@ withTranscript.transcript = [
 const transcriptHtml = renderToStaticMarkup(<FinalReportPage report={withTranscript} preview />);
 assert.ok(transcriptHtml.includes('&lt;img src=x onerror=alert(1)&gt;'));
 assert.ok(!transcriptHtml.includes('<img src=x'));
-assert.ok(transcriptHtml.includes('&lt;b&gt;Room&lt;/b&gt;'));
-assert.match(transcriptHtml, /datetime="2023-11-14T22:13:20\.000Z"/i);
+assert.ok(!transcriptHtml.includes('&lt;b&gt;Room&lt;/b&gt;'));
+assert.ok(!transcriptHtml.includes('datetime="2023-11-14T22:13:20.000Z"'));
+assert.ok(!transcriptHtml.includes('3 transcript entries'));
 assert.ok(transcriptHtml.includes('class="is-missing"'));
 assert.ok(transcriptHtml.includes('Download transcript (.txt)') || transcriptHtml.includes('下載逐字稿'));
 assert.equal(originalSessionPath('ROOM&next=x'), '/?code=ROOM%26next%3Dx');
 assert.equal(originalSessionPath(null), null);
 const downloaded = reportTranscriptText(withTranscript, 'https://murmi.example');
 assert.ok(downloaded.includes('https://murmi.example/?code=ROOM%26next%3Dhttps%3A%2F%2Fexample.invalid'));
-assert.ok(downloaded.includes('[2023-11-14T22:13:20.000Z] <b>Room</b>'));
+assert.ok(!downloaded.includes('[2023-11-14T22:13:20.000Z] <b>Room</b>'));
 assert.ok(downloaded.includes('<img src=x onerror=alert(1)> & actual words'));
 assert.ok(!downloaded.includes('1970-01-01'));
+assert.deepEqual(transcriptParagraphs([{text:'One sentence'},{text:'across two recordings.'}]),[{text:'One sentence across two recordings.',missing:false}]);
+const longWords='A complete sentence. '.repeat(90);
+const paragraphs=transcriptParagraphs([{text:longWords},{transcriptionStatus:'missing'},{text:'Final words.'}]);
+assert.ok(paragraphs.length > 3);
+assert.ok(paragraphs.at(-2).missing);
+assert.equal(paragraphs.filter(p=>!p.missing).map(p=>p.text).join(' ').replace(/\\s/g,''),(longWords+'Final words.').replace(/\\s/g,''));
+assert.ok(html.includes(getReadingCopy(language).title));
+assert.ok(html.includes(getReadingCopy(language).votes));
+assert.ok(html.indexOf('story-reading-guide') > html.indexOf('data-testid="report-transcript"'));
 const legacy = structuredClone(report);
 legacy.presentationVersion = 'concise-report-v1';
 delete legacy.transcript;

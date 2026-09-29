@@ -1,13 +1,8 @@
 import { getReportSourceCopy } from './report-source-copy'
+import { getReadingCopy, transcriptParagraphs } from './report-reading'
 
 export function originalSessionPath(sessionId) {
   return typeof sessionId === 'string' && sessionId ? `/?code=${encodeURIComponent(sessionId)}` : null
-}
-
-function entryDate(timestamp) {
-  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return null
-  const date = new Date(timestamp * 1000)
-  return Number.isNaN(date.getTime()) ? null : date
 }
 
 export function reportTranscriptText(report, origin) {
@@ -15,11 +10,9 @@ export function reportTranscriptText(report, origin) {
   const path = originalSessionPath(report.meta?.sessionId)
   const lines = [report.meta?.topic || copy.transcript]
   if (path) lines.push(`${copy.original}: ${new URL(path, origin).href}`)
-  lines.push('', copy.lead, '')
-  for (const entry of report.transcript || []) {
-    const time = entryDate(entry.timestamp)?.toISOString() || copy.unknownTime
-    lines.push(`[${time}] ${entry.speaker || copy.speaker}`)
-    lines.push(entry.transcriptionStatus === 'missing' ? copy.missing : entry.text, '')
+  lines.push('', getReadingCopy(report.sourceLanguage).transcriptIntro, '')
+  for (const paragraph of transcriptParagraphs(report.transcript || [])) {
+    lines.push(paragraph.missing ? copy.missing : paragraph.text, '')
   }
   return lines.join('\n')
 }
@@ -43,6 +36,7 @@ export function ReportTranscript({ report }) {
   const copy = getReportSourceCopy(language)
   const hasSnapshot = Array.isArray(report.transcript)
   const entries = hasSnapshot ? report.transcript : []
+  const paragraphs = transcriptParagraphs(entries)
 
   function download() {
     const url = URL.createObjectURL(new Blob([reportTranscriptText(report, window.location.origin)], { type: 'text/plain;charset=utf-8' }))
@@ -57,28 +51,18 @@ export function ReportTranscript({ report }) {
     <details className="story-transcript" id="report-transcript" data-testid="report-transcript">
       <summary>
         <h2>{copy.transcript}</h2>
-        {hasSnapshot && <span>{copy.count(entries.length)}</span>}
       </summary>
       <div className="story-transcript-body">
         {entries.length > 0 ? <>
           <div className="story-transcript-intro">
-            <p>{copy.lead}</p>
+            <p>{getReadingCopy(language).transcriptIntro}</p>
             <button type="button" onClick={download}>{copy.download}</button>
           </div>
-          <ol className="story-transcript-entries" tabIndex={0} aria-label={copy.transcript}>
-            {entries.map((entry, index) => {
-              const date = entryDate(entry.timestamp)
-              return <li key={index} className={entry.transcriptionStatus === 'missing' ? 'is-missing' : ''}>
-                <div className="story-transcript-meta">
-                  <strong>{entry.speaker || copy.speaker}</strong>
-                  {date ? <time dateTime={date.toISOString()}>{new Intl.DateTimeFormat(language, {
-                    dateStyle: 'medium', timeStyle: 'medium',
-                  }).format(date)}</time> : <span>{copy.unknownTime}</span>}
-                </div>
-                <p>{entry.transcriptionStatus === 'missing' ? copy.missing : entry.text}</p>
-              </li>
-            })}
-          </ol>
+          <div className="story-transcript-entries" aria-label={copy.transcript}>
+            {paragraphs.map((paragraph, index) => <p key={index} className={paragraph.missing ? 'is-missing' : ''}>
+              {paragraph.missing ? copy.missing : paragraph.text}
+            </p>)}
+          </div>
         </> : <p>{hasSnapshot ? copy.empty : copy.legacy}</p>}
       </div>
     </details>

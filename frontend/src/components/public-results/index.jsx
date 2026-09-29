@@ -6,6 +6,7 @@ import ResultsPanel from '../ResultsPanel'
 import ThemeToggle from '../ThemeToggle'
 import FinalReportPage from '../final-report/FinalReportPage'
 import { getReportCopy } from '../final-report/report-copy'
+import ReportPdfDownload from '../final-report/ReportPdfDownload'
 
 const POLL_INTERVAL_MS = 8000
 
@@ -178,6 +179,7 @@ export default function PublicResults({ publicId }) {
         </div>
 
         <div className="pub-share" data-testid="public-share">
+          {hasPublishedReport && <ReportPdfDownload publicId={publicId} language={data.report.sourceLanguage} />}
           <button className="pub-share-copy" onClick={copyLink} data-testid="public-copy">
             {copied ? t('public.copied') : t('public.copyLink')}
           </button>

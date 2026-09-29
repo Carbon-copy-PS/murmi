@@ -85,6 +85,16 @@ def main():
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *a, **kw): super().__init__(*a, directory=str(dist), **kw)
         def do_GET(self):
+            if self.path == '/api/public/results/local-preview/report.pdf':
+                from backend.app.report_pdf import render_report_pdf, report_pdf_filename
+                pdf = render_report_pdf(report, f'http://127.0.0.1:{args.port}/r/local-preview')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/pdf')
+                self.send_header('Content-Disposition', f'attachment; filename="{report_pdf_filename(report)}"')
+                self.send_header('Content-Length', str(len(pdf)))
+                self.end_headers()
+                self.wfile.write(pdf)
+                return
             if self.path == '/api/public/results/local-preview':
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')

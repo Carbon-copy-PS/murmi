@@ -2170,13 +2170,19 @@
 .story-transcript-intro { display: flex; flex-wrap: wrap; gap: 1rem; align-items: start; margin-bottom: 1.5rem; }
 .story-transcript-intro p { flex: 1 1 22rem; margin: 0; color: var(--story-muted); font: 0.9rem/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .story-transcript-intro button { flex: 0 1 auto; padding: 0.65rem 0.9rem; color: var(--story-ink); background: transparent; border: 1px solid var(--story-rule); border-radius: 4px; cursor: pointer; font: 600 0.85rem/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-.story-transcript-entries { max-height: 34rem; overflow-y: auto; padding: 0 1rem 0 0; margin: 0; list-style: none; scrollbar-gutter: stable; }
-.story-transcript-entries li { padding: 1.2rem 0; border-top: 1px solid var(--story-rule); }
-.story-transcript-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; color: var(--story-muted); font: 0.8rem/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-.story-transcript-entries p { margin: 0.65rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.7; }
-.story-transcript-entries .is-missing p { color: var(--story-muted); font-style: italic; }
+.story-transcript-entries { max-width: 72ch; margin: 0; }
+.story-transcript-entries p { margin: 0 0 1.2rem; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.8; }
+.story-transcript-entries .is-missing { color: var(--story-muted); font-style: italic; }
+.story-methods > .story-reading-guide { max-width: 72ch; color: var(--story-ink); font-size: 1rem; }
+.story-reading-guide h3 { margin: 1.5rem 0 0.5rem; font-size: 1.15rem; }
+.story-reading-guide p { margin: 0 0 0.8rem; line-height: 1.75; }
+.story-calculation-details { margin-top: 1.5rem; }
+.story-calculation-details > div { margin-top: 1rem; }
 .story-transcript a:focus-visible, .story-transcript button:focus-visible, .story-transcript summary:focus-visible, .story-transcript-entries:focus-visible, .story-source-links a:focus-visible { outline: 2px solid var(--story-accent); outline-offset: 4px; }
 @media print {
   .story-transcript-entries { max-height: none; overflow: visible; }
   .story-transcript-intro button { display: none; }
 }
+
+.pub-share-pdf { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; white-space: nowrap; }
+.pub-share-pdf:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
