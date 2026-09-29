@@ -1,6 +1,7 @@
 # Report readability and sources release review — 2026-09-28
 
-Status: locally validated; awaiting approval to push and deploy.
+Status: approved, pushed and deployed. The attempted report regeneration was
+withheld after evidence review; the previous published snapshot was restored.
 
 Candidate branch: `codex/report-transcript`, based on production revision
 `fb295ca3297534a4f22e31767a727c20f966c446`.
@@ -92,3 +93,47 @@ Do not patch production report JSON. Other reports retain their saved snapshots.
 If activation fails, restore the recorded previous code, frontend and service
 configuration. Do not overwrite newer votes by restoring an old database as part
 of ordinary code rollback.
+
+## Deployment result
+
+The user approved pushing and deploying this release on 2026-09-28. Production
+now runs `c621835252ba65f66811040ec15a065199f1e741`, pushed on
+`codex/report-transcript`. The previous revision was
+`fb295ca3297534a4f22e31767a727c20f966c446`. The code deployment did not require a
+schema migration. Protected database, frontend and service backups are retained
+on the host under `/home/ubuntu/backups/report-c621835`.
+
+The first staged run found a missing package in the host's existing dependency
+installation. Installing the committed lockfile into the separate staging directory
+resolved it without changing dependencies in Git. Server validation then passed:
+154 backend tests (three database tests skipped there, all passed locally with
+disposable PostgreSQL), 50 JavaScript tests, three report-render checks and the
+production frontend build. The existing bundle-size warning remains.
+
+Preflight found no recording or recent discussion activity. Activation preserved
+fingerprints of all seven saved-data tables and the existing published report.
+The service is online with the reviewed backend and frontend. Older frontend
+assets were retained for open tabs.
+
+The native host workflow generated a new Sovereign AI draft using
+`concise-report-v2` and `opinion-themes-v5`, including 49 frozen transcript entries
+and three complete group descriptions. Its saved payload matched the WebSocket
+result. Source evidence, the saved common-ground package, the prior report version
+and other sessions remained unchanged.
+
+Editorial review rejected the new draft: one description reversed the negation in
+a cited statement. The complete-sentence validator does not detect that semantic
+error. The draft was not published or manually corrected. Its payload and database
+row were archived in the protected release backup, and the previous published
+snapshot was restored unchanged. The public HTTP result was verified against that
+prior snapshot. This rollback did not revert the deployed code.
+
+The live report was checked at 1280px and 390px: the transcript link remains left
+of the original-session link, there is no horizontal overflow, and the opening
+voter-count-only warning is absent. The browser reported no console errors.
+
+Future generations therefore use the new transcript and description contracts,
+but still require evidence review before publication. Existing saved reports retain
+their old transcript availability and prose until a newly generated draft passes
+review and is published. A stronger semantic-generation safeguard requires a
+separate reviewed change; this release does not claim to solve model interpretation.
