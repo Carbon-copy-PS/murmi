@@ -5,6 +5,7 @@ import base64
 import os
 import time
 import uuid
+from copy import copy
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,6 +32,7 @@ from .languages import LANGUAGE_CODES as PARTICIPANT_LANGUAGES
 from .reporting import (
     build_opinion_landscape,
     build_report_snapshot,
+    build_transcript_revision,
     build_selected_overlaps,
     freeze_report_source,
     narrative_evidence,
@@ -1295,6 +1297,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 })
                 await broadcast_report_state(session_id)
                 asyncio.create_task(run_report_generation(session_id))
+
+            elif msg_type == "attach_report_transcript":
+                if not sessions.is_host(session_id, participant_id):
+                    continue
+                session = sessions.get(session_id)
+                try:
+                    snapshot = build_transcript_revision(freeze_report_source(session))
+                except ValueError as exc:
+                    await websocket.send_json({"type": "report_attachment_error", "message": str(exc)})
+                    continue
+                # Persist before exposing the draft. Existing snapshots stay intact.
+                draft_session = copy(session)
+                draft_session.report_status = "draft_ready"
+                draft_session.report_version = snapshot["version"]
+                await db.save_report_snapshot(draft_session, snapshot)
+                sessions.attach_report_snapshot(session_id, snapshot)
+                await broadcast_report_state(session_id)
 
             elif msg_type == "publish_report":
                 if not sessions.is_host(session_id, participant_id):

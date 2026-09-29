@@ -53,6 +53,13 @@ The current format contains:
   Transcript text is not added to report-narrative or common-ground model inputs.
   Existing reports keep their saved content and show a transcript-unavailable message
   until a host generates and publishes a new version through the normal workflow.
+  For an unchanged legacy report, the host-only `attach_report_transcript`
+  WebSocket operation creates a transcript-only draft for preview and publication.
+  It requires recording and voting to be closed, and verifies the original source
+  hash including individual ballots, statement wording, topic and language.
+  It preserves the report's analysis, prose, common-ground package and original
+  finalization metadata. The new revision records its parent version and transcript
+  capture time; no AI request runs, and the previous version remains unchanged.
 - Expandable methodology and limitations.
 
 The opening limited-data banner is omitted when `few-voters` is the only saved

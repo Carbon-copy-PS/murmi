@@ -137,3 +137,22 @@ but still require evidence review before publication. Existing saved reports ret
 their old transcript availability and prose until a newly generated draft passes
 review and is published. A stronger semantic-generation safeguard requires a
 separate reviewed change; this release does not claim to solve model interpretation.
+
+## Transcript-only restoration
+
+After the user explicitly requested the transcript on the published report, a
+host-only attachment path was added. It creates a new draft from a published legacy
+report and the sanitized source transcript, without running analysis or AI. The
+legacy source hash must still match the current individual ballots, approved
+statement text, topic and language. Recording and voting must be closed. The
+original report's prose, profiles, common-ground package, counts and finalization
+metadata remain exactly as saved; the revision records its parent and capture time.
+Publication uses the existing host publish action, and the earlier snapshot is retained.
+
+Local validation passed 158 backend tests with disposable PostgreSQL and no skips,
+50 JavaScript tests, three render checks and the frontend build. Added coverage
+checks unchanged prose, frozen sanitized captions, rejection of changed ballots
+even with identical totals, host-only attachment, separate publication and database
+reload. A read-only preview against the live session matched its legacy source hash
+and preserved every non-attachment field. All 49 entries rendered at 1280px and
+390px without horizontal overflow. No model calls were made for this restoration.

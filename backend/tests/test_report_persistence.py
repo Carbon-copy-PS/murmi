@@ -16,6 +16,7 @@ from backend.app.analysis import AnalysisService
 from backend.app.db import Database
 from backend.app.opinion_themes import OpinionThemeService
 from backend.app.session import SessionManager
+from backend.app.reporting import _source_hash
 from backend.tools.model_experiment_fixtures import scenarios
 from backend.tools.traffic_report_fixture import traffic_narrative, traffic_themes
 
@@ -135,5 +136,50 @@ class ReportPersistenceTests(unittest.TestCase):
                 self.assertEqual(restored.common_ground_history[0]['endorsement'], original_approval)
                 self.assertEqual({s.id: s.votes for s in restored.statements}, original_votes)
                 self.assertEqual(client.get('/api/public/results/synthetic-report-test').json()['report'], published)
+
+                # A legacy report can receive a transcript without invoking AI or
+                # replacing its reviewed analysis. Publication remains host-only.
+                legacy = deepcopy(published)
+                legacy.pop('transcript')
+                legacy['presentationVersion'] = 'concise-report-v1'
+                legacy['sourceHash'] = _source_hash(restored, [s for s in restored.statements if s.approved], None)
+                manager.attach_report_snapshot(source.id, legacy)
+                client.portal.call(database.save_report_snapshot, restored, legacy)
+                with (
+                    patch.object(main, 'build_opinion_landscape', side_effect=AssertionError('No analysis regeneration')),
+                    patch.object(main.analysis, 'generate_report_narrative', side_effect=AssertionError('No AI regeneration')),
+                    client.websocket_connect('/ws/REPORTTEST') as host,
+                ):
+                    host.send_json({'type': 'join', 'clientId': host_client, 'name': 'Synthetic host', 'language': 'en'})
+                    receive_until(host, lambda m: m['type'] == 'joined')
+                    with client.websocket_connect('/ws/REPORTTEST') as guest:
+                        guest.send_json({'type': 'join', 'clientId': guest_client, 'name': 'Synthetic participant'})
+                        receive_until(guest, lambda m: m['type'] == 'joined')
+                        guest.send_json({'type': 'attach_report_transcript'})
+                        guest.send_json({'type': 'ping'})
+                        receive_until(guest, lambda m: m['type'] == 'pong')
+                        self.assertEqual(restored.report_version, 1)
+                        self.assertEqual(restored.report_status, 'published')
+                    host.send_json({'type': 'attach_report_transcript'})
+                    attached = receive_until(host, lambda m: m.get('reportStatus') == 'draft_ready')['report']
+                    self.assertEqual(attached['version'], 2)
+                    self.assertEqual(attached['transcript'], transcript)
+                    for key in ('narrative', 'opinionLandscape', 'commonGroundProposal', 'meta', 'evidence', 'analysis', 'story'):
+                        self.assertEqual(attached.get(key), legacy.get(key))
+                    self.assertNotIn('report', client.get('/api/public/results/synthetic-report-test').json())
+                    host.send_json({'type': 'publish_report'})
+                    attached = receive_until(host, lambda m: m.get('reportStatus') == 'published')['report']
+                    self.assertEqual(client.get('/api/public/results/synthetic-report-test').json()['report'], attached)
+                    host.send_json({'type': 'attach_report_transcript'})
+                    receive_until(host, lambda m: m['type'] == 'report_attachment_error')
+                    self.assertEqual(restored.report_snapshot, attached)
+                restored = client.portal.call(reload)
+                self.assertEqual(restored.report_snapshot, attached)
+                self.assertEqual({s.id: s.votes for s in restored.statements}, original_votes)
+                async def previous_version():
+                    async with database.engine.connect() as connection:
+                        result = await connection.execute(text("SELECT payload FROM report_snapshots WHERE session_id='REPORTTEST' AND version=1"))
+                        return result.scalar_one()
+                self.assertEqual(client.portal.call(previous_version), legacy)
             finally:
                 client.portal.call(cleanup)

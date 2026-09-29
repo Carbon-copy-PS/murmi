@@ -93,12 +93,11 @@ def report_transcript(session) -> list[dict]:
     return entries
 
 
-def _source_hash(session, statements: list, transcript: list) -> str:
+def _source_hash(session, statements: list, transcript: list | None) -> str:
     source = {
         "sessionId": session.id,
         "topic": session.topic,
         "language": getattr(session, "language", None),
-        "transcript": transcript,
         "statements": [
             {
                 "id": statement.id,
@@ -108,6 +107,9 @@ def _source_hash(session, statements: list, transcript: list) -> str:
             for statement in statements
         ],
     }
+    # Legacy reports hashed voting evidence before transcript snapshots existed.
+    if transcript is not None:
+        source["transcript"] = transcript
     encoded = json.dumps(
         source,
         ensure_ascii=False,
@@ -115,6 +117,41 @@ def _source_hash(session, statements: list, transcript: list) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def build_transcript_revision(session) -> dict:
+    """Attach source material to a legacy report without regenerating its prose."""
+    previous = session.report_snapshot
+    if (not previous or session.report_status != "published"
+            or session.recording or session.voting_open):
+        raise ValueError("A published report with recording and voting closed is required")
+    if (previous.get("presentationVersion") != "concise-report-v1"
+            or "transcript" in previous):
+        raise ValueError("This report already uses transcript snapshots")
+    statements = [statement for statement in session.statements if statement.approved]
+    if previous.get("sourceHash") != _source_hash(session, statements, None):
+        raise ValueError("Report evidence has changed; generate and review a new report")
+    transcript = report_transcript(session)
+    if not transcript:
+        raise ValueError("No recorded transcript is available")
+    now = time.time()
+    revision = deepcopy(previous)
+    revision.update({
+        "version": session.report_version + 1,
+        "status": "draft_ready",
+        "presentationVersion": REPORT_FORMAT_VERSION,
+        "generatedAt": now,
+        "publishedAt": None,
+        "sourceHash": _source_hash(session, statements, transcript),
+        "transcript": transcript,
+        "revision": {
+            "kind": "transcript-attachment-v1",
+            "previousVersion": previous["version"],
+            "previousSourceHash": previous["sourceHash"],
+            "transcriptCapturedAt": now,
+        },
+    })
+    return revision
 
 
 def _statement_result(statement, voter_count: int) -> dict:

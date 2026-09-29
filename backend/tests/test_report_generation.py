@@ -1,8 +1,9 @@
 import unittest
+from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
 from backend.app import main
-from backend.app.reporting import build_report_snapshot, freeze_report_source, narrative_evidence
+from backend.app.reporting import build_report_snapshot, build_transcript_revision, freeze_report_source, narrative_evidence, _source_hash
 from backend.app.session import Session, SessionManager, Statement
 
 
@@ -12,6 +13,68 @@ class ConnectionMustNotBeCopied:
 
 
 class ReportGenerationTests(unittest.IsolatedAsyncioTestCase):
+    def legacy_session(self):
+        session = Session(id="legacy-transcript", language="en", topic="Synthetic discussion", voting_open=False)
+        session.statements = [Statement(id="s1", text="Keep a staffed desk.", round=1, approved=True,
+                                        votes={"p1": "agree", "p2": "disagree"})]
+        session.transcript = [{"text": "Recorded words.", "speaker": "Recorder", "timestamp": 1700000000,
+                               "participantId": "private", "itemId": "provider-private"}]
+        previous = build_report_snapshot(session, 1)
+        previous.pop("transcript")
+        previous.update(presentationVersion="concise-report-v1", status="published",
+                        sourceHash=_source_hash(session, session.statements, None), publishedAt=1700000001)
+        previous["narrative"] = {"en": {"headline": "Reviewed report", "standfirst": "Keep the exact wording."}}
+        previous["opinionLandscape"] = {"themes": {"version": "older-version", "groups": [{"description": "Saved wording."}]}}
+        session.report_snapshot = previous
+        session.report_status, session.report_version = "published", 1
+        return session
+
+    def test_transcript_revision_preserves_reviewed_content_and_prior_snapshot(self):
+        session = self.legacy_session()
+        previous = deepcopy(session.report_snapshot)
+        revision = build_transcript_revision(session)
+        changed = {"version", "status", "presentationVersion", "generatedAt", "publishedAt", "sourceHash", "transcript", "revision"}
+        self.assertEqual({k: v for k, v in revision.items() if k not in changed},
+                         {k: v for k, v in previous.items() if k not in changed})
+        self.assertEqual(session.report_snapshot, previous)
+        self.assertEqual(revision["version"], 2)
+        self.assertEqual(revision["status"], "draft_ready")
+        self.assertEqual(revision["revision"]["previousSourceHash"], previous["sourceHash"])
+        self.assertEqual(revision["sourceHash"], build_report_snapshot(session, 2)["sourceHash"])
+        self.assertEqual(set(revision["transcript"][0]), {"text", "speaker", "timestamp", "transcriptionStatus"})
+        session.transcript[0]["text"] = "Later correction"
+        self.assertEqual(revision["transcript"][0]["text"], "Recorded words.")
+
+    def test_transcript_revision_rejects_changed_individual_votes_even_if_totals_match(self):
+        session = self.legacy_session()
+        session.statements[0].votes = {"p1": "disagree", "p2": "agree"}
+        with self.assertRaisesRegex(ValueError, "evidence has changed"):
+            build_transcript_revision(session)
+
+    def test_transcript_revision_rejects_changed_topic_language_or_statement(self):
+        for field in ("topic", "language", "statement"):
+            with self.subTest(field=field):
+                session = self.legacy_session()
+                if field == "statement":
+                    session.statements[0].text = "Different statement."
+                else:
+                    setattr(session, field, "changed")
+                with self.assertRaisesRegex(ValueError, "evidence has changed"):
+                    build_transcript_revision(session)
+
+    def test_transcript_revision_requires_closed_published_legacy_report_with_transcript(self):
+        for field, value in (("recording", True), ("voting_open", True), ("report_status", "generating"),
+                             ("report_status", "stale"), ("transcript", []), ("report_snapshot", None)):
+            with self.subTest(field=field, value=value):
+                session = self.legacy_session()
+                setattr(session, field, value)
+                with self.assertRaises(ValueError):
+                    build_transcript_revision(session)
+        session = self.legacy_session()
+        session.report_snapshot["transcript"] = []
+        with self.assertRaisesRegex(ValueError, "already uses"):
+            build_transcript_revision(session)
+
     async def test_report_uses_one_vote_snapshot_across_async_steps(self):
         manager = SessionManager()
         session = Session(id="report-test", participants={"p1": ConnectionMustNotBeCopied()})
