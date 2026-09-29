@@ -1,7 +1,8 @@
 # Report readability and sources release review — 2026-09-28
 
-Status: approved, pushed and deployed. The attempted report regeneration was
-withheld after evidence review; the previous published snapshot was restored.
+Status: approved, pushed and deployed. The regenerated prose was withheld after
+evidence review. A transcript-only revision is now published with the original
+reviewed report content preserved.
 
 Candidate branch: `codex/report-transcript`, based on production revision
 `fb295ca3297534a4f22e31767a727c20f966c446`.
@@ -156,3 +157,16 @@ even with identical totals, host-only attachment, separate publication and datab
 reload. A read-only preview against the live session matched its legacy source hash
 and preserved every non-attachment field. All 49 entries rendered at 1280px and
 390px without horizontal overflow. No model calls were made for this restoration.
+
+Deployed `87ef008c3d11f8a3df3d83177db4471a82b3bac4` after server validation
+(158 backend tests; the same three database tests skipped on the host and passed
+locally). Activation preserved all saved-table fingerprints and the existing public
+report. The host attachment action then created draft v2; after comparison with the
+reviewed preview, the normal host publication action published it at the existing
+Sovereign AI report URL. All 49 transcript entries are included. Public HTTP, the
+stored snapshot and the host WebSocket result matched. Source evidence, all original
+report content, the earlier report version and other sessions remained unchanged.
+The live reader opens and renders all 49 entries without browser console errors.
+The in-app browser still did not provide a download-completion event; text-export
+contents remain verified by the existing serializer tests. Protected release records
+and database backup are under `/home/ubuntu/backups/transcript-attachment-20260928`.
